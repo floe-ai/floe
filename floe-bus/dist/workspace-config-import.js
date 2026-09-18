@@ -1,0 +1,1012 @@
+import { createHash } from "node:crypto";
+import { actorDefinitionDigest, validateActorDefinition, } from "./actor-definitions.js";
+import { runtimeProfileDigest, validateRuntimeProfile, } from "./runtime-profiles.js";
+import { REFRESH_CREDENTIAL_OPERATION_ID, USE_CREDENTIAL_OPERATION_ID, } from "./credential-operations.js";
+/**
+ * Versioned compatibility authority for legacy model Actors. This is an
+ * explicit migration policy, not a projection of everything in the Registry.
+ * New Registry operations never enter imported Actor grants automatically.
+ */
+export const LEGACY_WORKSPACE_MODEL_ACTOR_OPERATION_IDS_V1 = Object.freeze([
+    "actor.create",
+    "actor.definition.draft.create",
+    "actor.definition.draft.replace",
+    "actor.definition.get",
+    "actor.definition.publish",
+    "actor.definition.rollback",
+    "actor.inspect",
+    "actor.list",
+    "actor.reactivate",
+    "actor.retire",
+    "actor.runtime-binding.create",
+    "actor.runtime-binding.get",
+    "actor.runtime-binding.inspect",
+    "actor.runtime-binding.replace",
+    "approval.inspect",
+    "approval.list",
+    "approval.request",
+    "artefact.create",
+    "artefact.inspect",
+    "artefact.search",
+    "artefact.version.publish",
+    "connector.inspect",
+    REFRESH_CREDENTIAL_OPERATION_ID,
+    "context.archive",
+    "context.communication.emit",
+    "context.create",
+    "context.get",
+    "context.inspect",
+    "context.list",
+    "context.participant.remove",
+    "context.participant.set_access",
+    "context.restore",
+    "extension.inspect",
+    "extension.list",
+    "extension.package.get",
+    "extension.schema.discover",
+    "runtime-profile.create",
+    "runtime-profile.draft.create",
+    "runtime-profile.draft.replace",
+    "runtime-profile.inspect",
+    "runtime-profile.list",
+    "runtime-profile.publish",
+    "runtime-profile.reactivate",
+    "runtime-profile.retire",
+    "runtime-profile.revision.get",
+    "runtime-profile.rollback",
+    "scope.create",
+    "scope.list",
+    "scope.composition.draft.create",
+    "scope.composition.draft.replace",
+    "scope.composition.clone",
+    "scope.composition.compare",
+    "scope.composition.export",
+    "scope.composition.impact.inspect",
+    "scope.composition.import",
+    "scope.composition.publish",
+    "scope.composition.rollback",
+    "scope.composition.simulate",
+    "scope.composition.validate",
+    "scope.execution.inspect",
+    "scope.execution.pause",
+    "scope.execution.redo",
+    "scope.execution.resume",
+    "scope.execution.start",
+    "scope.execution.stop",
+    "scope.node-execution.retry",
+    "scope.node-output.publish",
+    "scope.plan.inspect",
+    "workspace.inspect",
+    USE_CREDENTIAL_OPERATION_ID,
+]);
+export class WorkspaceConfigurationImportBoundaryError extends Error {
+    code = "workspace_binding_mismatch";
+    retryable = false;
+    constructor() {
+        super("The authenticated Bridge does not own the exact current Workspace binding.");
+        this.name = "WorkspaceConfigurationImportBoundaryError";
+    }
+}
+export class WorkspaceConfigurationInventoryValidationError extends Error {
+    reason;
+    code = "workspace_configuration_inventory_invalid";
+    retryable = false;
+    constructor(reason) {
+        super(`Workspace configuration inventory is invalid: ${reason}`);
+        this.reason = reason;
+        this.name = "WorkspaceConfigurationInventoryValidationError";
+    }
+}
+export class WorkspaceConfigurationApplyError extends Error {
+    code = "workspace_configuration_apply_failed";
+    retryable = true;
+    constructor() {
+        super("The canonical Workspace configuration import was rolled back before it completed.");
+        this.name = "WorkspaceConfigurationApplyError";
+    }
+}
+export class WorkspaceConfigurationPolicyError extends Error {
+    reason;
+    code = "workspace_configuration_policy_invalid";
+    retryable = false;
+    constructor(reason) {
+        super(`Workspace configuration import policy is invalid: ${reason}`);
+        this.reason = reason;
+        this.name = "WorkspaceConfigurationPolicyError";
+    }
+}
+/**
+ * Installs import evidence only. Canonical configuration remains in the Actor,
+ * Runtime Profile, Runtime Binding, CapabilityGrant, and SecretRef stores.
+ */
+export function applyWorkspaceConfigurationImportSchema(db) {
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS workspace_configuration_import_policies (
+      workspace_id TEXT NOT NULL,
+      policy_revision TEXT NOT NULL,
+      policy_digest TEXT NOT NULL,
+      registered_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, policy_revision)
+    );
+
+    CREATE TABLE IF NOT EXISTS workspace_configuration_import_receipts (
+      import_receipt_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      binding_id TEXT NOT NULL,
+      config_hash TEXT NOT NULL,
+      inventory_digest TEXT NOT NULL,
+      importer_version TEXT NOT NULL,
+      policy_revision TEXT NOT NULL,
+      policy_digest TEXT NOT NULL,
+      outcome TEXT NOT NULL CHECK (outcome IN ('applied', 'refused')),
+      imported_actors_json TEXT NOT NULL,
+      preserved_actor_ids_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      refusal_json TEXT,
+      created_at TEXT NOT NULL,
+      UNIQUE(workspace_id, binding_id, inventory_digest, policy_digest)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_workspace_configuration_import_receipts
+      ON workspace_configuration_import_receipts(workspace_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS workspace_configuration_import_resources (
+      workspace_id TEXT NOT NULL,
+      source_actor_id TEXT NOT NULL,
+      actor_id TEXT NOT NULL,
+      runtime_profile_id TEXT NOT NULL,
+      last_actor_definition_revision_id TEXT NOT NULL,
+      last_runtime_profile_revision_id TEXT NOT NULL,
+      last_actor_runtime_binding_id TEXT NOT NULL,
+      first_import_receipt_id TEXT NOT NULL
+        REFERENCES workspace_configuration_import_receipts(import_receipt_id),
+      last_import_receipt_id TEXT NOT NULL
+        REFERENCES workspace_configuration_import_receipts(import_receipt_id),
+      PRIMARY KEY (workspace_id, source_actor_id),
+      UNIQUE(actor_id),
+      UNIQUE(runtime_profile_id)
+    );
+  `);
+}
+/**
+ * Bounded compatibility adapter from existing Workspace files to canonical
+ * records. It never retains the input snapshot and never reads secret values.
+ */
+export class WorkspaceConfigurationImportStore {
+    dependencies;
+    now;
+    constructor(dependencies) {
+        this.dependencies = dependencies;
+        this.now = dependencies.now ?? (() => new Date().toISOString());
+        applyWorkspaceConfigurationImportSchema(dependencies.db);
+    }
+    import(workspaceIdValue, inventoryValue) {
+        const workspaceId = requiredText(workspaceIdValue, "workspace_id");
+        const inventory = normalizeInventory(inventoryValue);
+        this.requireCurrentBinding(workspaceId, inventory.binding_id);
+        const policy = normalizePolicy(this.dependencies.policy_for_inventory(workspaceId, inventory));
+        const policyDigest = sha256(canonicalJson(policy));
+        this.requireCompatiblePolicyRevision(workspaceId, policy.policy_revision, policyDigest);
+        const inventoryDigest = sha256(canonicalJson(inventory));
+        const receiptId = workspaceConfigurationImportReceiptId(workspaceId, inventory.binding_id, inventoryDigest, policyDigest);
+        const existing = this.getReceipt(workspaceId, receiptId);
+        if (existing)
+            return { replayed: true, receipt: existing };
+        if (Date.parse(policy.expires_at) <= Date.parse(this.now())) {
+            throw new WorkspaceConfigurationPolicyError("expiry must be in the future for a new import");
+        }
+        const currentOperationIds = new Set(this.dependencies.operation_registry.listCurrentOperationIds({
+            interaction_mode: "unattended",
+            boundary_kind: "workspace",
+        }));
+        const unknownOperationIds = policy.actor_operation_authority
+            .flatMap((entry) => entry.operation_ids)
+            .filter((operationId) => !currentOperationIds.has(operationId));
+        if (unknownOperationIds.length > 0) {
+            throw new WorkspaceConfigurationPolicyError(`import policy names unregistered Workspace operation '${unknownOperationIds[0]}'`);
+        }
+        if (!inventory.validation.ok || inventory.validation.issues.some((issue) => issue.severity === "error")) {
+            return {
+                replayed: false,
+                receipt: this.recordRefusal({
+                    receipt_id: receiptId,
+                    workspace_id: workspaceId,
+                    inventory,
+                    inventory_digest: inventoryDigest,
+                    policy_revision: policy.policy_revision,
+                    policy_digest: policyDigest,
+                    refusal: {
+                        code: "workspace_configuration_invalid",
+                        message: "The Workspace files did not pass validation, so no canonical records were changed.",
+                        retryable: false,
+                    },
+                }),
+            };
+        }
+        const preflight = this.preflight(workspaceId, inventory, policy);
+        if (preflight) {
+            return {
+                replayed: false,
+                receipt: this.recordRefusal({
+                    receipt_id: receiptId,
+                    workspace_id: workspaceId,
+                    inventory,
+                    inventory_digest: inventoryDigest,
+                    policy_revision: policy.policy_revision,
+                    policy_digest: policyDigest,
+                    refusal: preflight,
+                }),
+            };
+        }
+        let receipt;
+        try {
+            inSavepoint(this.dependencies.db, () => {
+                // Close the rebind race between transport authentication/preflight and
+                // the canonical write transaction.
+                this.requireCurrentBinding(workspaceId, inventory.binding_id);
+                this.ensurePolicyRevision(workspaceId, policy.policy_revision, policyDigest);
+                const importedActors = [];
+                const sourceActorIds = new Set(inventory.actors.map((actor) => workspaceConfigurationActorId(workspaceId, actor.source_actor_id)));
+                const preservedActorIds = this.dependencies.actor_definitions
+                    .listActors(workspaceId, { include_retired: true })
+                    .map((actor) => actor.actor_id)
+                    .filter((actorId) => !sourceActorIds.has(actorId))
+                    .sort((left, right) => left.localeCompare(right));
+                for (const input of inventory.actors) {
+                    importedActors.push(this.applyActor(workspaceId, input, policy));
+                }
+                receipt = this.insertReceipt({
+                    import_receipt_id: receiptId,
+                    workspace_id: workspaceId,
+                    binding_id: inventory.binding_id,
+                    config_hash: inventory.config_hash,
+                    inventory_digest: inventoryDigest,
+                    importer_version: "1",
+                    policy_revision: policy.policy_revision,
+                    policy_digest: policyDigest,
+                    outcome: "applied",
+                    imported_actors: importedActors,
+                    preserved_actor_ids: preservedActorIds,
+                    validation: inventory.validation,
+                    refusal: null,
+                    created_at: this.now(),
+                });
+                for (const imported of importedActors) {
+                    this.dependencies.db.prepare(`
+            INSERT INTO workspace_configuration_import_resources (
+              workspace_id, source_actor_id, actor_id, runtime_profile_id,
+              last_actor_definition_revision_id, last_runtime_profile_revision_id,
+              last_actor_runtime_binding_id, first_import_receipt_id,
+              last_import_receipt_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(workspace_id, source_actor_id) DO UPDATE SET
+              last_actor_definition_revision_id = excluded.last_actor_definition_revision_id,
+              last_runtime_profile_revision_id = excluded.last_runtime_profile_revision_id,
+              last_actor_runtime_binding_id = excluded.last_actor_runtime_binding_id,
+              last_import_receipt_id = excluded.last_import_receipt_id
+          `).run(workspaceId, imported.source_actor_id, imported.actor_id, imported.runtime_profile_id, imported.actor_definition_revision_id, imported.runtime_profile_revision_id, imported.actor_runtime_binding_id, receiptId, receiptId);
+                }
+            });
+        }
+        catch (error) {
+            if (error instanceof WorkspaceConfigurationImportBoundaryError)
+                throw error;
+            // A failed transaction has no stable semantic result to replay. Keep the
+            // request retryable rather than persisting a refusal under its idempotency
+            // identity and permanently blocking the same safe retry.
+            throw new WorkspaceConfigurationApplyError();
+        }
+        return { replayed: false, receipt };
+    }
+    getReceipt(workspaceId, receiptId) {
+        const row = this.dependencies.db.prepare(`
+      SELECT * FROM workspace_configuration_import_receipts
+      WHERE workspace_id = ? AND import_receipt_id = ?
+    `).get(requiredText(workspaceId, "workspace_id"), requiredText(receiptId, "import_receipt_id"));
+        return row ? receiptFromRow(row) : null;
+    }
+    listReceipts(workspaceId) {
+        return this.dependencies.db.prepare(`
+      SELECT * FROM workspace_configuration_import_receipts
+      WHERE workspace_id = ? ORDER BY created_at DESC, import_receipt_id DESC
+    `).all(requiredText(workspaceId, "workspace_id")).map(receiptFromRow);
+    }
+    requireCurrentBinding(workspaceId, bindingId) {
+        try {
+            this.dependencies.require_current_binding(workspaceId, bindingId);
+        }
+        catch {
+            // Boundary failures are not written under an unverified Workspace identity.
+            throw new WorkspaceConfigurationImportBoundaryError();
+        }
+    }
+    requireCompatiblePolicyRevision(workspaceId, policyRevision, policyDigest) {
+        const row = this.dependencies.db.prepare(`
+      SELECT policy_digest
+      FROM workspace_configuration_import_policies
+      WHERE workspace_id = ? AND policy_revision = ?
+    `).get(workspaceId, policyRevision);
+        if (row && row.policy_digest !== policyDigest) {
+            throw new WorkspaceConfigurationPolicyError(`revision '${policyRevision}' was already registered with different content`);
+        }
+    }
+    ensurePolicyRevision(workspaceId, policyRevision, policyDigest) {
+        this.requireCompatiblePolicyRevision(workspaceId, policyRevision, policyDigest);
+        this.dependencies.db.prepare(`
+      INSERT INTO workspace_configuration_import_policies (
+        workspace_id, policy_revision, policy_digest, registered_at
+      ) VALUES (?, ?, ?, ?)
+      ON CONFLICT(workspace_id, policy_revision) DO NOTHING
+    `).run(workspaceId, policyRevision, policyDigest, this.now());
+    }
+    preflight(workspaceId, inventory, policy) {
+        for (const input of inventory.actors) {
+            const actorId = workspaceConfigurationActorId(workspaceId, input.source_actor_id);
+            const profileId = workspaceConfigurationRuntimeProfileId(actorId);
+            const operationIds = actorOperationIds(policy, input.source_actor_id);
+            const generalOperationIds = operationIds ? nonCredentialOperationIds(operationIds) : [];
+            const grantId = generalOperationIds.length > 0
+                ? workspaceConfigurationGrantId(workspaceId, actorId, policy, generalOperationIds)
+                : null;
+            try {
+                validateActorDefinition(actorDefinition(input, [grantId].filter(isText)));
+                validateRuntimeProfile(runtimeProfile(input));
+            }
+            catch {
+                return invalidConfiguration("The Workspace Actor or Runtime configuration is not valid canonical input.");
+            }
+            const ownership = this.getOwnership(workspaceId, input.source_actor_id);
+            if (ownership && (ownership.actor_id !== actorId
+                || ownership.runtime_profile_id !== profileId)) {
+                return conflict("The existing Workspace import ownership record identifies different canonical resources.");
+            }
+            const actor = this.dependencies.actor_definitions.getActor(actorId);
+            const currentBinding = this.dependencies.runtime_profiles.getCurrentActorBinding(actorId);
+            const profile = this.dependencies.runtime_profiles.getProfile(profileId);
+            if (ownership && (actor?.current_definition_revision_id !== ownership.last_actor_definition_revision_id
+                || profile?.current_revision_id !== ownership.last_runtime_profile_revision_id
+                || currentBinding?.actor_runtime_binding_id !== ownership.last_actor_runtime_binding_id)) {
+                return conflict("Canonical Actor or Runtime state changed outside the Workspace import boundary.");
+            }
+            if (actor && actor.workspace_id !== workspaceId) {
+                return conflict("A canonical Actor with the imported identity belongs to another Workspace.");
+            }
+            if (actor?.status === "retired") {
+                return conflict("A retired canonical Actor cannot be silently reactivated by Workspace import.");
+            }
+            if (ownership && actor?.current_definition_revision_id) {
+                const previous = this.dependencies.actor_definitions.requireRevision(actor.current_definition_revision_id);
+                if (previous.content.capability_grant_ids.some(id => this.dependencies.capability_grants.getGrant(id)?.revoked_at)) {
+                    return conflict("Workspace import cannot replace explicitly revoked Actor authority with a renewed policy grant.");
+                }
+            }
+            if (actor && !ownership) {
+                const desired = actorDefinition(input, [grantId].filter(isText));
+                const current = actor.current_definition_revision_id
+                    ? this.dependencies.actor_definitions.requireRevision(actor.current_definition_revision_id)
+                    : null;
+                if (!current || current.semantic_digest !== actorDefinitionDigest(desired)) {
+                    return conflict("Workspace import would replace an independently managed canonical Actor.");
+                }
+            }
+            if (profile && (profile.owner.kind !== "workspace" || profile.owner.id !== workspaceId)) {
+                return conflict("A canonical Runtime Profile with the imported identity belongs to another owner.");
+            }
+            if (profile?.status === "retired") {
+                return conflict("A retired canonical Runtime Profile cannot be silently reactivated by Workspace import.");
+            }
+            if (profile && !ownership) {
+                const desired = runtimeProfile(input);
+                const current = profile.current_revision_id
+                    ? this.dependencies.runtime_profiles.requireRevision(profile.current_revision_id)
+                    : null;
+                if (!current || current.semantic_digest !== runtimeProfileDigest(desired)) {
+                    return conflict("Workspace import would replace an independently managed canonical Runtime Profile.");
+                }
+            }
+            if (grantId) {
+                const grant = this.dependencies.capability_grants.getGrant(grantId);
+                if (grant && !sameGrant(grant, workspaceId, actorId, policy, generalOperationIds)) {
+                    return conflict("The deterministic migration CapabilityGrant identifies different authority.");
+                }
+                if (grant?.revoked_at) {
+                    return conflict("A revoked migration CapabilityGrant cannot be silently revived.");
+                }
+            }
+            if (currentBinding?.status === "disabled") {
+                return conflict("A disabled Actor Runtime Binding cannot be silently re-enabled by Workspace import.");
+            }
+        }
+        return null;
+    }
+    applyActor(workspaceId, input, policy) {
+        const actorId = workspaceConfigurationActorId(workspaceId, input.source_actor_id);
+        const profileId = workspaceConfigurationRuntimeProfileId(actorId);
+        const operationIds = actorOperationIds(policy, input.source_actor_id);
+        const generalOperationIds = operationIds ? nonCredentialOperationIds(operationIds) : [];
+        const grant = generalOperationIds.length > 0
+            ? this.ensureGrant(workspaceId, actorId, policy, generalOperationIds)
+            : null;
+        const capabilityGrantIds = [grant?.grant_id].filter(isText);
+        const actorRevision = this.ensureActorDefinition(workspaceId, actorId, input, capabilityGrantIds, policy.import_principal_id);
+        const profileRevision = this.ensureRuntimeProfile(workspaceId, profileId, input, policy.import_principal_id);
+        const status = runtimeBindingStatus(input, operationIds !== null);
+        const currentBinding = this.dependencies.runtime_profiles.getCurrentActorBinding(actorId);
+        const endpointId = actorId;
+        const binding = currentBinding
+            && currentBinding.runtime_profile_revision_id === profileRevision.runtime_profile_revision_id
+            && currentBinding.endpoint_id === endpointId
+            && currentBinding.status === status.status
+            && sameStrings(currentBinding.unresolved_reasons, status.reasons)
+            ? currentBinding
+            : this.dependencies.runtime_profiles.bindActor({
+                actor_id: actorId,
+                runtime_profile_revision_id: profileRevision.runtime_profile_revision_id,
+                endpoint_id: endpointId,
+                status: status.status,
+                unresolved_reasons: status.reasons,
+                expected_current_binding_id: currentBinding?.actor_runtime_binding_id ?? null,
+                created_by_principal_id: policy.import_principal_id,
+            });
+        return {
+            source_actor_id: input.source_actor_id,
+            actor_id: actorId,
+            actor_definition_revision_id: actorRevision.actor_definition_revision_id,
+            capability_grant_id: grant?.grant_id ?? null,
+            capability_grant_ids: capabilityGrantIds,
+            runtime_profile_id: profileId,
+            runtime_profile_revision_id: profileRevision.runtime_profile_revision_id,
+            actor_runtime_binding_id: binding.actor_runtime_binding_id,
+            runtime_status: binding.status,
+            unresolved_reasons: binding.unresolved_reasons,
+            secret_ref_ids: [],
+        };
+    }
+    ensureGrant(workspaceId, actorId, policy, operationIds) {
+        const grantId = workspaceConfigurationGrantId(workspaceId, actorId, policy, operationIds);
+        const existing = this.dependencies.capability_grants.getGrant(grantId);
+        if (existing)
+            return existing;
+        return this.dependencies.capability_grants.issueGrant({
+            grant_id: grantId,
+            principal_id: actorId,
+            boundary: { kind: "workspace", workspace_id: workspaceId },
+            operation_ids: operationIds,
+            expires_at: policy.expires_at,
+            issuer_id: policy.issuer_id,
+            evidence: [{
+                    kind: "workspace_configuration_import_policy",
+                    ref: policy.policy_revision,
+                }],
+        });
+    }
+    ensureActorDefinition(workspaceId, actorId, input, grantIds, principalId) {
+        const definition = actorDefinition(input, grantIds);
+        const actor = this.dependencies.actor_definitions.getActor(actorId);
+        if (!actor) {
+            const created = this.dependencies.actor_definitions.createActor({
+                actor_id: actorId,
+                workspace_id: workspaceId,
+                created_by_principal_id: principalId,
+                definition,
+            });
+            return this.dependencies.actor_definitions.publishDraft({
+                actor_definition_revision_id: created.draft.actor_definition_revision_id,
+                expected_current_revision_id: null,
+                changed_by_principal_id: principalId,
+            });
+        }
+        const current = actor.current_definition_revision_id
+            ? this.dependencies.actor_definitions.requireRevision(actor.current_definition_revision_id)
+            : null;
+        if (current?.semantic_digest === actorDefinitionDigest(definition))
+            return current;
+        const draft = this.dependencies.actor_definitions.createDraft({
+            actor_id: actorId,
+            based_on_revision_id: actor.current_definition_revision_id,
+            created_by_principal_id: principalId,
+            definition,
+        });
+        return this.dependencies.actor_definitions.publishDraft({
+            actor_definition_revision_id: draft.actor_definition_revision_id,
+            expected_current_revision_id: actor.current_definition_revision_id,
+            changed_by_principal_id: principalId,
+        });
+    }
+    ensureRuntimeProfile(workspaceId, profileId, input, principalId) {
+        const content = runtimeProfile(input);
+        const profile = this.dependencies.runtime_profiles.getProfile(profileId);
+        if (!profile) {
+            const created = this.dependencies.runtime_profiles.createProfile({
+                runtime_profile_id: profileId,
+                owner: { kind: "workspace", id: workspaceId },
+                created_by_principal_id: principalId,
+                content,
+            });
+            return this.dependencies.runtime_profiles.publishDraft({
+                runtime_profile_revision_id: created.draft.runtime_profile_revision_id,
+                expected_current_revision_id: null,
+                changed_by_principal_id: principalId,
+            });
+        }
+        const current = profile.current_revision_id
+            ? this.dependencies.runtime_profiles.requireRevision(profile.current_revision_id)
+            : null;
+        if (current?.semantic_digest === runtimeProfileDigest(content))
+            return current;
+        const draft = this.dependencies.runtime_profiles.createDraft({
+            runtime_profile_id: profileId,
+            based_on_revision_id: profile.current_revision_id,
+            created_by_principal_id: principalId,
+            content,
+        });
+        return this.dependencies.runtime_profiles.publishDraft({
+            runtime_profile_revision_id: draft.runtime_profile_revision_id,
+            expected_current_revision_id: profile.current_revision_id,
+            changed_by_principal_id: principalId,
+        });
+    }
+    getOwnership(workspaceId, sourceActorId) {
+        const row = this.dependencies.db.prepare(`
+      SELECT actor_id, runtime_profile_id
+           , last_actor_definition_revision_id, last_runtime_profile_revision_id,
+             last_actor_runtime_binding_id
+      FROM workspace_configuration_import_resources
+      WHERE workspace_id = ? AND source_actor_id = ?
+    `).get(workspaceId, sourceActorId);
+        return row ?? null;
+    }
+    recordRefusal(input) {
+        return inSavepoint(this.dependencies.db, () => {
+            this.requireCurrentBinding(input.workspace_id, input.inventory.binding_id);
+            this.ensurePolicyRevision(input.workspace_id, input.policy_revision, input.policy_digest);
+            return this.insertReceipt({
+                import_receipt_id: input.receipt_id,
+                workspace_id: input.workspace_id,
+                binding_id: input.inventory.binding_id,
+                config_hash: input.inventory.config_hash,
+                inventory_digest: input.inventory_digest,
+                importer_version: "1",
+                policy_revision: input.policy_revision,
+                policy_digest: input.policy_digest,
+                outcome: "refused",
+                imported_actors: [],
+                preserved_actor_ids: this.dependencies.actor_definitions
+                    .listActors(input.workspace_id, { include_retired: true })
+                    .map((actor) => actor.actor_id)
+                    .sort((left, right) => left.localeCompare(right)),
+                validation: input.inventory.validation,
+                refusal: input.refusal,
+                created_at: this.now(),
+            });
+        });
+    }
+    insertReceipt(receipt) {
+        this.dependencies.db.prepare(`
+      INSERT INTO workspace_configuration_import_receipts (
+        import_receipt_id, workspace_id, binding_id, config_hash,
+        inventory_digest, importer_version, policy_revision, policy_digest, outcome,
+        imported_actors_json, preserved_actor_ids_json, validation_json,
+        refusal_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(receipt.import_receipt_id, receipt.workspace_id, receipt.binding_id, receipt.config_hash, receipt.inventory_digest, receipt.importer_version, receipt.policy_revision, receipt.policy_digest, receipt.outcome, JSON.stringify(receipt.imported_actors), JSON.stringify(receipt.preserved_actor_ids), JSON.stringify(receipt.validation), receipt.refusal ? JSON.stringify(receipt.refusal) : null, receipt.created_at);
+        return this.getReceipt(receipt.workspace_id, receipt.import_receipt_id);
+    }
+}
+export function workspaceConfigurationActorId(workspaceId, sourceActorId) {
+    return `actor:${requiredText(workspaceId, "workspace_id")}:${requiredText(sourceActorId, "source_actor_id")}`;
+}
+export function workspaceConfigurationRuntimeProfileId(actorId) {
+    return `runtime-profile:${requiredText(actorId, "actor_id")}`;
+}
+export function workspaceConfigurationGrantId(workspaceId, actorId, policy, operationIds) {
+    return `capgrant_workspace_import_${digest(canonicalJson({
+        workspace_id: workspaceId,
+        actor_id: actorId,
+        policy_revision: policy.policy_revision,
+        operation_ids: normalizeTextSet(operationIds, "operation_id", true),
+        expires_at: policy.expires_at,
+        issuer_id: policy.issuer_id,
+    })).slice(0, 32)}`;
+}
+export function workspaceConfigurationImportReceiptId(workspaceId, bindingId, inventoryDigest, policyDigest) {
+    return `workspace_config_import_${digest(`${workspaceId}\0${bindingId}\0${inventoryDigest}\0${policyDigest}`).slice(0, 32)}`;
+}
+function actorDefinition(input, grantIds) {
+    return {
+        ...input.definition,
+        capability_grant_ids: [...grantIds].sort((left, right) => left.localeCompare(right)),
+    };
+}
+function runtimeProfile(input) {
+    return {
+        label: input.runtime.label,
+        backing_kind: input.runtime.backing_kind,
+        adapter_id: input.runtime.adapter_id,
+        configuration: input.runtime.configuration,
+        secret_ref_ids: [],
+        required_capability_ids: input.runtime.required_capability_ids,
+        checkpoint_policy: input.runtime.checkpoint_policy,
+        resource_policy: input.runtime.resource_policy,
+    };
+}
+function runtimeBindingStatus(input, hasExplicitOperationAuthority) {
+    const reasons = [];
+    if (!hasExplicitOperationAuthority)
+        reasons.push("operation_authority_unmapped");
+    if (input.runtime.credential_requirement === "required") {
+        reasons.push("runtime_credential_unresolved");
+    }
+    for (const key of input.runtime.required_configuration_keys) {
+        const value = input.runtime.configuration[key];
+        if (value === undefined || value === null || value === "") {
+            reasons.push(`runtime_configuration_missing:${key}`);
+        }
+    }
+    const normalized = [...new Set(reasons)].sort((left, right) => left.localeCompare(right));
+    return normalized.length > 0
+        ? { status: "unresolved", reasons: normalized }
+        : { status: "resolved", reasons: [] };
+}
+function normalizePolicy(value) {
+    const expiresAt = requiredText(value.expires_at, "policy expires_at");
+    if (!Number.isFinite(Date.parse(expiresAt))) {
+        throw new WorkspaceConfigurationPolicyError("expiry must be a valid timestamp");
+    }
+    return {
+        policy_revision: requiredText(value.policy_revision, "policy_revision"),
+        actor_operation_authority: normalizeActorOperationAuthority(value.actor_operation_authority),
+        expires_at: expiresAt,
+        issuer_id: requiredText(value.issuer_id, "issuer_id"),
+        import_principal_id: requiredText(value.import_principal_id, "import_principal_id"),
+    };
+}
+function normalizeActorOperationAuthority(value) {
+    if (!Array.isArray(value)) {
+        throw new WorkspaceConfigurationInventoryValidationError("actor_operation_authority must be an explicit per-Actor list");
+    }
+    const entries = value.map((item, index) => {
+        const entry = exactObject(item, ["source_actor_id", "operation_ids"], `actor_operation_authority[${index}]`);
+        if (!Array.isArray(entry.operation_ids)) {
+            throw new WorkspaceConfigurationInventoryValidationError(`actor_operation_authority[${index}].operation_ids must be an array`);
+        }
+        return {
+            source_actor_id: requiredText(entry.source_actor_id, `actor_operation_authority[${index}].source_actor_id`),
+            operation_ids: normalizeUnknownTextSet(entry.operation_ids, `actor_operation_authority[${index}].operation_id`),
+        };
+    }).sort((left, right) => left.source_actor_id.localeCompare(right.source_actor_id));
+    unique(entries.map((entry) => entry.source_actor_id), "actor operation-authority source_actor_id");
+    return entries;
+}
+function actorOperationIds(policy, sourceActorId) {
+    return policy.actor_operation_authority
+        .find((entry) => entry.source_actor_id === sourceActorId)
+        ?.operation_ids ?? null;
+}
+function nonCredentialOperationIds(operationIds) {
+    return operationIds.filter((operationId) => operationId !== USE_CREDENTIAL_OPERATION_ID && operationId !== REFRESH_CREDENTIAL_OPERATION_ID);
+}
+function isText(value) {
+    return typeof value === "string" && value.length > 0;
+}
+function normalizeInventory(value) {
+    const document = exactObject(value, [
+        "schema", "importer_version", "binding_id", "config_hash", "source", "validation", "actors",
+    ], "document");
+    if (document.schema !== "floe.workspace-configuration-inventory.v1") {
+        throw new WorkspaceConfigurationInventoryValidationError("schema is unsupported");
+    }
+    if (document.importer_version !== "1") {
+        throw new WorkspaceConfigurationInventoryValidationError("importer_version is unsupported");
+    }
+    const configHash = digestText(document.config_hash, "config_hash");
+    const source = exactObject(document.source, ["kind", "manifest_ref"], "source");
+    if (source.kind !== "workspace_files" || source.manifest_ref !== ".floe/floe.yaml") {
+        throw new WorkspaceConfigurationInventoryValidationError("source must identify .floe/floe.yaml");
+    }
+    const validationValue = exactObject(document.validation, ["ok", "issues"], "validation");
+    if (typeof validationValue.ok !== "boolean" || !Array.isArray(validationValue.issues)) {
+        throw new WorkspaceConfigurationInventoryValidationError("validation is malformed");
+    }
+    const issues = validationValue.issues.map((issue, index) => normalizeIssue(issue, index));
+    if (!Array.isArray(document.actors)) {
+        throw new WorkspaceConfigurationInventoryValidationError("actors must be an array");
+    }
+    const actors = document.actors
+        .map((actor, index) => normalizeActor(actor, index))
+        .sort((left, right) => left.source_actor_id.localeCompare(right.source_actor_id));
+    unique(actors.map((actor) => actor.source_actor_id), "source_actor_id");
+    return {
+        schema: "floe.workspace-configuration-inventory.v1",
+        importer_version: "1",
+        binding_id: requiredText(document.binding_id, "binding_id"),
+        config_hash: configHash,
+        source: { kind: "workspace_files", manifest_ref: ".floe/floe.yaml" },
+        validation: {
+            ok: validationValue.ok,
+            issues: issues.sort((left, right) => left.severity.localeCompare(right.severity)
+                || left.code.localeCompare(right.code)
+                || (left.source_ref ?? "").localeCompare(right.source_ref ?? "")),
+        },
+        actors,
+    };
+}
+function normalizeIssue(value, index) {
+    const issue = exactObject(value, ["severity", "code", "source_ref"], `validation.issues[${index}]`);
+    if (issue.severity !== "warning" && issue.severity !== "error") {
+        throw new WorkspaceConfigurationInventoryValidationError(`validation.issues[${index}].severity is invalid`);
+    }
+    return {
+        severity: issue.severity,
+        code: requiredText(issue.code, `validation.issues[${index}].code`),
+        source_ref: issue.source_ref == null ? null : safeRelativePath(issue.source_ref, `validation.issues[${index}].source_ref`),
+    };
+}
+function normalizeActor(value, index) {
+    const path = `actors[${index}]`;
+    const actor = exactObject(value, ["source_actor_id", "source", "definition", "runtime"], path);
+    const source = exactObject(actor.source, ["kind", "path", "source_fingerprint"], `${path}.source`);
+    if (source.kind !== "workspace_actor_file") {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.source.kind is invalid`);
+    }
+    const definition = exactObject(actor.definition, [
+        "label", "charter", "responsibilities", "instructions", "knowledge_refs", "policy_refs", "escalation_rules",
+    ], `${path}.definition`);
+    const runtime = exactObject(actor.runtime, [
+        "label", "backing_kind", "adapter_id", "configuration", "required_capability_ids",
+        "checkpoint_policy", "resource_policy", "credential_requirement",
+        "required_configuration_keys",
+    ], `${path}.runtime`);
+    const policyRefs = exactObject(definition.policy_refs, ["budget", "trust", "approval"], `${path}.definition.policy_refs`);
+    if (!Array.isArray(definition.responsibilities)
+        || !Array.isArray(definition.knowledge_refs)
+        || !Array.isArray(definition.escalation_rules)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.definition lists are malformed`);
+    }
+    if (!Array.isArray(runtime.required_capability_ids) || !Array.isArray(runtime.required_configuration_keys)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime requirement lists are malformed`);
+    }
+    const checkpoint = exactObject(runtime.checkpoint_policy, ["mode", "schema_ref"], `${path}.runtime.checkpoint_policy`);
+    if (!["none", "provider_neutral", "required"].includes(checkpoint.mode)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.checkpoint_policy.mode is invalid`);
+    }
+    if (!["model", "service", "team"].includes(runtime.backing_kind)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.backing_kind is invalid`);
+    }
+    if (runtime.credential_requirement !== "none" && runtime.credential_requirement !== "required") {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.credential_requirement is invalid`);
+    }
+    const configuration = safeJsonObject(runtime.configuration, `${path}.runtime.configuration`);
+    const resourcePolicy = safeJsonObject(runtime.resource_policy, `${path}.runtime.resource_policy`);
+    const normalized = {
+        source_actor_id: requiredText(actor.source_actor_id, `${path}.source_actor_id`),
+        source: {
+            kind: "workspace_actor_file",
+            path: safeRelativePath(source.path, `${path}.source.path`),
+            source_fingerprint: digestText(source.source_fingerprint, `${path}.source.source_fingerprint`),
+        },
+        definition: {
+            label: requiredText(definition.label, `${path}.definition.label`),
+            charter: requiredText(definition.charter, `${path}.definition.charter`),
+            responsibilities: definition.responsibilities.map((item, itemIndex) => {
+                const responsibility = exactObject(item, ["responsibility_id", "title", "description"], `${path}.definition.responsibilities[${itemIndex}]`);
+                return {
+                    responsibility_id: requiredText(responsibility.responsibility_id, "responsibility_id"),
+                    title: requiredText(responsibility.title, "responsibility title"),
+                    description: requiredText(responsibility.description, "responsibility description"),
+                };
+            }),
+            instructions: requiredText(definition.instructions, `${path}.definition.instructions`),
+            knowledge_refs: definition.knowledge_refs.map((item, itemIndex) => normalizeRef(item, `${path}.definition.knowledge_refs[${itemIndex}]`)),
+            policy_refs: {
+                budget: policyRefs.budget == null ? null : normalizeRef(policyRefs.budget, `${path}.definition.policy_refs.budget`),
+                trust: policyRefs.trust == null ? null : normalizeRef(policyRefs.trust, `${path}.definition.policy_refs.trust`),
+                approval: policyRefs.approval == null ? null : normalizeRef(policyRefs.approval, `${path}.definition.policy_refs.approval`),
+            },
+            escalation_rules: definition.escalation_rules.map((item, itemIndex) => {
+                const rule = exactObject(item, ["rule_id", "when", "action", "target_actor_id"], `${path}.definition.escalation_rules[${itemIndex}]`);
+                if (!["decline", "delegate", "escalate", "signal_unowned"].includes(rule.action)) {
+                    throw new WorkspaceConfigurationInventoryValidationError(`${path}.definition.escalation_rules[${itemIndex}].action is invalid`);
+                }
+                return {
+                    rule_id: requiredText(rule.rule_id, "escalation rule_id"),
+                    when: requiredText(rule.when, "escalation condition"),
+                    action: rule.action,
+                    ...(rule.target_actor_id == null ? {} : { target_actor_id: requiredText(rule.target_actor_id, "target_actor_id") }),
+                };
+            }),
+        },
+        runtime: {
+            label: requiredText(runtime.label, `${path}.runtime.label`),
+            backing_kind: runtime.backing_kind,
+            adapter_id: requiredText(runtime.adapter_id, `${path}.runtime.adapter_id`),
+            configuration,
+            required_capability_ids: normalizeUnknownTextSet(runtime.required_capability_ids, "required capability id"),
+            checkpoint_policy: {
+                mode: checkpoint.mode,
+                schema_ref: checkpoint.schema_ref == null ? null : requiredText(checkpoint.schema_ref, "checkpoint schema_ref"),
+            },
+            resource_policy: resourcePolicy,
+            credential_requirement: runtime.credential_requirement,
+            required_configuration_keys: normalizeUnknownTextSet(runtime.required_configuration_keys, "required configuration key"),
+        },
+    };
+    return normalized;
+}
+function normalizeRef(value, path) {
+    const ref = exactObject(value, ["kind", "id", "revision"], path);
+    return {
+        kind: requiredText(ref.kind, `${path}.kind`),
+        id: requiredText(ref.id, `${path}.id`),
+        revision: ref.revision == null ? null : requiredText(ref.revision, `${path}.revision`),
+    };
+}
+function exactObject(value, keys, path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path} must be an object`);
+    }
+    const object = value;
+    const allowed = new Set(keys);
+    const unexpected = Object.keys(object).filter((key) => !allowed.has(key));
+    if (unexpected.length > 0) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path} contains unsupported field '${unexpected[0]}'`);
+    }
+    return object;
+}
+function safeJsonObject(value, path) {
+    const object = exactJsonObject(value, path);
+    rejectSecretMaterial(object, path);
+    return object;
+}
+function exactJsonObject(value, path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${path} must be a JSON object`);
+    }
+    assertJson(value, path);
+    return value;
+}
+function assertJson(value, path) {
+    if (value === null || ["string", "number", "boolean"].includes(typeof value))
+        return;
+    if (Array.isArray(value)) {
+        value.forEach((item, index) => assertJson(item, `${path}[${index}]`));
+        return;
+    }
+    if (typeof value === "object") {
+        for (const [key, item] of Object.entries(value)) {
+            if (item === undefined)
+                throw new WorkspaceConfigurationInventoryValidationError(`${path}.${key} is undefined`);
+            assertJson(item, `${path}.${key}`);
+        }
+        return;
+    }
+    throw new WorkspaceConfigurationInventoryValidationError(`${path} must contain JSON data only`);
+}
+function rejectSecretMaterial(value, path) {
+    if (Array.isArray(value)) {
+        value.forEach((item, index) => rejectSecretMaterial(item, `${path}[${index}]`));
+        return;
+    }
+    if (!value || typeof value !== "object")
+        return;
+    for (const [key, item] of Object.entries(value)) {
+        if (/(?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|authorization|client[_-]?secret|private[_-]?key|password|secret|credential)/i.test(key)) {
+            throw new WorkspaceConfigurationInventoryValidationError(`${path}.${key} must be represented by a SecretRef`);
+        }
+        rejectSecretMaterial(item, `${path}.${key}`);
+    }
+}
+function normalizeUnknownTextSet(values, label) {
+    return normalizeTextSet(values.map((value) => requiredText(value, label)), label, false);
+}
+function normalizeTextSet(values, label, required) {
+    if (required && values.length === 0) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${label} list must not be empty`);
+    }
+    return [...new Set(values.map((value) => requiredText(value, label)))]
+        .sort((left, right) => left.localeCompare(right));
+}
+function unique(values, label) {
+    const seen = new Set();
+    for (const value of values) {
+        if (seen.has(value)) {
+            throw new WorkspaceConfigurationInventoryValidationError(`duplicate ${label} '${value}'`);
+        }
+        seen.add(value);
+    }
+}
+function safeRelativePath(value, label) {
+    const path = requiredText(value, label).replace(/\\/g, "/").replace(/^\.\//, "");
+    if (path.startsWith("/") || /^[a-z]:\//i.test(path) || path.split("/").includes("..")) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${label} must stay within the Workspace`);
+    }
+    return path;
+}
+function digestText(value, label) {
+    const text = requiredText(value, label).toLowerCase();
+    if (!/^sha256:[a-f0-9]{64}$/.test(text)) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${label} must be a SHA-256 digest`);
+    }
+    return text;
+}
+function requiredText(value, label) {
+    if (typeof value !== "string" || !value.trim()) {
+        throw new WorkspaceConfigurationInventoryValidationError(`${label} must be non-empty text`);
+    }
+    return value.trim();
+}
+function sameGrant(grant, workspaceId, actorId, policy, operationIds) {
+    return grant.principal_id === actorId
+        && grant.boundary.kind === "workspace"
+        && grant.boundary.workspace_id === workspaceId
+        && grant.expires_at === policy.expires_at
+        && grant.issuer_id === policy.issuer_id
+        && sameStrings(grant.operation_ids, operationIds)
+        && grant.targets.length === 0
+        && grant.evidence.length === 1
+        && grant.evidence[0]?.kind === "workspace_configuration_import_policy"
+        && grant.evidence[0]?.ref === policy.policy_revision;
+}
+function sameStrings(left, right) {
+    const normalizedLeft = [...left].sort((a, b) => a.localeCompare(b));
+    const normalizedRight = [...right].sort((a, b) => a.localeCompare(b));
+    return JSON.stringify(normalizedLeft) === JSON.stringify(normalizedRight);
+}
+function conflict(message) {
+    return { code: "workspace_configuration_conflict", message, retryable: false };
+}
+function invalidConfiguration(message) {
+    return { code: "workspace_configuration_invalid", message, retryable: false };
+}
+function receiptFromRow(row) {
+    return {
+        import_receipt_id: String(row.import_receipt_id),
+        workspace_id: String(row.workspace_id),
+        binding_id: String(row.binding_id),
+        config_hash: String(row.config_hash),
+        inventory_digest: String(row.inventory_digest),
+        importer_version: "1",
+        policy_revision: String(row.policy_revision),
+        policy_digest: String(row.policy_digest),
+        outcome: String(row.outcome),
+        imported_actors: JSON.parse(String(row.imported_actors_json)),
+        preserved_actor_ids: JSON.parse(String(row.preserved_actor_ids_json)),
+        validation: JSON.parse(String(row.validation_json)),
+        refusal: row.refusal_json == null ? null : JSON.parse(String(row.refusal_json)),
+        created_at: String(row.created_at),
+    };
+}
+function sha256(value) {
+    return `sha256:${digest(value)}`;
+}
+function digest(value) {
+    return createHash("sha256").update(value, "utf8").digest("hex");
+}
+function canonicalJson(value) {
+    if (Array.isArray(value))
+        return `[${value.map(canonicalJson).join(",")}]`;
+    if (value && typeof value === "object") {
+        return `{${Object.entries(value)
+            .filter(([, item]) => item !== undefined)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+            .join(",")}}`;
+    }
+    return JSON.stringify(value);
+}
+let savepointSequence = 0;
+function inSavepoint(db, action) {
+    savepointSequence += 1;
+    const name = `workspace_config_import_${savepointSequence}`;
+    db.exec(`SAVEPOINT ${name}`);
+    try {
+        const result = action();
+        db.exec(`RELEASE SAVEPOINT ${name}`);
+        return result;
+    }
+    catch (error) {
+        db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
+        db.exec(`RELEASE SAVEPOINT ${name}`);
+        throw error;
+    }
+}

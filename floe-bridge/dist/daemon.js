@@ -1,0 +1,1134 @@
+/**
+ * @invariant The bridge is the sole owner of effective runtime embodiment.
+ * Adapter selection and runtime resolution happen here; callers may provide bindings and config,
+ * but only the bridge decides the live adapter and the effective runtime passed into sessions.
+ */
+import { existsSync } from "node:fs";
+import { isAbsolute, relative, resolve } from "node:path";
+import { RuntimeAuthError } from "./auth.js";
+import { bridgeHttpBase, bridgeWsBase } from "./config.js";
+import { BridgeTransportUnavailableError, BusClient, isCredentialTransportSecure, } from "./bus-client.js";
+import { ensureProjectTemplate, loadProject, materializeSavedConfig, } from "./project.js";
+import { FakeRuntimeAdapter } from "./adapters/fake-runtime-adapter.js";
+import { FloeRuntimeAdapter } from "./adapters/floe-runtime-adapter.js";
+import { TurnFailedError } from "./adapters/turn-failed-error.js";
+import { HookRegistry } from "./hooks.js";
+import { watchFolder } from "./folder-watcher.js";
+import { selectPinnedRuntime } from "./runtime-processing-contract.js";
+import { buildWorkspaceConfigurationInventory, } from "./workspace-config-inventory.js";
+const WEBHOOK_DEDUPE_MAX_EVENTS = 10_000;
+const STREAM_INITIAL_BACKOFF_MS = 250;
+const STREAM_MAX_BACKOFF_MS = 16_000;
+export class BridgeDaemon {
+    configPath;
+    config;
+    bridgeId;
+    bus;
+    adapter;
+    #bridgeServiceToken;
+    endpointRuntime = new Map();
+    workspaceLocators = new Map();
+    workspaceHooks = new Map();
+    /**
+     * Node-specific instructions bindings, keyed by `${endpoint_id}:${context_id}` — an actor
+     * node's own material, injected into that actor's turns arising from that node's Context
+     * via the BeforeTurn hook (same inject-once mechanism extension overlays already use).
+     * Never merged into the actor's general `.floe/agents/*.md` instructions.
+     */
+    nodeInstructionBindings = new Map();
+    workspaceWatchers = new Map();
+    attachmentPass = null;
+    attachmentRequested = false;
+    processingEndpoints = new Set();
+    processingDeliveryIds = new Map();
+    pendingDeliveries = new Map();
+    cancelledDeliveries = new Set();
+    reportedAttachments = new Map();
+    firedWebhookEvents = new Set();
+    // D1: reconnect state
+    streamCancelled = false;
+    streamSocket = null;
+    streamRetryTimer = null;
+    streamBackoffMs = STREAM_INITIAL_BACKOFF_MS;
+    streamCursor = null;
+    streamMessageChain = Promise.resolve();
+    constructor(configPath, config, options = {}) {
+        this.configPath = configPath;
+        this.config = config;
+        this.bridgeId = options.bridge_id ?? process.env.FLOE_BRIDGE_ID ?? "bridge:local";
+        const injectedToken = Object.prototype.hasOwnProperty.call(options, "transport_authority")
+            ? options.transport_authority?.bearer_token ?? ""
+            : process.env.FLOE_BRIDGE_SERVICE_TOKEN ?? "";
+        this.#bridgeServiceToken = injectedToken.trim() || null;
+        this.bus = new BusClient(bridgeHttpBase(config), this.#bridgeServiceToken
+            ? { audience: "bridge_service", bearer_token: this.#bridgeServiceToken }
+            : null);
+        if (!isCredentialTransportSecure(bridgeWsBase(config))) {
+            this.bus.markAuthorityUnavailable("insecure_transport");
+        }
+        this.adapter = chooseAdapter(configPath, config);
+    }
+    get transportAuthorityState() {
+        return this.bus.authorityState;
+    }
+    async start() {
+        if (this.bus.authorityState?.status === "unavailable") {
+            throw new BridgeTransportUnavailableError(this.bus.authorityState.reason);
+        }
+        await this.waitForBus();
+        await this.bus.registerBridge({
+            runtime_adapters: [this.adapter.name],
+            workspace_access: this.config.bridge.workspace_access,
+            capabilities: ["workspace_attach", "project_template_init", "agent_endpoint_registration", "delivery_claim"],
+            release_version: process.env.FLOE_RELEASE_VERSION ?? null,
+            build_sha: process.env.FLOE_BUILD_SHA ?? null,
+        });
+        this.openEventStream();
+        await this.attachKnownWorkspaces();
+        await this.processDeliveries();
+    }
+    async stop() {
+        // D1: cancel the event stream reconnect loop.
+        this.streamCancelled = true;
+        if (this.streamRetryTimer !== null) {
+            clearTimeout(this.streamRetryTimer);
+            this.streamRetryTimer = null;
+        }
+        if (this.streamSocket !== null) {
+            try {
+                this.streamSocket.close();
+            }
+            catch { /* ignore */ }
+            this.streamSocket = null;
+        }
+        this.firedWebhookEvents.clear();
+        // Close all folder watchers so daemon shutdown leaves no dangling fs handles
+        for (const [, stops] of this.workspaceWatchers) {
+            for (const stop of stops)
+                stop();
+        }
+        this.workspaceWatchers.clear();
+        await this.adapter.dispose?.("bridge_shutdown");
+    }
+    async waitForBus() {
+        const started = Date.now();
+        let lastError;
+        while (Date.now() - started < 30_000) {
+            try {
+                await this.bus.health();
+                return;
+            }
+            catch (error) {
+                lastError = error;
+                await sleep(500);
+            }
+        }
+        throw lastError instanceof Error ? lastError : new Error("Timed out waiting for floe-bus");
+    }
+    openEventStream() {
+        const WebSocketCtor = globalThis.WebSocket;
+        if (!WebSocketCtor)
+            return;
+        const connect = () => {
+            if (this.streamCancelled)
+                return;
+            const url = `${bridgeWsBase(this.config).replace(/\/$/, "")}/v1/events/stream`;
+            let socket = null;
+            try {
+                socket = new WebSocketCtor(url);
+            }
+            catch {
+                // WebSocket unavailable — schedule retry.
+                this.scheduleStreamRetry(connect);
+                return;
+            }
+            this.streamSocket = socket;
+            let connectionAuthenticated = false;
+            let connectionFailed = false;
+            socket.addEventListener("open", () => {
+                if (this.streamCancelled) {
+                    try {
+                        socket?.close();
+                    }
+                    catch { /* ignore */ }
+                    return;
+                }
+                connectionAuthenticated = false;
+                // Authentication is the first frame. The credential is never placed in
+                // the URL, where browser history, proxies, and diagnostics could retain it.
+                try {
+                    socket?.send(this.streamAuthenticationFrame());
+                }
+                catch (error) {
+                    if (error instanceof BridgeTransportUnavailableError) {
+                        try {
+                            socket?.close(4401, "bridge authority unavailable");
+                        }
+                        catch { /* ignore */ }
+                        return;
+                    }
+                    try {
+                        socket?.close();
+                    }
+                    catch { /* ignore */ }
+                }
+            });
+            socket.addEventListener("message", (event) => {
+                this.streamMessageChain = this.streamMessageChain.then(async () => {
+                    if (this.streamCancelled || connectionFailed)
+                        return;
+                    const message = JSON.parse(String(event.data));
+                    if (!connectionAuthenticated) {
+                        if (message?.type !== "authenticated"
+                            || message?.payload?.audience !== "bridge_service"
+                            || message?.payload?.bridge_id !== this.bridgeId) {
+                            this.bus.markAuthorityUnavailable("credential_not_accepted");
+                            try {
+                                socket?.close(4401, "bridge authority unavailable");
+                            }
+                            catch { /* ignore */ }
+                            return;
+                        }
+                        connectionAuthenticated = true;
+                        this.streamBackoffMs = STREAM_INITIAL_BACKOFF_MS;
+                        return;
+                    }
+                    if (message?.type === "caught_up") {
+                        if (typeof message?.payload?.cursor === "string") {
+                            this.streamCursor = message.payload.cursor;
+                        }
+                        // Catch-up is complete. These one-shot reads recover current host
+                        // state and any Delivery not represented by a retained stream frame.
+                        await this.attachKnownWorkspaces();
+                        await this.processDeliveries();
+                        return;
+                    }
+                    if (message?.type === "cursor_acknowledged")
+                        return;
+                    await this.handleEventStreamMessage(message);
+                    if (typeof message?.cursor === "string"
+                        && connectionAuthenticated
+                        && this.streamSocket === socket) {
+                        socket?.send(JSON.stringify({ type: "acknowledge_cursor", cursor: message.cursor }));
+                        this.streamCursor = message.cursor;
+                    }
+                }).catch((error) => {
+                    // Do not process or acknowledge later cursors after a failed frame;
+                    // reconnect from the last durable acknowledgement instead.
+                    console.error("[bridge] event stream frame failed", {
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                    connectionFailed = true;
+                    connectionAuthenticated = false;
+                    try {
+                        socket?.close(1011, "bridge frame handling failed");
+                    }
+                    catch { /* ignore */ }
+                });
+            });
+            socket.addEventListener("close", (event) => {
+                if (this.streamSocket === socket)
+                    this.streamSocket = null;
+                connectionAuthenticated = false;
+                if (this.streamCancelled)
+                    return;
+                if (event?.code === 4401 || this.bus.authorityState?.status === "unavailable") {
+                    this.bus.markAuthorityUnavailable?.("credential_not_accepted");
+                    return;
+                }
+                // D1: reconnect with exponential back-off.
+                this.scheduleStreamRetry(connect);
+            });
+            socket.addEventListener("error", () => {
+                // `close` fires after `error`, reconnect is handled there.
+            });
+        };
+        connect();
+    }
+    streamAuthenticationFrame() {
+        if (!this.#bridgeServiceToken || this.bus.authorityState?.status === "unavailable") {
+            const reason = this.bus.authorityState?.status === "unavailable"
+                ? this.bus.authorityState.reason
+                : "credential_missing";
+            throw new BridgeTransportUnavailableError(reason);
+        }
+        return JSON.stringify({
+            type: "authenticate",
+            bearer_token: this.#bridgeServiceToken,
+            ...(this.streamCursor ? { after_cursor: this.streamCursor } : {}),
+        });
+    }
+    /** Schedule the next WS reconnect attempt with exponential back-off (D1). */
+    scheduleStreamRetry(connect) {
+        if (this.streamCancelled)
+            return;
+        const delay = this.streamBackoffMs;
+        this.streamBackoffMs = Math.min(this.streamBackoffMs * 2, STREAM_MAX_BACKOFF_MS);
+        this.streamRetryTimer = setTimeout(() => {
+            this.streamRetryTimer = null;
+            connect();
+        }, delay);
+    }
+    async handleEventStreamMessage(message) {
+        if (message.type === "delivery_cancel_requested" && message.payload?.delivery_id) {
+            const deliveryId = String(message.payload.delivery_id);
+            this.cancelledDeliveries.add(deliveryId);
+            await this.adapter.cancelDelivery?.(deliveryId);
+        }
+        if (message.type === "workspace_registered" ||
+            message.type === "workspace_selected" ||
+            message.type === "workspace_attachment_requested" ||
+            message.type === "config_snapshot_requested" ||
+            message.type === "scope_graph_created" ||
+            message.type === "scope_graph_updated" ||
+            message.type === "scope_graph_deleted" ||
+            message.type === "scope_retired" ||
+            message.type === "actor_runtime_binding_changed" ||
+            message.type === "runtime_binding_updated" ||
+            message.type === "runtime_binding_cleared") {
+            await this.attachKnownWorkspaces();
+            await this.processDeliveries();
+        }
+        if (message.type === "config_apply_requested" && message.payload?.workspace_id) {
+            await this.applySavedConfig(String(message.payload.workspace_id), message.payload?.config_id ? String(message.payload.config_id) : null);
+        }
+        if (message.type === "delivery_bundle_available") {
+            // D2: consume the pushed bundle directly when this bridge owns the endpoint.
+            // The bus broadcasts the full DeliveryBundle at creation time with the lease
+            // set server-side — no HTTP round-trip needed for the single-bridge case.
+            const delivery = message.payload?.delivery;
+            if (delivery &&
+                typeof delivery.endpoint_id === "string" &&
+                this.endpointRuntime.has(delivery.endpoint_id)) {
+                this.dispatchDelivery(delivery);
+            }
+            else {
+                // Multi-bridge / race fallback: let the HTTP claim path sort it out.
+                await this.processDeliveries();
+            }
+        }
+        if (message.type === "config_snapshot_requested" && message.payload?.workspace_id) {
+            await this.returnSnapshot(String(message.payload.workspace_id));
+        }
+        if (message.type === "event_submitted") {
+            await this.fireWebhookReceived(message.payload?.event);
+        }
+        // Slice 0 — context lifecycle hooks
+        if (message.type === "context_compacted" && message.payload?.context_id) {
+            await this.fireContextLifecycleHook("ContextCompacted", message.payload);
+        }
+        if (message.type === "context_history_cleared" && message.payload?.context_id) {
+            await this.fireContextLifecycleHook("ContextHistoryCleared", message.payload);
+        }
+        // Slice 1 — dynamic participant hooks
+        if (message.type === "participant_added" && message.payload?.context_id) {
+            await this.fireContextLifecycleHook("ParticipantAdded", message.payload);
+        }
+        if (message.type === "participant_removed" && message.payload?.context_id) {
+            await this.fireContextLifecycleHook("ParticipantRemoved", message.payload);
+        }
+    }
+    async fireWebhookReceived(event) {
+        if (!event || event.type !== "webhook_received" || event.metadata?.trigger_kind !== "webhook")
+            return;
+        if (event.source_endpoint_id !== null)
+            return;
+        if (typeof event.event_id !== "string" || !event.event_id)
+            return;
+        if (typeof event.workspace_id !== "string" || !event.workspace_id)
+            return;
+        if (typeof event.metadata?.route_id !== "string" || !event.metadata.route_id)
+            return;
+        if (this.firedWebhookEvents.has(event.event_id))
+            return;
+        const hooks = this.workspaceHooks.get(event.workspace_id);
+        if (!hooks?.hasHandlers("WebhookReceived"))
+            return;
+        const destination = event.destination_json;
+        this.firedWebhookEvents.add(event.event_id);
+        this.pruneWebhookDedupe();
+        await hooks.fire("WebhookReceived", {
+            workspace_id: event.workspace_id,
+            route_id: event.metadata.route_id,
+            event_id: event.event_id,
+            context_id: event.context_id ?? null,
+            target_endpoint_id: destination?.kind === "endpoint" ? destination.endpoint_id : null,
+            content: event.content ?? {},
+            metadata: event.metadata ?? {}
+        });
+    }
+    pruneWebhookDedupe() {
+        while (this.firedWebhookEvents.size > WEBHOOK_DEDUPE_MAX_EVENTS) {
+            const oldestEventId = this.firedWebhookEvents.keys().next().value;
+            if (oldestEventId === undefined)
+                break;
+            this.firedWebhookEvents.delete(oldestEventId);
+        }
+    }
+    /** (to every registered HookRegistry
+     * for the workspace identified by `payload.workspace_id`, if present; or all
+     * workspaces when the broadcast payload does not carry workspace_id).
+     */
+    async fireContextLifecycleHook(hook, payload) {
+        const workspaceId = payload?.workspace_id;
+        if (workspaceId) {
+            const hooks = this.workspaceHooks.get(workspaceId);
+            if (hooks) {
+                try {
+                    await hooks.fire(hook, payload);
+                }
+                catch (err) {
+                    console.error(`[bridge] ${hook} hook failed`, err);
+                }
+            }
+        }
+        else {
+            for (const [, hooks] of this.workspaceHooks) {
+                try {
+                    await hooks.fire(hook, payload);
+                }
+                catch (err) {
+                    console.error(`[bridge] ${hook} hook failed`, err);
+                }
+            }
+        }
+    }
+    async attachKnownWorkspaces() {
+        this.attachmentRequested = true;
+        if (this.attachmentPass)
+            return this.attachmentPass;
+        const pass = (async () => {
+            do {
+                this.attachmentRequested = false;
+                const workspaces = await this.bus.listWorkspaces();
+                const currentWorkspaceIds = new Set(workspaces.map(workspace => workspace.workspace_id));
+                for (const workspaceId of this.workspaceLocators.keys()) {
+                    if (!currentWorkspaceIds.has(workspaceId))
+                        this.workspaceLocators.delete(workspaceId);
+                }
+                for (const workspace of workspaces) {
+                    await this.attachWorkspace(workspace);
+                }
+                // A push during this pass may describe a newer binding than we read.
+                // Coalesce those notifications into one further pass, without polling.
+            } while (this.attachmentRequested && !this.streamCancelled);
+        })();
+        this.attachmentPass = pass;
+        try {
+            await pass;
+        }
+        finally {
+            if (this.attachmentPass === pass)
+                this.attachmentPass = null;
+        }
+    }
+    async importProjectConfiguration(workspaceId, bindingId, project) {
+        const observedEntries = await Promise.all(project.agents.map(async (agent) => {
+            const endpointId = actorEndpointId(workspaceId, agent.agent_id);
+            const runtimeConfig = extractRuntimeConfig(agent.frontmatter);
+            const resolvedAuth = await this.resolveAuthProfile(workspaceId, endpointId, runtimeConfig);
+            // floe-runtime drives the official vendor CLI, which authenticates itself
+            // and resolves its own default model: Floe brokers no credential and pins
+            // no model for it. An operator may still declare runtime.model to override
+            // the vendor default, and it is forwarded when present, but no model is
+            // required for the actor to run. The fake adapter likewise needs neither.
+            const runtimeResolvesItsOwnConfig = this.adapter.name === "fake" || this.adapter.name === "floe-runtime";
+            const observation = {
+                agent_id: agent.agent_id,
+                adapter_id: this.adapter.name,
+                backing_kind: "model",
+                provider: resolvedAuth.provider ?? runtimeConfig.provider ?? null,
+                model: resolvedAuth.model ?? runtimeConfig.model ?? null,
+                thinking_level: resolvedAuth.thinking_level ?? runtimeConfig.thinking_level ?? null,
+                credential_requirement: runtimeResolvesItsOwnConfig ? "none" : "required",
+                required_configuration_keys: runtimeResolvesItsOwnConfig ? [] : ["model"],
+                required_capability_ids: [],
+                checkpoint_policy: { mode: "none", schema_ref: null },
+                resource_policy: {},
+            };
+            return [agent.agent_id, {
+                    endpoint_id: endpointId,
+                    config: runtimeConfig,
+                    resolved_auth: resolvedAuth,
+                    observation,
+                }];
+        }));
+        const observedRuntimes = new Map(observedEntries.map(([agentId, observed]) => [agentId, {
+                endpoint_id: observed.endpoint_id,
+                config: observed.config,
+                resolved_auth: observed.resolved_auth,
+            }]));
+        const inventory = buildWorkspaceConfigurationInventory({
+            binding_id: bindingId,
+            project,
+            runtimes: observedEntries.map(([, observed]) => observed.observation),
+        });
+        const importResponse = await this.bus.importWorkspaceConfiguration(workspaceId, inventory);
+        return {
+            inventory,
+            import_response: importResponse,
+            observed_runtimes: observedRuntimes,
+        };
+    }
+    async attachWorkspace(workspace) {
+        if (!workspace?.workspace_id)
+            return;
+        this.workspaceLocators.delete(workspace.workspace_id);
+        const binding = workspace?.binding;
+        if (!binding?.binding_id || !binding.locator)
+            return;
+        if (!binding.init_authorized)
+            return;
+        const workspaceId = String(workspace.workspace_id);
+        const bindingId = String(binding.binding_id);
+        const locator = resolve(String(binding.locator));
+        if (!this.config.bridge.workspace_access.local_paths || !existsSync(locator)) {
+            await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
+                ok: false,
+                warnings: [],
+                errors: [`Workspace locator is inaccessible: ${locator}`]
+            });
+            return;
+        }
+        this.workspaceLocators.set(workspaceId, locator);
+        try {
+            let project;
+            let canonicalImport;
+            let importError = null;
+            try {
+                ensureProjectTemplate(locator, String(workspace.name ?? "Floe Project"));
+                project = loadProject(locator);
+                canonicalImport = await this.importProjectConfiguration(workspaceId, bindingId, project);
+            }
+            catch (error) {
+                if (error instanceof BridgeTransportUnavailableError)
+                    throw error;
+                importError = error.message;
+            }
+            const importReceipt = canonicalImport?.import_response.import_result.receipt;
+            const importApplied = importReceipt?.outcome === "applied";
+            // Import observes source files. Attachment discovers current retained
+            // Actors, including those created or changed through ordinary operations.
+            // Actual instructions, model and authority still come from Delivery pins.
+            const runtimes = (await this.bus.listRuntimeEndpoints(workspaceId, bindingId))
+                .filter(runtime => runtimeAdapterMatches(runtime.adapter_id, this.adapter.name));
+            for (const [endpointId, entry] of this.endpointRuntime) {
+                if (entry.workspace_id === workspaceId)
+                    this.endpointRuntime.delete(endpointId);
+            }
+            for (const runtime of runtimes) {
+                this.endpointRuntime.set(runtime.endpoint_id, {
+                    config: {}, instructions: "", workspace_locator: locator, workspace_id: workspaceId,
+                    agent_id: runtime.agent_id ?? undefined,
+                });
+                if (this.processingEndpoints.has(runtime.endpoint_id))
+                    continue;
+                await this.bus.registerEndpoint({
+                    endpoint_id: runtime.endpoint_id,
+                    workspace_id: workspaceId,
+                    name: runtime.name,
+                    agent_id: runtime.agent_id,
+                    status: runtime.runtime_status === "resolved" ? "idle" : "runtime_unconfigured",
+                    metadata: {
+                        runtime_adapter: runtime.adapter_id,
+                        actor_definition_revision_id: runtime.actor_definition_revision_id,
+                        runtime_profile_revision_id: runtime.runtime_profile_revision_id,
+                        actor_runtime_binding_id: runtime.actor_runtime_binding_id,
+                        runtime_unresolved_reasons: runtime.unresolved_reasons,
+                    }
+                });
+            }
+            const hookRegistry = new HookRegistry();
+            this.registerNodeInstructionsHook(hookRegistry);
+            this.workspaceHooks.set(workspaceId, hookRegistry);
+            if (!importApplied || !project) {
+                // Unimported file changes cannot start or replace legacy Event sources.
+                const canAttach = runtimes.length > 0;
+                await this.reportOnce(workspaceId, bindingId, canAttach ? "attached" : "config_invalid", canAttach ? null : importReceipt?.refusal?.code ?? "workspace_configuration_import_refused", null, {
+                    ok: canAttach,
+                    import_receipt_id: importReceipt?.import_receipt_id ?? null,
+                    import_refusal: importReceipt?.refusal ?? null,
+                    import_error: importError,
+                    unavailable_actors: runtimes.filter(runtime => runtime.runtime_status !== "resolved")
+                        .map(runtime => ({ actor_id: runtime.actor_id, reasons: runtime.unresolved_reasons })),
+                });
+                return;
+            }
+            // Register pulses defined in floe.yaml
+            for (const pulseDef of project.pulses) {
+                try {
+                    await this.bus.createPulse({
+                        pulse_id: pulseDef.id,
+                        workspace_id: workspace.workspace_id,
+                        persistence: pulseDef.persistence ?? "workspace",
+                        scope_id: pulseDef.scope_id,
+                        trigger: pulseDef.trigger,
+                        content: pulseDef.content,
+                        subscribers: pulseDef.subscribers ?? [],
+                    });
+                }
+                catch (error) {
+                    console.error("[bridge] pulse registration failed", { pulse_id: pulseDef.id, error });
+                }
+            }
+            // Legacy Scope graphs remain readable for Actor instruction bindings and
+            // Event sources. Command execution is owned by the canonical Bus Command
+            // host; the Bridge never discovers or executes graph-authored shell text.
+            let scopeGraphs = [];
+            try {
+                const { graphs } = await this.bus.listScopeGraphsForWorkspace(workspace.workspace_id);
+                scopeGraphs = graphs;
+                for (const graph of scopeGraphs) {
+                    for (const node of graph.nodes) {
+                        if (node.kind === "actor" && Array.isArray(node.bindings) && node.bindings.length > 0) {
+                            const text = node.bindings
+                                .filter((binding) => binding.kind === "instructions" && typeof binding.text === "string")
+                                .map((binding) => binding.text)
+                                .join("\n\n");
+                            if (text)
+                                this.nodeInstructionBindings.set(`${node.endpoint_id}:${graph.context_id}`, text);
+                        }
+                    }
+                }
+            }
+            catch (error) {
+                console.error("[bridge] legacy Scope graph inspection failed", { workspace_id: workspace.workspace_id, error });
+            }
+            // Start folder Event sources. Legacy floe.yaml watchers remain readable,
+            // while new sources are stored with the Event node that owns them.
+            for (const stop of this.workspaceWatchers.get(workspace.workspace_id) ?? [])
+                stop();
+            const watcherStops = [];
+            const startedWatchers = new Set();
+            const startWatcher = (watcherDef) => {
+                const watchPath = resolve(locator, watcherDef.path);
+                const workspaceRelative = relative(locator, watchPath);
+                const watcherKey = `${watcherDef.graph_id}:${watcherDef.node_id}:${watchPath}`;
+                if (workspaceRelative.startsWith("..") || isAbsolute(workspaceRelative)) {
+                    console.error("[bridge] watcher path escapes workspace — skipping", { watcher_id: watcherDef.id, path: watchPath });
+                    return;
+                }
+                if (!existsSync(watchPath) || startedWatchers.has(watcherKey)) {
+                    if (!existsSync(watchPath)) {
+                        console.error("[bridge] watcher path does not exist — skipping", { watcher_id: watcherDef.id, path: watchPath });
+                    }
+                    return;
+                }
+                startedWatchers.add(watcherKey);
+                const stop = watchFolder(watchPath, arrival => {
+                    this.bus.fireScopeGraphTriggerNode(workspace.workspace_id, watcherDef.graph_id, watcherDef.node_id, {
+                        content: {
+                            file_name: arrival.file_name,
+                            file_path: arrival.file_path,
+                            channel: "watched_folder",
+                            locator: arrival.file_path,
+                            observed_at: arrival.observed_at,
+                            raw_reference: arrival.file_path,
+                            arrival_id: arrival.arrival_id,
+                        },
+                        idempotency_key: `folder-arrival:${watcherDef.graph_id}:${watcherDef.node_id}:${arrival.arrival_id}`,
+                    }).catch(error => {
+                        console.error("[bridge] watcher trigger fire failed", { watcher_id: watcherDef.id, error });
+                    });
+                }, {
+                    extensions: watcherDef.extensions,
+                    settle_ms: watcherDef.settle_ms
+                });
+                watcherStops.push(stop);
+            };
+            for (const watcherDef of project.watchers)
+                startWatcher(watcherDef);
+            for (const graph of scopeGraphs) {
+                for (const node of graph.nodes) {
+                    if (node.kind !== "trigger" || node.source?.kind !== "folder" || typeof node.source.path !== "string") {
+                        continue;
+                    }
+                    startWatcher({
+                        id: `${graph.graph_id}:${node.node_id}`,
+                        graph_id: graph.graph_id,
+                        node_id: node.node_id,
+                        path: node.source.path,
+                        extensions: node.source.extensions,
+                        settle_ms: node.source.settle_ms,
+                    });
+                }
+            }
+            this.workspaceWatchers.set(workspace.workspace_id, watcherStops);
+            // Extension installation and activation are owned by the canonical Bus
+            // lifecycle. The Bridge never imports workspace package code. Hooks here
+            // contain only trusted Bridge-owned behaviour.
+            await this.reportOnce(workspaceId, bindingId, "attached", null, importReceipt.config_hash, {
+                ...canonicalImport.inventory.validation,
+                import_receipt_id: importReceipt.import_receipt_id,
+                unavailable_actors: runtimes
+                    .filter((actor) => actor.runtime_status !== "resolved")
+                    .map((actor) => ({
+                    actor_id: actor.actor_id,
+                    reasons: actor.unresolved_reasons,
+                })),
+            });
+        }
+        catch (error) {
+            await this.reportOnce(workspaceId, bindingId, "attach_failed", "bridge_attach_failed", null, {
+                ok: false,
+                warnings: [],
+                errors: [error.message]
+            });
+        }
+    }
+    async reportOnce(workspaceId, bindingId, status, errorCode, configHash, validation) {
+        const key = JSON.stringify({ bindingId, status, errorCode, configHash, validation });
+        if (this.reportedAttachments.get(workspaceId) === key)
+            return;
+        await this.bus.reportAttachment(workspaceId, {
+            binding_id: bindingId,
+            status,
+            config_hash: configHash,
+            error_code: errorCode,
+            validation
+        });
+        this.reportedAttachments.set(workspaceId, key);
+    }
+    async returnSnapshot(workspaceId) {
+        const workspaces = await this.bus.listWorkspaces();
+        const workspace = workspaces.find((item) => item.workspace_id === workspaceId);
+        if (!workspace)
+            return;
+        const binding = workspace.binding;
+        if (!binding?.binding_id || !binding.locator)
+            return;
+        const bindingId = String(binding.binding_id);
+        const locator = resolve(String(binding.locator));
+        if (!existsSync(locator))
+            return;
+        const project = loadProject(locator);
+        await this.importProjectConfiguration(workspaceId, bindingId, project);
+    }
+    async applySavedConfig(workspaceId, configId) {
+        const workspaces = await this.bus.listWorkspaces();
+        const workspace = workspaces.find((item) => item.workspace_id === workspaceId);
+        if (!workspace)
+            return;
+        const binding = workspace.binding;
+        if (!binding?.binding_id || !binding.locator)
+            return;
+        const bindingId = String(binding.binding_id);
+        const locator = resolve(String(binding.locator));
+        if (!existsSync(locator)) {
+            await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
+                ok: false,
+                warnings: [],
+                errors: [`Workspace locator is inaccessible: ${locator}`]
+            });
+            return;
+        }
+        const configs = await this.bus.listConfigs();
+        const record = configs.find((item) => item.config_id === configId);
+        if (!record) {
+            await this.reportOnce(workspaceId, bindingId, "config_apply_failed", "saved_config_not_found", null, {
+                ok: false,
+                warnings: [],
+                errors: [`Saved config not found: ${configId ?? "(none)"}`]
+            });
+            return;
+        }
+        const configJson = typeof record.config_json === "string" ? JSON.parse(record.config_json) : record.config_json;
+        materializeSavedConfig(locator, configJson);
+        this.reportedAttachments.delete(workspaceId);
+        await this.attachWorkspace(workspace);
+    }
+    async processDeliveries() {
+        // HTTP-claim fallback path (multi-bridge / race case, startup resync).
+        // Per-endpoint locking handled in the direct-consume path; here we just process
+        // whatever the claim endpoint returns, skipping any endpoint already in-flight.
+        try {
+            const deliveries = await this.bus.claimDeliveries();
+            for (const delivery of deliveries) {
+                this.dispatchDelivery(delivery);
+            }
+        }
+        catch (error) {
+            console.error("[bridge] delivery processing failed", error);
+            throw error;
+        }
+    }
+    dispatchDelivery(delivery) {
+        if (this.processingEndpoints.has(delivery.endpoint_id)) {
+            if (this.processingDeliveryIds.get(delivery.endpoint_id) === delivery.delivery_id)
+                return;
+            let pending = this.pendingDeliveries.get(delivery.endpoint_id);
+            if (!pending)
+                this.pendingDeliveries.set(delivery.endpoint_id, pending = new Map());
+            pending.set(delivery.delivery_id, delivery);
+            return;
+        }
+        this.processingEndpoints.add(delivery.endpoint_id);
+        this.processingDeliveryIds.set(delivery.endpoint_id, delivery.delivery_id);
+        void (async () => {
+            try {
+                await this.handleDelivery(delivery);
+            }
+            catch (error) {
+                console.error("[bridge] delivery handling escaped", {
+                    delivery_id: delivery.delivery_id, endpoint_id: delivery.endpoint_id,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+            finally {
+                this.processingEndpoints.delete(delivery.endpoint_id);
+                this.processingDeliveryIds.delete(delivery.endpoint_id);
+                // A pushed reservation can arrive before the previous runtime finishes
+                // unwinding. Retain it until then; prepareRuntimeDelivery still checks
+                // the authoritative lease and terminal state before it can execute.
+                const pending = this.pendingDeliveries.get(delivery.endpoint_id);
+                const next = pending?.values().next().value;
+                if (next)
+                    pending.delete(next.delivery_id);
+                if (!pending?.size)
+                    this.pendingDeliveries.delete(delivery.endpoint_id);
+                if (next)
+                    this.dispatchDelivery(next);
+            }
+        })();
+    }
+    async handleDelivery(delivery) {
+        // A cancellation can overtake a delivery that was already pushed to this
+        // bridge but has not started executing yet. Do not let that stale in-memory
+        // bundle enter either a command process or a model runtime.
+        if (this.cancelledDeliveries.delete(delivery.delivery_id)) {
+            console.log("[bridge] cancelled delivery skipped before execution", {
+                delivery_id: delivery.delivery_id,
+                endpoint_id: delivery.endpoint_id,
+            });
+            await this.reportTurnEndSafely(delivery.endpoint_id);
+            return;
+        }
+        console.log("[bridge] delivery claimed", {
+            delivery_id: delivery.delivery_id,
+            endpoint_id: delivery.endpoint_id,
+            workspace_id: delivery.workspace_id,
+            event_count: delivery.events.length
+        });
+        try {
+            const endpointEntry = this.endpointRuntime.get(delivery.endpoint_id);
+            const runtimeConfig = endpointEntry?.config;
+            const instructions = endpointEntry?.instructions;
+            let preparedAttemptId = null;
+            let operationAuthoritySession;
+            let effectiveRuntime;
+            const hasCanonicalRuntimePins = Boolean(delivery.processing_contract
+                || delivery.node_execution_id
+                || (delivery.actor_definition_revision_id
+                    && delivery.runtime_profile_revision_id
+                    && delivery.actor_runtime_binding_id));
+            if (hasCanonicalRuntimePins) {
+                const prepared = await this.bus.prepareRuntimeDelivery(delivery.delivery_id);
+                const contract = prepared.processing_contract;
+                const contractMatchesDelivery = contract.contract_kind === "direct_context"
+                    ? contract.delivery.delivery_id === delivery.delivery_id
+                        && contract.delivery.endpoint_id === delivery.endpoint_id
+                    : contract.node_execution.node_execution_id === delivery.node_execution_id;
+                if (!contractMatchesDelivery || contract.workspace_id !== delivery.workspace_id) {
+                    throw new RuntimeAuthError("runtime_processing_contract_mismatch", "The prepared runtime processing contract does not belong to this Delivery.");
+                }
+                const pinned = selectPinnedRuntime(contract);
+                if (!runtimeAdapterMatches(pinned.adapter_id, this.adapter.name)) {
+                    throw new RuntimeAuthError("runtime_profile_provider_mismatch", `The pinned runtime profile requires adapter '${pinned.adapter_id}', but this Bridge runs '${this.adapter.name}'.`);
+                }
+                delivery.processing_contract = contract;
+                operationAuthoritySession = prepared.operation_authority_session;
+                if (contract.contract_kind === "scope_node") {
+                    preparedAttemptId = contract.execution_attempt.attempt_id;
+                    delivery.execution_attempt_id = preparedAttemptId;
+                }
+                effectiveRuntime = pinned.config;
+            }
+            else {
+                // Pre-canonical Endpoints remain readable during the current data
+                // upgrade. Canonical direct Context work always carries a Bus-issued
+                // processing contract and never resolves mutable runtime state here.
+                const placementInstructions = delivery.node_contract?.node.kind === "actor"
+                    ? (delivery.node_contract.node.bindings ?? [])
+                        .filter((binding) => binding.kind === "instructions" && binding.text.trim().length > 0)
+                        .map((binding) => binding.text.trim())
+                        .join("\n\n")
+                    : "";
+                const resolvedAuth = await this.resolveAuthProfile(delivery.workspace_id, delivery.endpoint_id, runtimeConfig);
+                effectiveRuntime = {
+                    ...runtimeConfig,
+                    provider: resolvedAuth.provider ?? runtimeConfig?.provider ?? undefined,
+                    auth_profile: resolvedAuth.auth_profile ?? undefined,
+                    auth_profile_source: resolvedAuth.source ?? undefined,
+                    model: resolvedAuth.model ?? runtimeConfig?.model ?? undefined,
+                    model_source: resolvedAuth.model_source ?? undefined,
+                    thinking_level: resolvedAuth.thinking_level ?? runtimeConfig?.thinking_level ?? undefined,
+                    instructions: [instructions?.trim(), placementInstructions]
+                        .filter((value) => Boolean(value))
+                        .join("\n\n") || undefined,
+                };
+            }
+            console.log("[bridge] effective runtime resolved", {
+                delivery_id: delivery.delivery_id,
+                provider: effectiveRuntime.provider ?? "(none)",
+                model: effectiveRuntime.model ?? "(none)",
+                model_source: effectiveRuntime.model_source ?? "(none)",
+                auth_profile: effectiveRuntime.auth_profile ?? "(none)",
+                auth_profile_source: effectiveRuntime.auth_profile_source ?? "(none)",
+                instructions_bytes: instructions?.length ?? 0
+            });
+            const injected = await this.bus.reportDeliveryStatus(delivery.delivery_id, "injected_to_runtime");
+            // Older Bus versions and test doubles acknowledge the transition without
+            // returning the canonical attempt handle. Keep that compatibility at the
+            // transport seam; a current Bus always returns the handle.
+            delivery.execution_attempt_id = injected?.execution_attempt_id ?? delivery.execution_attempt_id ?? null;
+            if (preparedAttemptId && delivery.execution_attempt_id !== preparedAttemptId) {
+                throw new Error(`The Bus changed ExecutionAttempt from '${preparedAttemptId}' to '${delivery.execution_attempt_id ?? "none"}' before runtime injection.`);
+            }
+            console.log("[bridge] delivery injected to runtime", { delivery_id: delivery.delivery_id, adapter: this.adapter.name });
+            const hookRegistry = this.workspaceHooks.get(delivery.workspace_id);
+            await this.adapter.handleBundle({
+                bridge_id: this.bridgeId,
+                bus: this.bus,
+                workspace_locator: this.workspaceLocators.get(delivery.workspace_id),
+                agent_id: endpointEntry?.agent_id,
+                hooks: hookRegistry,
+                operation_authority_session: operationAuthoritySession,
+            }, delivery, effectiveRuntime);
+            if (this.cancelledDeliveries.delete(delivery.delivery_id)) {
+                await this.reportTurnEndSafely(delivery.endpoint_id);
+                return;
+            }
+            await this.bus.reportDeliveryStatus(delivery.delivery_id, "acknowledged");
+            console.log("[bridge] delivery acknowledged", { delivery_id: delivery.delivery_id });
+            await this.reportTurnEndSafely(delivery.endpoint_id);
+        }
+        catch (error) {
+            console.error("[bridge] adapter failed", error);
+            if (this.cancelledDeliveries.delete(delivery.delivery_id)) {
+                console.log("[bridge] cancelled delivery stopped", { delivery_id: delivery.delivery_id });
+                await this.reportTurnEndSafely(delivery.endpoint_id);
+                return;
+            }
+            const deferCodes = [
+                "runtime_profile_required",
+                "provider_auth_missing",
+                "runtime_profile_provider_mismatch",
+                "runtime_provider_required",
+                "runtime_model_required",
+                "runtime_model_unknown",
+                "runtime_credential_unresolved"
+            ];
+            if (error instanceof RuntimeAuthError && deferCodes.includes(error.code)) {
+                console.log("[bridge] delivery deferred", { delivery_id: delivery.delivery_id, code: error.code });
+                await this.bus.appendRuntimeTelemetry({
+                    workspace_id: delivery.workspace_id,
+                    endpoint_id: delivery.endpoint_id,
+                    delivery_id: delivery.delivery_id,
+                    kind: error.code,
+                    payload: {
+                        code: error.code,
+                        message: error.message
+                    }
+                });
+                await this.bus.reportDeliveryStatus(delivery.delivery_id, "deferred", `${error.code}: ${error.message}`);
+                return;
+            }
+            // Once a turn has entered the runtime it may already have produced file,
+            // command, or event effects. Runtime failure is therefore terminal for
+            // this invocation; automatic replay would be unsafe. A fresh operator or
+            // actor event can deliberately retry after inspecting the recorded work.
+            if (error instanceof TurnFailedError) {
+                console.log("[bridge] turn failed", {
+                    delivery_id: error.delivery_id,
+                    source_endpoint_id: error.source_endpoint_id,
+                    model: error.model_id,
+                    http_status: error.http_status
+                });
+                const errorSummary = `Runtime turn failed for model '${error.model_id}' (provider: ${error.provider})` +
+                    (error.http_status ? `, HTTP ${error.http_status}` : "") +
+                    `: ${error.message}`;
+                await this.bus.reportDeliveryStatus(delivery.delivery_id, "dead_lettered", error.message);
+                try {
+                    await this.bus.recordRuntimeTurnResult({
+                        delivery_id: delivery.delivery_id,
+                        outcome: "failed",
+                        text: errorSummary,
+                        metadata: {
+                            runtime: this.adapter.name,
+                            origin: "turn_failed",
+                            model: error.model_id,
+                            provider: error.provider,
+                            http_status: error.http_status,
+                            safe_to_retry_automatically: false
+                        }
+                    });
+                }
+                catch (recordErr) {
+                    console.error("[bridge] failed to record terminal turn failure", recordErr);
+                }
+                await this.reportTurnEndSafely(delivery.endpoint_id);
+                return;
+            }
+            console.log("[bridge] delivery failed", {
+                delivery_id: delivery.delivery_id,
+                error: error.message
+            });
+            const message = error instanceof Error ? error.message : String(error);
+            await this.bus.reportDeliveryStatus(delivery.delivery_id, "dead_lettered", message);
+            try {
+                await this.bus.recordRuntimeTurnResult({
+                    delivery_id: delivery.delivery_id,
+                    outcome: "failed",
+                    text: `Runtime turn stopped before it could report a durable completion: ${message}`,
+                    metadata: {
+                        origin: "runtime_error",
+                        safe_to_retry_automatically: false
+                    }
+                });
+            }
+            catch (recordErr) {
+                console.error("[bridge] failed to record terminal runtime error", recordErr);
+            }
+            await this.reportTurnEndSafely(delivery.endpoint_id);
+        }
+    }
+    /**
+     * Registers the BeforeTurn handler that injects an actor node's own
+     * instructions binding — node-specific material, distinct from the actor's
+     * general `.floe/agents/*.md` instructions — using the exact inject-once
+     * mechanism extension overlays already use (dedup happens in the adapter's
+     * InjectionBaseline, keyed by context_id + this result's `source`). Keying
+     * `source` by endpoint_id keeps each actor node's baseline independent
+     * within a shared graph Context, so alternating actors don't stomp on each
+     * other's dedup state.
+     */
+    registerNodeInstructionsHook(hookRegistry) {
+        hookRegistry.on("BeforeTurn", "_substrate_node_bindings", (payload) => {
+            if (payload.origin?.kind !== "context")
+                return;
+            const text = this.nodeInstructionBindings.get(`${payload.endpoint_id}:${payload.origin.id}`);
+            if (!text)
+                return;
+            return { inject: { source: `node_instructions:${payload.endpoint_id}`, content: text } };
+        });
+    }
+    async reportTurnEndSafely(endpointId) {
+        try {
+            await this.bus.reportTurnEnd(endpointId);
+            console.log("[bridge] turn end reported", { endpoint_id: endpointId });
+        }
+        catch (error) {
+            console.error("[bridge] turn end report failed", {
+                endpoint_id: endpointId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+    async updateEndpointStatusSafely(endpointId, status) {
+        try {
+            await this.bus.updateEndpointStatus(endpointId, status);
+        }
+        catch (error) {
+            console.error("[bridge] endpoint status report failed", {
+                endpoint_id: endpointId,
+                status,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+    async resolveAuthProfile(workspaceId, endpointId, runtimeConfig) {
+        const bindings = await this.bus.resolveRuntimeBinding(workspaceId, endpointId);
+        if (bindings.endpoint_auth_profile) {
+            return {
+                auth_profile: bindings.endpoint_auth_profile,
+                provider: bindings.endpoint_provider ?? bindings.workspace_provider ?? bindings.global_provider ?? null,
+                model: bindings.endpoint_model ?? bindings.workspace_model ?? bindings.global_model ?? null,
+                source: "agent_binding",
+                model_source: bindings.endpoint_model ? "agent_binding" : bindings.workspace_model ? "workspace_binding" : bindings.global_model ? "global_binding" : null,
+                thinking_level: (bindings.endpoint_thinking_level ?? bindings.workspace_thinking_level ?? bindings.global_thinking_level ?? null)
+            };
+        }
+        if (bindings.workspace_auth_profile) {
+            return {
+                auth_profile: bindings.workspace_auth_profile,
+                provider: bindings.workspace_provider ?? bindings.global_provider ?? null,
+                model: bindings.workspace_model ?? bindings.global_model ?? null,
+                source: "workspace_binding",
+                model_source: bindings.workspace_model ? "workspace_binding" : bindings.global_model ? "global_binding" : null,
+                thinking_level: (bindings.workspace_thinking_level ?? bindings.global_thinking_level ?? null)
+            };
+        }
+        if (runtimeConfig?.auth_profile?.trim()) {
+            return {
+                auth_profile: runtimeConfig.auth_profile.trim(),
+                provider: runtimeConfig.provider?.trim() || null,
+                model: null,
+                source: "project_runtime",
+                model_source: null,
+                thinking_level: (bindings.global_thinking_level ?? null)
+            };
+        }
+        if (bindings.global_auth_profile) {
+            return {
+                auth_profile: bindings.global_auth_profile,
+                provider: bindings.global_provider ?? null,
+                model: bindings.global_model ?? null,
+                source: "runtime_binding_global",
+                model_source: bindings.global_model ? "global_binding" : null,
+                thinking_level: (bindings.global_thinking_level ?? null)
+            };
+        }
+        if (this.config.runtime?.default_auth_profile?.trim()) {
+            return {
+                auth_profile: this.config.runtime.default_auth_profile.trim(),
+                provider: runtimeConfig?.provider?.trim() || null,
+                model: null,
+                source: "config_global_default",
+                model_source: null,
+                thinking_level: (bindings.global_thinking_level ?? null)
+            };
+        }
+        return {
+            auth_profile: null,
+            provider: runtimeConfig?.provider?.trim() || null,
+            model: null,
+            source: null,
+            model_source: null,
+            thinking_level: (bindings.global_thinking_level ?? null)
+        };
+    }
+}
+export function chooseAdapter(_configPath, config) {
+    const configured = process.env.FLOE_RUNTIME_ADAPTER ?? config.bridge.runtime_adapter;
+    if (!configured)
+        return new FloeRuntimeAdapter();
+    const selected = configured.trim().toLowerCase();
+    if (selected === "fake")
+        return new FakeRuntimeAdapter();
+    if (selected === "floe-runtime")
+        return new FloeRuntimeAdapter();
+    throw new Error(`Unsupported FLOE runtime adapter "${selected}". Use "fake" or "floe-runtime".`);
+}
+function runtimeAdapterMatches(requiredAdapterId, activeAdapterName) {
+    const required = requiredAdapterId.trim().toLowerCase();
+    const active = activeAdapterName.trim().toLowerCase();
+    if (required === active)
+        return true;
+    if (active === "pi-agent-core" && ["pi"].includes(required))
+        return true;
+    return false;
+}
+function actorEndpointId(workspaceId, agentId) {
+    return `actor:${workspaceId}:${agentId}`;
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function extractRuntimeConfig(frontmatter) {
+    const runtime = (frontmatter.runtime ?? {});
+    return {
+        provider: typeof runtime.provider === "string" ? runtime.provider : undefined,
+        model: typeof runtime.model === "string" ? runtime.model : undefined,
+        auth_profile: typeof runtime.auth_profile === "string" ? runtime.auth_profile : undefined
+    };
+}

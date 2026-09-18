@@ -1,0 +1,159 @@
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import YAML from "yaml";
+import { BusStore } from "../store.js";
+import { defaultConfig } from "../config.js";
+const noop = () => { };
+const WS = "workspace:test-trig";
+const TARGET = "actor:test:floe";
+const OTHER = "actor:test:other";
+const BRIDGE = "bridge:test:b1";
+const OPS_SCOPE = "ops";
+function makeStore() {
+    const tmp = mkdtempSync(join(tmpdir(), "floe-bus-trig-"));
+    const cfgPath = join(tmp, "config.yaml");
+    const cfg = defaultConfig(tmp);
+    writeFileSync(cfgPath, YAML.stringify(cfg), "utf8");
+    const store = new BusStore(cfgPath, cfg);
+    for (const id of [TARGET, OTHER]) {
+        store.registerEndpoint({
+            endpoint_id: id,
+            workspace_id: WS,
+            name: id,
+            bridge_id: BRIDGE,
+            status: "idle"
+        }, noop);
+    }
+    return {
+        store,
+        cleanup: () => {
+            try {
+                store.close();
+            }
+            catch { }
+            rmSync(tmp, { recursive: true, force: true });
+        }
+    };
+}
+describe("trigger emission — target-only contexts (Slice 3)", () => {
+    let store;
+    let cleanup;
+    beforeEach(() => {
+        const made = makeStore();
+        store = made.store;
+        cleanup = made.cleanup;
+    });
+    afterEach(() => cleanup());
+    function createOpsScope() {
+        store.createScope({ workspace_id: WS, scope_id: OPS_SCOPE, title: "Ops" }, noop);
+    }
+    it("rejects trigger-created operational Contexts without explicit Scope", () => {
+        expect(() => store.emitTriggerEvent({
+            type: "pulse.fired",
+            workspace_id: WS,
+            target_endpoint_id: TARGET,
+            content: { text: "scheduled ping", pulse_id: "pulse_123" },
+            metadata: { trigger_kind: "pulse", pulse_id: "pulse_123", pulse_name: "daily_check" }
+        }, noop)).toThrow(/Scope is required/);
+        expect(store.listEvents({ workspace_id: WS })).toEqual([]);
+    });
+    it("T8: pulse trigger event has context_id, target as sole participant, null source, trigger metadata", () => {
+        createOpsScope();
+        const event = store.emitTriggerEvent({
+            type: "pulse.fired",
+            workspace_id: WS,
+            target_endpoint_id: TARGET,
+            scope_id: OPS_SCOPE,
+            content: { text: "scheduled ping", pulse_id: "pulse_123" },
+            metadata: {
+                trigger_kind: "pulse",
+                pulse_id: "pulse_123",
+                pulse_name: "daily_check"
+            }
+        }, noop);
+        expect(event.context_id).toMatch(/^ctx_/);
+        expect(event.source_endpoint_id).toBeNull();
+        expect(event.metadata.trigger_kind).toBe("pulse");
+        expect(event.metadata.pulse_id).toBe("pulse_123");
+        expect(event.metadata.pulse_name).toBe("daily_check");
+        expect(event.destination_json).toEqual({ kind: "endpoint", endpoint_id: TARGET });
+        const participants = store.contextStore.getContextParticipants(event.context_id);
+        expect(participants).toEqual([TARGET]);
+        // No synthetic system endpoint anywhere in participants
+        expect(participants.some((p) => p.includes("system:") || p.includes(":pulse:") || p.includes(":webhook:"))).toBe(false);
+    });
+    it("T9: webhook ingest creates one scoped context per ingest with target as sole participant", () => {
+        createOpsScope();
+        const e1 = store.ingestWebhook(WS, "route_alpha", { text: "hello" }, noop, OPS_SCOPE);
+        const e2 = store.ingestWebhook(WS, "route_alpha", { text: "again" }, noop, OPS_SCOPE);
+        expect(e1.context_id).toMatch(/^ctx_/);
+        expect(e2.context_id).toMatch(/^ctx_/);
+        expect(e1.context_id).not.toBe(e2.context_id);
+        for (const event of [e1, e2]) {
+            expect(event.source_endpoint_id).toBeNull();
+            expect(event.scope_id).toBe(OPS_SCOPE);
+            expect(event.metadata.trigger_kind).toBe("webhook");
+            expect(event.metadata.route_id).toBe("route_alpha");
+            expect(store.contextStore.getContext(event.context_id)?.scope_id).toBe(OPS_SCOPE);
+            const parts = store.contextStore.getContextParticipants(event.context_id);
+            expect(parts).toEqual([TARGET]); // first agent endpoint registered for the workspace
+            expect(parts.some((p) => p.includes("system:") || p.includes(":webhook:"))).toBe(false);
+        }
+    });
+    it("rejects webhook ingest without route-configured Scope", () => {
+        expect(() => store.ingestWebhook(WS, "route_alpha", { text: "hello" }, noop)).toThrow(/Scope is required/);
+        expect(store.listEvents({ workspace_id: WS })).toEqual([]);
+    });
+    it("pulse event row carries null source_endpoint_id in storage", () => {
+        createOpsScope();
+        const event = store.emitTriggerEvent({
+            type: "pulse.fired",
+            workspace_id: WS,
+            target_endpoint_id: TARGET,
+            scope_id: OPS_SCOPE,
+            content: {},
+            metadata: { trigger_kind: "pulse", pulse_id: "p", pulse_name: "n" }
+        }, noop);
+        const row = store.db
+            .prepare("SELECT source_endpoint_id, context_id FROM events WHERE event_id = ?")
+            .get(event.event_id);
+        expect(row.source_endpoint_id).toBeNull();
+        expect(row.context_id).toBe(event.context_id);
+    });
+    it("appends trigger Events to an explicit unscoped actor Context without assigning Scope", () => {
+        const contextId = store.contextStore.createContext({
+            workspace_id: WS,
+            created_by_endpoint_id: TARGET,
+            participants: [TARGET, OTHER]
+        });
+        const event = store.emitTriggerEvent({
+            type: "pulse.fired",
+            workspace_id: WS,
+            target_endpoint_id: TARGET,
+            context_id: contextId,
+            content: {},
+            metadata: { trigger_kind: "pulse", pulse_id: "p", pulse_name: "n" }
+        }, noop);
+        expect(event.context_id).toBe(contextId);
+        expect(event.scope_id).toBeNull();
+        expect(store.contextStore.getContext(contextId)?.scope_id).toBeNull();
+        expect(store.contextStore.getContextParticipants(contextId).sort()).toEqual([TARGET, OTHER].sort());
+    });
+    it("trigger event still queues a delivery for the target endpoint", () => {
+        createOpsScope();
+        const event = store.emitTriggerEvent({
+            type: "pulse.fired",
+            workspace_id: WS,
+            target_endpoint_id: TARGET,
+            scope_id: OPS_SCOPE,
+            content: {},
+            metadata: { trigger_kind: "pulse", pulse_id: "p", pulse_name: "n" }
+        }, noop);
+        const queued = store.db
+            .prepare("SELECT destination_endpoint_id FROM event_queue WHERE event_id = ?")
+            .all(event.event_id);
+        expect(queued.map((q) => q.destination_endpoint_id)).toContain(TARGET);
+    });
+});

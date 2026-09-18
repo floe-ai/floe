@@ -1,0 +1,56 @@
+function eventRef(event) {
+    return {
+        event_id: event.event_id,
+        type: event.type,
+        workspace_id: event.workspace_id,
+        scope_id: String(event.scope_id),
+        context_id: event.context_id ?? null,
+        source_endpoint_id: event.source_endpoint_id,
+        created_at: event.created_at
+    };
+}
+function pulseRef(row) {
+    const pulse = row;
+    return {
+        pulse_id: String(pulse.pulse_id),
+        workspace_id: String(pulse.workspace_id),
+        scope_id: String(pulse.scope_id),
+        persistence: pulse.persistence,
+        status: String(pulse.status),
+        trigger: pulse.trigger,
+        next_fire_at: typeof pulse.next_fire_at === "string" ? pulse.next_fire_at : null,
+        last_fired_at: typeof pulse.last_fired_at === "string" ? pulse.last_fired_at : null,
+        fire_count: Number(pulse.fire_count ?? 0),
+        created_at: String(pulse.created_at),
+        updated_at: String(pulse.updated_at)
+    };
+}
+export function buildScopeProjection(store, workspaceId, scopeId) {
+    const contexts = store.contextStore.listContextsForScope(workspaceId, scopeId);
+    return {
+        workspace_id: workspaceId,
+        scope_id: scopeId,
+        generated_at: new Date().toISOString(),
+        refs: {
+            contexts: contexts.map((context) => ({
+                context_id: context.context_id,
+                workspace_id: context.workspace_id,
+                scope_id: scopeId,
+                parent_context_id: context.parent_context_id,
+                created_by_endpoint_id: context.created_by_endpoint_id,
+                created_at: context.created_at,
+                last_event_at: context.last_event_at,
+                first_message_preview: store.contextStore.getFirstMessagePreview(context.context_id)
+            })),
+            pulses: store.listPulses({ workspace_id: workspaceId, scope_id: scopeId }).map(pulseRef),
+            events: store.listEvents({ workspace_id: workspaceId, scope_id: scopeId, limit: 500 }).map(eventRef),
+            activity: []
+        },
+        relationships: {
+            context_participants: contexts.flatMap((context) => context.participants.map((endpoint_id) => ({ context_id: context.context_id, endpoint_id }))),
+            pulse_subscribers: store.listPulses({ workspace_id: workspaceId, scope_id: scopeId }).flatMap((pulse) => store.getPulseSubscribers(pulse.pulse_id).map((subscriber) => ({ pulse_id: pulse.pulse_id, subscriber }))),
+            event_context_ownership: []
+        },
+        unsupported: []
+    };
+}
