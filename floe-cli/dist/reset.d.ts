@@ -15,6 +15,7 @@
  *   - library dirs                 (configs, skills, extensions, mcp, templates)
  *   - services.json                (stale PID/process-manager records)
  *   - run/ and identity agent logs (the agent's per-start secret and log)
+ *   - runtime/                     (staged service files; rebuilt on next start)
  */
 import type { LocalConfig } from "./config.js";
 export interface ResetTarget {
