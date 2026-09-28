@@ -37,7 +37,7 @@ async function fetchBusHealth(baseUrl) {
         if (!response.ok)
             return null;
         const body = (await response.json());
-        return { ok: body.ok === true, instance_id: body.instance_id ?? null };
+        return { ok: body.ok === true, instance_id: body.instance_id ?? null, version: body.version ?? null };
     }
     catch {
         return null;
@@ -45,6 +45,23 @@ async function fetchBusHealth(baseUrl) {
 }
 export async function isHealthy(baseUrl) {
     return (await fetchBusHealth(baseUrl)) !== null;
+}
+/** The version the bus serving at `baseUrl` reports; null if unreachable or it reports none. */
+export async function runningBusVersion(baseUrl) {
+    return (await fetchBusHealth(baseUrl))?.version ?? null;
+}
+/**
+ * Compare this copy's version with the serving bus. Connect-first means the
+ * running substrate is the truth: a mismatch is stated, never "fixed" by
+ * restarting someone else's Floe. Returns the message to show, or null.
+ */
+export function describeVersionMismatch(url, ownVersion, busVersion) {
+    if (!ownVersion || busVersion === ownVersion)
+        return null;
+    const serving = busVersion ? `Floe ${busVersion}` : "an older Floe that does not report its version";
+    return (`Note: connected to ${serving} at ${url}, but this copy is Floe ${ownVersion}.\n`
+        + `It was already running, so it is left as is. To run this version instead, stop it\n`
+        + `(\`floe stop\`) and start again.`);
 }
 /**
  * Classify what, if anything, is answering on the Bus URL.

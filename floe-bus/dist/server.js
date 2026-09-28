@@ -13,6 +13,7 @@ import { z } from "zod";
 import { parseListen } from "./config.js";
 import { BROADCAST_TARGETS, BusStore, ContextAnchorError, ContextNotFoundError, ContextParticipantError, ContextScopeAssignmentError, EndpointRetirementBlockedError, PulseNotFoundError, ScopeRequiredError, ScopeRetiredError } from "./store.js";
 import { PulseScheduler } from "./pulse-scheduler.js";
+import { BUS_VERSION } from "./version.js";
 import { EVENT_INGRESS_CAPABILITY } from "./event-ingress.js";
 import { isValidRenderer, loadScopeProjectionLayout, upsertScopeProjectionLayout } from "./scope-projection-layout-store.js";
 import { ScopeNotEmptyError, ScopeNotFoundError, ScopeReservedIdError } from "./scopes/store.js";
@@ -664,6 +665,10 @@ export async function createBusServer(configPath, config, options = {}) {
         // prove that a bus answering on a URL is the exact process it launched — not
         // a stale predecessor or a different install that happens to hold the port.
         instance_id: process.env.FLOE_BUS_INSTANCE_ID ?? null,
+        // The Floe release this bus is. Two copies of Floe can exist on one machine
+        // (a direct install and one inside a surface); whichever started serves, so
+        // a client needs this to tell it connected to a different version.
+        version: BUS_VERSION,
         time: new Date().toISOString()
     }));
     app.get(HTML_PREVIEW_HOST_PATH, async (_request, reply) => reply
