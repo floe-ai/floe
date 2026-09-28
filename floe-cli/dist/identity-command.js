@@ -1,22 +1,7 @@
 import { isAbsolute, relative, resolve } from "node:path";
-import { generateSeedWords, privateKeyFromSeedWords } from "nostr-tools/nip06";
-import { getPublicKey } from "nostr-tools/pure";
-import { nip19 } from "nostr-tools";
 import { ensureConfig } from "./config.js";
 import { fetchHostControlToken } from "./operation-client.js";
-/**
- * `floe identity` — admit and manage client keypair identities (ADR-0015).
- *
- * Admission is a host-control action: the operator adds a public key and a
- * display name to the Bus roster so a client can then authenticate with a
- * signed challenge and never holds host_control. The CLI can also generate a
- * seed for convenience, but a client may generate its own key instead. The Bus
- * never receives a seed or private key.
- */
-const SEED_LOSS_WARNING = "IMPORTANT: this seed phrase is the ONLY way to authenticate as this identity.\n"
-    + "It is shown once and stored nowhere. If it is lost the identity is gone for good:\n"
-    + "there is no recovery. The operator can admit a NEW key under the same name, but\n"
-    + "that is re-admission, not recovery — it does not restore this identity or its history.";
+import { registerPersonIdentityCommands } from "./identity/terminal-commands.js";
 export function registerIdentityCommand(program, dependencies = {}) {
     const write = dependencies.output ?? ((message) => console.log(message));
     const resolveConfig = dependencies.resolve_config
@@ -26,30 +11,8 @@ export function registerIdentityCommand(program, dependencies = {}) {
     const currentDir = dependencies.cwd ?? (() => process.cwd());
     const identity = program
         .command("identity")
-        .description("Admit and manage client keypair identities");
-    identity
-        .command("generate")
-        .description("Generate a new BIP-39 seed phrase and derive its npub (stores nothing)")
-        .option("--name <name>", "a label printed alongside the derived npub for your own reference")
-        .action((options) => {
-        const mnemonic = generateSeedWords();
-        const secretKey = privateKeyFromSeedWords(mnemonic);
-        const pubkeyHex = getPublicKey(secretKey);
-        const npub = nip19.npubEncode(pubkeyHex);
-        const nsec = nip19.nsecEncode(secretKey);
-        write("");
-        if (options.name)
-            write(`Identity label: ${options.name}`);
-        write(`Seed phrase (BIP-39): ${mnemonic}`);
-        write(`Private key (nsec):   ${nsec}`);
-        write(`Public key (npub):    ${npub}`);
-        write(`Public key (hex):     ${pubkeyHex}`);
-        write("");
-        write(SEED_LOSS_WARNING);
-        write("");
-        write("To admit this identity, an operator runs (from the workspace directory):");
-        write(`  floe identity add --name "<display name>" --pubkey ${npub}`);
-    });
+        .description("Your identity on this machine, and the identities admitted to its workspaces");
+    registerPersonIdentityCommands(identity, () => program.opts().config);
     identity
         .command("add")
         .description("Admit a public key to a workspace under a display name (requires host control)")
@@ -74,7 +37,7 @@ export function registerIdentityCommand(program, dependencies = {}) {
         write(`  ${body.identity.npub}`);
         write(`  workspaces: ${body.workspaces.map((w) => `${w.name} (${w.workspace_id})`).join(", ") || "none"}`);
         write("");
-        write("Re-admitting a lost key is re-admission, not recovery: a lost seed is unrecoverable.");
+        write("Re-admitting a lost key is re-admission, not recovery: a lost recovery phrase is unrecoverable.");
     });
     identity
         .command("list")

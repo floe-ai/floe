@@ -40,8 +40,14 @@ const LocalConfigSchema = z.object({
     }),
     runtime: z.object({
         default_auth_profile: z.string().optional()
-    }).optional()
+    }).optional(),
+    // The identity agent holds the unlocked key in memory; it forgets it once no
+    // surface has been connected for this long (ADR-0016).
+    identity: z.object({
+        lock_after_idle_minutes: z.number().int().min(1)
+    }).strict().optional()
 }).strict();
+export const DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES = 15;
 export function defaultConfig(home = join(homedir(), ".floe")) {
     return {
         schema: "floe.local.v1",
@@ -67,7 +73,8 @@ export function defaultConfig(home = join(homedir(), ".floe")) {
             extensions_dir: "./extensions",
             mcp_dir: "./mcp",
             templates_dir: "./templates"
-        }
+        },
+        identity: { lock_after_idle_minutes: DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES }
     };
 }
 export function expandHome(pathValue) {

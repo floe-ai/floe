@@ -6,11 +6,13 @@ import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { ensureConfig, resolveLocalPath } from "./config.js";
 import { buildResetPlan, executeReset } from "./reset.js";
-import { clearRecords, isPidRunning, readRecords, serviceLogPath, stopService } from "./process-manager.js";
+import { clearRecords, isPidRunning, readRecords, serviceLogPath, stopService, SERVICE_NAMES } from "./process-manager.js";
+import { forgetIdentityDeviceKey } from "./operation-client.js";
+import { probeAgent } from "./identity/connection.js";
 import { registerOperationsCommand } from "./operations-command.js";
 import { registerIdentityCommand } from "./identity-command.js";
 import { registerLocalWorkspaceViaBroker } from "./operation-client.js";
-import { startAll, waitForBusHealth, isHealthy, ensureSubstrateForClient, runningBusVersion, describeVersionMismatch } from "./startup.js";
+import { startAll, waitForBusHealth, isHealthy, ensureSubstrateForClient, runningBusVersion, describeVersionMismatch, floeHome } from "./startup.js";
 import { thisInstallation, directInstallRequiredMessage } from "./installation.js";
 import { registerSurface, removeSurface, launchSurface, } from "./surfaces.js";
 import { buildSurfaceCatalog } from "./surface-catalog.js";
@@ -59,24 +61,22 @@ program.command("start").description("Start local Floe services").action(async (
 });
 program.command("stop").description("Stop local Floe services").action(async () => {
     const { configPath, config } = ensureConfig(program.opts().config);
-    for (const service of ["bridge", "bus"])
-        stopService(configPath, config, service);
+    stopAllServices(configPath, config);
     console.log("Stopped Floe services.");
 });
 program.command("restart").description("Restart local Floe services").action(async () => {
     const { configPath, config } = ensureConfig(program.opts().config);
-    for (const service of ["bridge", "bus"])
-        stopService(configPath, config, service);
+    stopAllServices(configPath, config);
     await startAll(configPath, config);
     console.log("Restarted Floe services.");
 });
 program
     .command("logs")
-    .argument("[service]", "bus or bridge")
+    .argument("[service]", "bus, bridge or identity")
     .description("Print service logs")
     .action((service) => {
     const { configPath, config } = ensureConfig(program.opts().config);
-    const services = service ? [service] : ["bus", "bridge"];
+    const services = service ? [service] : [...SERVICE_NAMES];
     for (const item of services) {
         const path = serviceLogPath(configPath, config, item);
         console.log(`\n== ${item}: ${path} ==`);
@@ -133,22 +133,22 @@ service.command("status").description("Show whether Floe is installed to auto-st
 });
 program.command("uninstall").description("Remove auto-start and stop services; preserve ~/.floe data").action(async () => {
     const { configPath, config } = ensureConfig(program.opts().config);
-    for (const service of ["bridge", "bus"])
-        stopService(configPath, config, service);
+    stopAllServices(configPath, config);
     const removal = uninstallService();
     console.log(removal.message);
     console.log("Removed Floe service entries. Local data is preserved.");
 });
 program
     .command("reset")
-    .description("Factory reset: wipe all Floe state (workspaces, contexts, boards, agents) while preserving provider credentials and service config")
+    .description("Factory reset: wipe all Floe state (workspaces, contexts, boards, agents) while preserving your identity, provider credentials and service config")
     .option("--yes", "skip confirmation prompt")
+    .option("--include-identity", "also remove your identity from this machine (only its recovery phrase can bring it back)")
     .action(async (options) => {
     const { configPath, config } = ensureConfig(program.opts().config);
     // Stop running services before wiping their databases
-    for (const service of ["bridge", "bus"])
-        stopService(configPath, config, service);
-    const plan = buildResetPlan(configPath, config);
+    stopAllServices(configPath, config);
+    const includeIdentity = options.includeIdentity === true;
+    const plan = buildResetPlan(configPath, config, { includeIdentity });
     console.log("\nFloe Factory Reset");
     console.log("==================");
     console.log("\nWILL WIPE:");
@@ -160,6 +160,14 @@ program
     for (const target of plan.preserve) {
         console.log(`  + ${target.label}`);
         console.log(`    ${target.path}`);
+    }
+    if (includeIdentity) {
+        console.log("\nYour identity will be removed from this machine. The only way to get it back");
+        console.log("is its recovery phrase (the words shown when it was created, or by");
+        console.log("`floe identity reveal`). Without the phrase it is gone for good.");
+    }
+    else {
+        console.log("\nYour identity is kept. Workspaces are wiped, so you will join folders again.");
     }
     console.log("");
     if (!options.yes) {
@@ -175,7 +183,15 @@ program
             rl.close();
         }
     }
-    executeReset(configPath, config);
+    executeReset(configPath, config, { includeIdentity });
+    if (includeIdentity) {
+        try {
+            await forgetIdentityDeviceKey(floeHome(configPath, config));
+        }
+        catch (error) {
+            console.error(`Could not remove the identity's device key from the credential vault: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
     console.log("\nReset complete. Run \`floe setup\` or \`floe start\` to start fresh.");
 });
 registerOperationsCommand(program, {});
@@ -468,7 +484,7 @@ async function verifyHealth(configPath, config) {
 }
 async function printStatus(configPath, config) {
     const records = readRecords(configPath, config);
-    for (const service of ["bus", "bridge"]) {
+    for (const service of SERVICE_NAMES) {
         const record = records[service];
         const running = record ? isPidRunning(record.pid) : false;
         console.log(`${service}: ${running ? "running" : "not running"}${record ? ` pid=${record.pid}` : ""}`);
@@ -478,6 +494,19 @@ async function printStatus(configPath, config) {
     console.log(`bus: ${config.bus.http_base_url} ${healthy ? `healthy${busVersion ? ` (Floe ${busVersion})` : ""}` : "unreachable"}`);
     const installation = thisInstallation();
     console.log(`this copy: Floe ${installation.version ?? "(unknown version)"}${installation.dependencyOf ? `, installed as part of ${installation.dependencyOf}` : ""}`);
+    const agent = await probeAgent(floeHome(configPath, config));
+    if (!agent) {
+        console.log("identity agent: not answering");
+        return;
+    }
+    const state = agent.state;
+    console.log(`identity agent: answering${agent.version ? ` (Floe ${agent.version})` : ""}`);
+    console.log(`identity: ${state.kind === "none" || !state.kind ? "none yet" : `${state.display_name} ${state.npub} (${state.kind})`}`);
+}
+/** Stop in reverse start order: nothing is left running that depends on a stopped service. */
+function stopAllServices(configPath, config) {
+    for (const service of [...SERVICE_NAMES].reverse())
+        stopService(configPath, config, service);
 }
 async function registerCurrentWorkspace(config, locator, initAuthorized) {
     // Registration and selection are host-control bootstrap routes. The broker

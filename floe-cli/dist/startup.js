@@ -18,7 +18,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { resolveLocalPath } from "./config.js";
 import { readRecords, isPidRunning, startService, serviceLogPath } from "./process-manager.js";
+import { probeAgent } from "./identity/connection.js";
+import { canonicalHome } from "./identity/protocol.js";
 import { fetchHostControlToken, fetchBridgeServiceToken } from "./operation-client.js";
 export class ForeignBusError extends Error {
     url;
@@ -150,7 +153,36 @@ export async function ensureSubstrateForClient(configPath, config) {
     const plan = planSubstrateStart(reachable, config.services.start_on_demand);
     if (plan === "start")
         await startAll(configPath, config);
+    // The identity agent is a service of its own: a bus that is already serving
+    // does not mean an agent is. It shares the Floe home, so any copy may start it.
+    if (plan === "connect" && config.services.start_on_demand)
+        await ensureIdentityAgent(configPath, config);
     return plan;
+}
+export function floeHome(configPath, config) {
+    return canonicalHome(resolveLocalPath(configPath, config.home, "."));
+}
+/**
+ * Connect-first for the identity agent: if one already answers for this Floe
+ * home (from this copy or another), use it. Otherwise start ours and wait until
+ * it completes a real handshake, failing with its log if it exits first.
+ */
+export async function ensureIdentityAgent(configPath, config) {
+    const home = floeHome(configPath, config);
+    if (await probeAgent(home))
+        return;
+    const record = await startService(configPath, config, "identity");
+    const started = Date.now();
+    while (Date.now() - started < 15_000) {
+        if (await probeAgent(home))
+            return;
+        if (record.pid && !isPidRunning(record.pid)) {
+            throw new Error(`Floe's identity agent exited before it was ready (pid ${record.pid}). `
+                + `Last lines of ${record.log_file}:\n${readLogTail(record.log_file)}`);
+        }
+        await sleep(200);
+    }
+    throw new Error(`Floe's identity agent did not become ready within 15s. Last lines of ${record.log_file}:\n${readLogTail(record.log_file)}`);
 }
 export async function startAll(configPath, config) {
     const busUrl = config.bus.http_base_url;
@@ -180,6 +212,7 @@ export async function startAll(configPath, config) {
     // Bridge process environment only — never set by the operator, never on disk.
     const bridgeServiceToken = await fetchBridgeServiceToken("bridge:local", busUrl);
     await startService(configPath, config, "bridge", { FLOE_BRIDGE_SERVICE_TOKEN: bridgeServiceToken });
+    await ensureIdentityAgent(configPath, config);
 }
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
