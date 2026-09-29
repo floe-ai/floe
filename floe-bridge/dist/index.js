@@ -6937,9 +6937,6 @@ async function prepareCopilotToolSession(session, selection, workingDirectory) {
   return { manifestVersion: selection.manifestVersion, catalog: selection.catalog, tools: actual };
 }
 
-// node_modules/floe-runtime/src/adapters/copilot.mjs
-import { defineTool } from "@github/copilot-sdk";
-
 // node_modules/floe-runtime/src/adapters/copilot-account.mjs
 import { spawn as spawn2 } from "node:child_process";
 import { randomUUID as randomUUID4 } from "node:crypto";
@@ -6947,6 +6944,7 @@ import { EventEmitter as EventEmitter3 } from "node:events";
 import { CopilotClient } from "@github/copilot-sdk";
 var CREDENTIAL_ENVIRONMENT_KEYS = /* @__PURE__ */ new Set([
   "COPILOT_GITHUB_TOKEN",
+  "COPILOT_DISABLE_KEYTAR",
   "GH_TOKEN",
   "GITHUB_TOKEN"
 ]);
@@ -7206,6 +7204,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
     return {
       ...options,
       ...safeConnection ? { connection: safeConnection } : {},
+      mode: "copilot-cli",
       env: environment,
       useLoggedInUser: true
     };
@@ -7254,6 +7253,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
 };
 
 // node_modules/floe-runtime/src/adapters/copilot.mjs
+import { defineTool } from "@github/copilot-sdk";
 var COMPLETE_FINISH_REASONS = /* @__PURE__ */ new Set(["stop", "end_turn", "completed", "success"]);
 var DEFAULT_QUIESCE_TIMEOUT_MS = 1e4;
 var TOKEN_USAGE_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
@@ -7267,6 +7267,48 @@ function normalizeTool(tool) {
     throw new TypeError("Copilot host tools require a name and handler.");
   }
   return { ...tool };
+}
+function normalizeExpectedAccount(account) {
+  if (!account || typeof account.label !== "string" || account.label.trim().length === 0) {
+    throw new TypeError("CopilotRuntime requires expectedAccount.label from Copilot readiness.");
+  }
+  return {
+    label: account.label.trim(),
+    ...typeof account.host === "string" && account.host.trim() ? { host: account.host.trim() } : {}
+  };
+}
+function normalizedHost(host) {
+  return typeof host === "string" ? host.trim().replace(/\/+$/, "").toLowerCase() : "";
+}
+function isolatedClientOptions(clientOptions) {
+  const { gitHubToken: _ignoredToken, env: optionEnvironment, ...options } = clientOptions;
+  return {
+    ...options,
+    mode: "copilot-cli",
+    useLoggedInUser: true,
+    env: copilotChildEnvironment({ ...process.env, ...optionEnvironment })
+  };
+}
+function isolatedSystemMessage(systemMessage) {
+  if (!systemMessage) {
+    return { mode: "customize", sections: { environment_context: { action: "remove" } } };
+  }
+  if (typeof systemMessage === "string") {
+    return {
+      mode: "customize",
+      content: systemMessage,
+      sections: { environment_context: { action: "remove" } }
+    };
+  }
+  if (systemMessage.mode === "replace") return systemMessage;
+  return {
+    ...systemMessage,
+    mode: "customize",
+    sections: {
+      ...systemMessage.sections,
+      environment_context: { action: "remove" }
+    }
+  };
 }
 function aggregateUsage(modelCalls, numToolCalls) {
   if (modelCalls.length === 0) return null;
@@ -7313,6 +7355,7 @@ var CopilotRuntime = class extends Runtime {
     client,
     clientFactory,
     clientOptions = {},
+    expectedAccount,
     systemMessage,
     tools = [],
     availableTools,
@@ -7323,6 +7366,11 @@ var CopilotRuntime = class extends Runtime {
     ...legacyOptions
   } = {}) {
     super({ command: "copilot-sdk", unavailableCode: "copilot_unavailable", permissionPolicy, defaultPermissionDecision, ...legacyOptions });
+    const hasBaseDirectory = typeof clientOptions.baseDirectory === "string" && clientOptions.baseDirectory.trim().length > 0;
+    if (!hasBaseDirectory) {
+      throw new TypeError("CopilotRuntime requires clientOptions.baseDirectory for Floe-owned Copilot state.");
+    }
+    this.expectedAccount = normalizeExpectedAccount(expectedAccount);
     if (defaultPermissionDecision !== "allow_once") {
       throw new TypeError("Copilot allows engine tools unless a configured policy restricts them; defaultPermissionDecision must be allow_once.");
     }
@@ -7334,7 +7382,7 @@ var CopilotRuntime = class extends Runtime {
     this.quiesceTimeoutMs = quiesceTimeoutMs;
     this.client = client;
     this.clientFactory = clientFactory || ((options) => new CopilotClient2(options));
-    this.clientOptions = { ...clientOptions, mode: "empty" };
+    this.clientOptions = isolatedClientOptions(clientOptions);
     this.systemMessage = systemMessage;
     this.tools = tools.map(normalizeTool);
     this.availableTools = availableTools;
@@ -7436,28 +7484,67 @@ var CopilotRuntime = class extends Runtime {
       excludedTools: [],
       hooks: { onPreToolUse: this.#toolHook(selection) },
       onPermissionRequest: (request) => this.#permissionBackstop(request),
+      enableExperimentalMode: false,
+      enableSessionTelemetry: false,
       enableConfigDiscovery: false,
+      skipCustomInstructions: true,
+      customAgentsLocalOnly: true,
+      customAgents: [],
+      coauthorEnabled: false,
+      manageScheduleEnabled: false,
+      mcpOAuthTokenStorage: "in-memory",
       enableFileHooks: false,
       enableHostGitOperations: false,
       enableSessionStore: false,
       enableSkills: false,
       includedBuiltinSkills: [],
+      skillDirectories: [],
+      instructionDirectories: [],
+      pluginDirectories: [],
+      skipEmbeddingRetrieval: true,
+      embeddingCacheStorage: "in-memory",
+      enableOnDemandInstructionDiscovery: false,
       toolSearch: { enabled: false },
       memory: { enabled: false },
       mcpServers: {},
-      requestExtensions: false
+      requestExtensions: false,
+      systemMessage: isolatedSystemMessage(systemMessage)
     };
-    if (systemMessage) config.systemMessage = typeof systemMessage === "string" ? { mode: "append", content: systemMessage } : systemMessage;
     return { config, selection };
+  }
+  async #assertSessionAccount(session) {
+    let auth;
+    try {
+      auth = await session.rpc?.gitHubAuth?.getStatus();
+    } catch (error) {
+      throw sdkError("copilot_auth_unverified", `Copilot could not verify the session account: ${error.message}`, 503, error);
+    }
+    if (!auth?.isAuthenticated) {
+      throw sdkError("copilot_account_mismatch", `Copilot session is not authenticated as the readiness account '${this.expectedAccount.label}'.`, 409);
+    }
+    if (auth.authType !== "user") {
+      throw sdkError("copilot_account_mismatch", `Copilot session selected '${auth.authType || "unknown"}' authentication instead of the readiness OAuth account '${this.expectedAccount.label}'.`, 409);
+    }
+    if (typeof auth.login !== "string" || auth.login.toLowerCase() !== this.expectedAccount.label.toLowerCase()) {
+      throw sdkError("copilot_account_mismatch", `Copilot session authenticated as '${auth.login || "unknown"}' instead of readiness account '${this.expectedAccount.label}'.`, 409);
+    }
+    if (this.expectedAccount.host && normalizedHost(auth.host) !== normalizedHost(this.expectedAccount.host)) {
+      throw sdkError("copilot_account_mismatch", `Copilot session authenticated against '${auth.host || "unknown"}' instead of readiness host '${this.expectedAccount.host}'.`, 409);
+    }
   }
   async #prepareSession(session, cwd, selection) {
     try {
+      await this.#assertSessionAccount(session);
       return await prepareCopilotToolSession(session, selection, cwd);
     } catch (error) {
       try {
         await session.disconnect();
       } catch {
       }
+      this.sessionObjects.delete(session.sessionId);
+      this.sessionContexts.delete(session.sessionId);
+      this.sessions.delete(session.sessionId);
+      if (error instanceof RuntimeFault) throw error;
       throw sdkError(error.code || "copilot_tool_catalog_unavailable", error.message, 503, error);
     }
   }
@@ -7480,7 +7567,7 @@ var CopilotRuntime = class extends Runtime {
         this.sessions.set(session2.sessionId, { key: null, result: { sessionId: session2.sessionId } });
         return { session: session2, sessionId: session2.sessionId, reused: true, reason: "Resumed persisted session." };
       } catch (error) {
-        if (String(error?.code || "").startsWith("copilot_tool_") || error?.code === "copilot_permission_mode_unsafe") throw error;
+        if (String(error?.code || "").startsWith("copilot_tool_") || String(error?.code || "").startsWith("copilot_account_") || error?.code === "copilot_auth_unverified" || error?.code === "copilot_permission_mode_unsafe") throw error;
         this.emit("diagnostic", `Could not resume session ${continuation.sessionId}: ${error.message}`);
       }
     }
@@ -8222,9 +8309,9 @@ function resolvedScopeIdFromCreatePulseResult(result2) {
 }
 async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
   const { readFileSync: readFileSync8, writeFileSync: writeFileSync6 } = await import("node:fs");
-  const { join: join9 } = await import("node:path");
+  const { join: join10 } = await import("node:path");
   const YAML4 = (await import("./dist-BSYBXLJX.js")).default;
-  const yamlPath = join9(workspaceLocator, ".floe", "floe.yaml");
+  const yamlPath = join10(workspaceLocator, ".floe", "floe.yaml");
   const doc = YAML4.parseDocument(readFileSync8(yamlPath, "utf8"));
   if (!doc.get("pulses"))
     doc.set("pulses", doc.createNode([]));
@@ -10097,7 +10184,12 @@ function tokens(value) {
 }
 
 // floe-bridge/dist/engines/copilot.js
+import { mkdirSync as mkdirSync6 } from "node:fs";
 import { createRequire } from "node:module";
+import { join as join8 } from "node:path";
+function copilotHome(configPath, config) {
+  return join8(resolveLocalPath(configPath, config.home, config.bridge.data_dir), "copilot");
+}
 function packagedCopilotCliPath() {
   const require2 = createRequire(import.meta.url);
   let launcher;
@@ -10116,17 +10208,30 @@ function packagedCopilotCliPath() {
   }
   return null;
 }
-function copilotEnvironment(environment = process.env) {
-  return copilotChildEnvironment(environment);
+function copilotEnvironment(home, environment = process.env) {
+  return copilotChildEnvironment({ ...environment, COPILOT_HOME: home });
 }
-function createCopilotAccount(options = {}) {
+function ownedFolder(home) {
+  mkdirSync6(home, { recursive: true });
+  return home;
+}
+function createCopilotRuntime(home, options) {
+  const folder = ownedFolder(home);
+  return new CopilotRuntime({
+    ...options,
+    clientOptions: { env: copilotEnvironment(folder), baseDirectory: folder }
+  });
+}
+function createCopilotAccount(home, options = {}) {
+  const folder = ownedFolder(home);
   const cliPath = options.cliPath === void 0 ? packagedCopilotCliPath() : options.cliPath;
   if (cliPath)
     console.log(`[floe-bridge] copilot sign-in cli: ${cliPath}`);
   else
     console.warn("[floe-bridge] copilot sign-in cli: not found; @github/copilot for this platform is not installed");
   return new CopilotEngineAccountAdapter({
-    environment: options.environment ?? process.env,
+    environment: { ...process.env, COPILOT_HOME: folder },
+    clientOptions: { baseDirectory: folder },
     ...cliPath ? { cliPath } : {}
   });
 }
@@ -10406,6 +10511,9 @@ function grantedBuiltinTools(operationIds = [], model, platform = process.platfo
   const manifest = COPILOT_BUILTIN_TOOL_MANIFEST[platform] ?? {};
   return copilotToolCatalogForModel(model, platform).filter((name) => operationIds.includes(manifest[name].operationId)).map((name) => `builtin:${name}`).sort();
 }
+function sameAccount(a, b) {
+  return a.label.toLowerCase() === b.label.toLowerCase() && (a.host ?? "") === (b.host ?? "");
+}
 function recordToolActivity(turn, entry) {
   const existing = entry.call_id ? turn.tool_activity.find((activity) => activity.call_id === entry.call_id) : void 0;
   if (!existing) {
@@ -10440,8 +10548,20 @@ var FloeRuntimeAdapter = class {
   sessions = /* @__PURE__ */ new Map();
   runtimeFactory;
   toolGate = new EngineToolGate();
+  /** Present only on the production engine; a unit-test runtime has no account to sign in to. */
+  createEngineAccount;
+  /**
+   * Production gives Floe's Copilot folder and gets the real engine. A unit
+   * test gives a stand-in runtime instead; it can never also be a real engine.
+   */
   constructor(options) {
-    this.runtimeFactory = options?.runtimeFactory ?? ((runtimeOptions) => new CopilotRuntime({ ...runtimeOptions, clientOptions: { env: copilotEnvironment() } }));
+    if ("copilotHome" in options) {
+      const home = options.copilotHome;
+      this.runtimeFactory = (runtimeOptions) => createCopilotRuntime(home, runtimeOptions);
+      this.createEngineAccount = () => createCopilotAccount(home);
+    } else {
+      this.runtimeFactory = options.runtimeFactory;
+    }
   }
   approvalChanged(approvalRequestId) {
     this.toolGate.approvalChanged(approvalRequestId);
@@ -10458,9 +10578,6 @@ var FloeRuntimeAdapter = class {
       workspaceLocator: context.workspace_locator ?? null,
       request
     });
-  }
-  createEngineAccount() {
-    return createCopilotAccount();
   }
   beginCancellation(session, turn) {
     if (!session.sessionId || turn.cancellation)
@@ -10716,10 +10833,20 @@ var FloeRuntimeAdapter = class {
   getOrCreateSession(context, bundle) {
     const contextId = bundle.context_id ?? bundle.events[0]?.context_id ?? "no-context";
     const key = `${bundle.endpoint_id}:${contextId}`;
+    const account = context.engine_account;
+    if (!account) {
+      throw Object.assign(new Error("Copilot readiness did not report a signed-in account for this turn."), { code: "engine_account_unknown" });
+    }
     const existing = this.sessions.get(key);
-    if (existing) {
+    if (existing && sameAccount(existing.account, account)) {
       existing.context = context;
       return existing;
+    }
+    if (existing) {
+      this.sessions.delete(key);
+      void existing.runtime.close().catch((err) => {
+        console.error("[bridge] floe-runtime close failed", { endpoint_id: existing.endpointId, error: String(err) });
+      });
     }
     const session = {
       sessionId: null,
@@ -10728,10 +10855,12 @@ var FloeRuntimeAdapter = class {
       workspaceId: bundle.workspace_id,
       directTools: [],
       offeredTools: null,
-      context
+      context,
+      account
     };
     const runtime = this.runtimeFactory({
-      permissionPolicy: (request) => this.decideToolCall(session, request)
+      permissionPolicy: (request) => this.decideToolCall(session, request),
+      expectedAccount: account
     });
     session.runtime = runtime;
     const toolHandle = {
@@ -11006,7 +11135,7 @@ var HookRegistry = class {
 // floe-bridge/dist/folder-watcher.js
 import { createHash as createHash5 } from "node:crypto";
 import { statSync as statSync3, watch as fsWatch } from "node:fs";
-import { extname, join as join8, resolve as resolve4 } from "node:path";
+import { extname, join as join9, resolve as resolve4 } from "node:path";
 function watchFolder(folderPath, onFile, options = {}) {
   let watcher;
   const settleMs = Math.max(0, options.settle_ms ?? 250);
@@ -11044,7 +11173,7 @@ function watchFolder(folderPath, onFile, options = {}) {
       if (!filename)
         return;
       const fileName = filename.toString();
-      const filePath = join8(folderPath, fileName);
+      const filePath = join9(folderPath, fileName);
       const existing = pending.get(filePath);
       if (existing)
         clearTimeout(existing);
@@ -11491,7 +11620,7 @@ var BridgeDaemon = class {
     if (!isCredentialTransportSecure(bridgeWsBase(config))) {
       this.bus.markAuthorityUnavailable("insecure_transport");
     }
-    this.adapter = chooseAdapter(configPath, config);
+    this.adapter = options.stand_in_engine ? new FloeRuntimeAdapter({ runtimeFactory: options.stand_in_engine }) : chooseAdapter(configPath, config);
     const accounts = /* @__PURE__ */ new Map();
     if (this.adapter.engine && this.adapter.createEngineAccount) {
       accounts.set(this.adapter.engine, this.adapter.createEngineAccount());
@@ -12166,8 +12295,13 @@ var BridgeDaemon = class {
       await this.reportTurnEndSafely(delivery.endpoint_id);
       return;
     }
-    if (this.adapter.engine && !await this.engineAdmits(delivery, this.adapter.engine))
-      return;
+    let engineAccount;
+    if (this.adapter.engine) {
+      const admitted = await this.engineAdmits(delivery, this.adapter.engine);
+      if (!admitted)
+        return;
+      engineAccount = admitted.account;
+    }
     console.log("[bridge] delivery claimed", {
       delivery_id: delivery.delivery_id,
       endpoint_id: delivery.endpoint_id,
@@ -12239,7 +12373,8 @@ var BridgeDaemon = class {
         agent_id: endpointEntry?.agent_id,
         hooks: hookRegistry,
         operation_authority_session: operationAuthoritySession,
-        engine_tool_operation_ids: engineToolOperationIds
+        engine_tool_operation_ids: engineToolOperationIds,
+        ...engineAccount ? { engine_account: engineAccount } : {}
       }, delivery, effectiveRuntime);
       if (this.cancelledDeliveries.delete(delivery.delivery_id)) {
         await this.reportTurnEndSafely(delivery.endpoint_id);
@@ -12398,7 +12533,7 @@ var BridgeDaemon = class {
       };
     }
     if (state.phase === "ready")
-      return true;
+      return state;
     this.heldForEngine.set(delivery.endpoint_id, engine);
     console.log("[bridge] delivery held until engine is ready", {
       delivery_id: delivery.delivery_id,
@@ -12423,7 +12558,7 @@ var BridgeDaemon = class {
     }
     if (this.engines.state().engines[engine]?.phase === "ready")
       this.releaseHeldWork(engine);
-    return false;
+    return null;
   }
   releaseHeldWork(engine) {
     for (const [endpointId, heldEngine] of this.heldForEngine) {
@@ -12496,15 +12631,16 @@ var BridgeDaemon = class {
     };
   }
 };
-function chooseAdapter(_configPath, config) {
+function chooseAdapter(configPath, config) {
   const configured = config.bridge.runtime_adapter;
+  const production = () => new FloeRuntimeAdapter({ copilotHome: copilotHome(configPath, config) });
   if (!configured)
-    return new FloeRuntimeAdapter();
+    return production();
   const selected = configured.trim().toLowerCase();
   if (selected === "fake")
     return new FakeRuntimeAdapter();
   if (selected === "floe-runtime")
-    return new FloeRuntimeAdapter();
+    return production();
   throw new Error(`Unsupported bridge.runtime_adapter "${selected}" in the Floe config. Use "fake" or "floe-runtime".`);
 }
 function runtimeAdapterMatches(requiredAdapterId, activeAdapterName) {

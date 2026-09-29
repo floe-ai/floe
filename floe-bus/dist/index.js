@@ -68096,207 +68096,460 @@ function runtimeCredentialAccessOperations(deps) {
   });
 }
 
-// floe-bus/dist/capability-grant-operations.js
-var CAPABILITY_GRANT_OPERATION_IDS = ["capability.grant.list", "capability.grant.delegate", "capability.grant.revoke"];
-var text3 = { type: "string", minLength: 1 };
-var targets = { type: "array", items: {
-  type: "object",
-  additionalProperties: false,
-  required: ["kind", "id"],
-  properties: { kind: text3, id: { oneOf: [text3, { type: "null" }] } }
-} };
-var grantSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence", "delegation_only"],
-  properties: {
-    grant_id: text3,
-    principal_id: text3,
-    boundary: {
-      type: "object",
-      additionalProperties: false,
-      required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text3 }
-    },
-    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
-    targets,
-    issued_at: text3,
-    expires_at: { oneOf: [text3, { type: "null" }], description: "Null means until revoked." },
-    revoked_at: { oneOf: [text3, { type: "null" }] },
-    issuer_id: text3,
-    evidence: { type: "array", items: {
-      type: "object",
-      additionalProperties: false,
-      required: ["kind", "ref"],
-      properties: { kind: text3, ref: text3 }
-    } },
-    delegation_only: { type: "boolean" }
+// floe-bus/dist/actor-definitions.js
+import { createHash as createHash7, randomUUID as randomUUID7 } from "node:crypto";
+var ActorNotFoundError = class extends Error {
+  actor_id;
+  code = "E_ACTOR_NOT_FOUND";
+  constructor(actor_id) {
+    super(`Actor not found: ${actor_id}`);
+    this.actor_id = actor_id;
+    this.name = "ActorNotFoundError";
   }
 };
-var resultSchema = (properties) => ({ version: "1", schema: {
-  type: "object",
-  additionalProperties: false,
-  required: Object.keys(properties),
-  properties
-} });
-function capabilityGrantOperations(deps) {
-  const common = {
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "permissions",
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] }
-  };
-  const delegate = {
-    ...common,
-    operation_id: "capability.grant.delegate",
-    required_grants: ["capability.grant.delegate"],
-    title: "Delegate permitted access",
-    description: "Issue one Actor its own grant containing only the requested subset of one of your session's grants. Requires explicit delegation permission for that Actor. Source and delegation permission remain live dependencies; revoking either removes delegated access. Account purpose constraints are preserved. For an unpublished Actor, omit expected_resource_revision; otherwise supply its exact current_definition_revision_id. Choose the lifetime explicitly: until_revoked, or expires_at; it may not outlive the source or delegation permission. Add the returned grant ID to the recipient's Actor definition before publishing it; never copy another Actor's grant IDs.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "reference" },
-    target: { resource_kinds: ["actor"], expected_revision: "optional" },
-    result: resultSchema({ grant: grantSchema, delegation: {
-      type: "object",
-      additionalProperties: false,
-      required: ["source_grant_id", "authority_grant_id"],
-      properties: { source_grant_id: text3, authority_grant_id: text3 }
-    } }),
-    input: { version: "1", schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["source_grant_id", "operation_ids"],
-      properties: {
-        source_grant_id: text3,
-        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
-        targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
-        until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
-        expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
-        delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
-      }
-    } },
-    handler: (context, input) => {
-      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
-      const actor = deps.actors.getActor(context.target?.ref.id ?? "");
-      if (!actor || actor.workspace_id !== workspaceId4 || actor.status !== "active") {
-        return { state: "refused", refusal: refusal("delegation_actor_unavailable", "Select an active Actor in this Workspace.", false, null) };
-      }
-      if (context.expected_resource_revision !== actor.current_definition_revision_id) {
-        return { state: "refused", refusal: refusal("delegation_actor_changed", "The Actor changed. Inspect it before delegating access.", true, null) };
-      }
-      if (input.until_revoked === true === (input.expires_at !== void 0)) {
-        return { state: "refused", refusal: refusal("delegation_lifetime_required", "Choose exactly one lifetime: until_revoked, or expires_at.", false, null) };
-      }
-      const { until_revoked: _untilRevoked, ...request } = input;
-      deps.actors.db.exec("SAVEPOINT delegate_capability");
-      try {
-        const grant = deps.grants.delegateGrant({
-          ...request,
-          expires_at: input.expires_at ?? null,
-          authority: context.authority,
-          principal_id: actor.actor_id,
-          recipient: { kind: "actor", id: actor.actor_id },
-          invocation_id: context.invocation_id
-        });
-        const constraint = deps.refs.getGrantConstraint(input.source_grant_id);
-        if (constraint)
-          deps.refs.attachGrantConstraint({
-            grant_id: grant.grant_id,
-            authority_boundary: context.authority.boundary,
-            secret_ref_id: constraint.secret_ref_id,
-            purposes: constraint.purposes
-          }, deps.grants);
-        deps.actors.db.exec("RELEASE delegate_capability");
-        return {
-          state: "completed",
-          result: { grant, delegation: deps.grants.getDelegation(grant.grant_id) },
-          changed_refs: [{ kind: "capability_grant", id: grant.grant_id, revision: null }],
-          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
-        };
-      } catch (error) {
-        deps.actors.db.exec("ROLLBACK TO delegate_capability");
-        deps.actors.db.exec("RELEASE delegate_capability");
-        return { state: "refused", refusal: refusal("capability_delegation_refused", error.message, false, null) };
-      }
-    }
-  };
-  return [{
-    ...common,
-    operation_id: "capability.grant.list",
-    required_grants: ["capability.grant.list"],
-    title: "Inspect your permitted access",
-    description: "List the current grants pinned by your authenticated session, including their operation and target limits. active_grants authorize your own actions; delegable_grants can only be delegated onward. Delegation creates a new grant for another Actor; these IDs cannot be reused as that Actor's authority.",
-    effects: { mode: "read", reversibility: "none", external: false, secret_access: "reference" },
-    target: { resource_kinds: [], expected_revision: "not_applicable" },
-    result: resultSchema({
-      active_grants: { type: "array", items: grantSchema },
-      delegable_grants: { type: "array", items: grantSchema },
-      unavailable_grants: { type: "array", items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["grant_id", "code"],
-        properties: { grant_id: text3, code: text3 }
-      } }
-    }),
-    input: { version: "1", schema: { type: "object", additionalProperties: false } },
-    handler: (context) => ({ state: "completed", result: deps.grants.inspectSessionGrantIds({
-      principal_id: context.authority.principal_id,
-      boundary: context.authority.boundary,
-      grant_ids: context.authority.session_capability_grant_ids ?? []
-    }) })
-  }, delegate, {
-    ...common,
-    operation_id: "capability.grant.revoke",
-    required_grants: ["capability.grant.revoke"],
-    title: "Withdraw delegated access",
-    description: "Revoke a grant you delegated to this Actor. Dependent grants immediately lose authority as well; history remains available.",
-    effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "reference" },
-    target: { resource_kinds: ["actor"], expected_revision: "not_applicable" },
-    result: resultSchema({ grant: grantSchema }),
-    input: { version: "1", schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["grant_id"],
-      properties: { grant_id: text3 }
-    } },
-    handler: (context, input) => {
-      const grant = deps.grants.getGrant(input.grant_id);
-      if (!grant || !deps.grants.getDelegation(grant.grant_id) || grant.issuer_id !== context.authority.principal_id || grant.principal_id !== context.target?.ref.id || grant.boundary.kind !== "workspace" || grant.boundary.workspace_id !== requireWorkspaceAuthorityId(context.authority)) {
-        return { state: "refused", refusal: refusal("delegation_grant_mismatch", "This is not a grant you delegated to the selected Actor.", false, null) };
-      }
-      deps.grants.revokeGrant(grant.grant_id);
-      return {
-        state: "completed",
-        result: { grant: deps.grants.getGrant(grant.grant_id) },
-        changed_refs: [{ kind: "capability_grant", id: grant.grant_id, revision: null }],
-        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
-      };
-    }
-  }];
+var ActorDefinitionRevisionNotFoundError = class extends Error {
+  actor_definition_revision_id;
+  code = "E_ACTOR_DEFINITION_REVISION_NOT_FOUND";
+  constructor(actor_definition_revision_id) {
+    super(`Actor definition revision not found: ${actor_definition_revision_id}`);
+    this.actor_definition_revision_id = actor_definition_revision_id;
+    this.name = "ActorDefinitionRevisionNotFoundError";
+  }
+};
+var ActorDefinitionImmutableError = class extends Error {
+  actor_definition_revision_id;
+  code = "E_ACTOR_DEFINITION_IMMUTABLE";
+  constructor(actor_definition_revision_id) {
+    super(`Published Actor definition cannot be changed: ${actor_definition_revision_id}`);
+    this.actor_definition_revision_id = actor_definition_revision_id;
+    this.name = "ActorDefinitionImmutableError";
+  }
+};
+var ActorDefinitionConflictError = class extends Error {
+  actor_id;
+  expected_revision_id;
+  actual_revision_id;
+  code = "E_ACTOR_DEFINITION_CONFLICT";
+  constructor(actor_id, expected_revision_id, actual_revision_id) {
+    super(`Actor '${actor_id}' changed: expected definition '${expected_revision_id ?? "none"}', found '${actual_revision_id ?? "none"}'.`);
+    this.actor_id = actor_id;
+    this.expected_revision_id = expected_revision_id;
+    this.actual_revision_id = actual_revision_id;
+    this.name = "ActorDefinitionConflictError";
+  }
+};
+var ActorDefinitionDraftConflictError = class extends Error {
+  actor_definition_revision_id;
+  expected_digest;
+  actual_digest;
+  code = "E_ACTOR_DEFINITION_DRAFT_CONFLICT";
+  constructor(actor_definition_revision_id, expected_digest, actual_digest) {
+    super(`Actor definition draft '${actor_definition_revision_id}' changed before this edit was applied.`);
+    this.actor_definition_revision_id = actor_definition_revision_id;
+    this.expected_digest = expected_digest;
+    this.actual_digest = actual_digest;
+    this.name = "ActorDefinitionDraftConflictError";
+  }
+};
+function actorDefinitionDigest(content) {
+  validateActorDefinition(content);
+  return createHash7("sha256").update(canonicalJson3(content)).digest("hex");
 }
+function applyActorDefinitionSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS actors (
+      actor_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      created_in_context_id TEXT,
+      created_in_scope_execution_id TEXT,
+      status TEXT NOT NULL CHECK (status IN ('active', 'retired')),
+      current_definition_revision_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      retired_at TEXT
+    );
 
-// floe-bus/dist/actor-approval-policy.js
-var APPROVAL_POLICY_REF_KIND = "policy";
-function resolveActorApprovalPolicy(definition2, policies) {
-  const ref = definition2.content.policy_refs.approval;
-  if (!ref)
-    return { ok: true, policy_revision_id: null };
-  if (ref.kind !== APPROVAL_POLICY_REF_KIND || !ref.revision) {
-    return { ok: false, reason: "The approval policy reference must name a policy and its exact published revision." };
+    CREATE INDEX IF NOT EXISTS idx_actors_workspace_status
+      ON actors(workspace_id, status, created_at);
+
+    CREATE TABLE IF NOT EXISTS actor_definition_revisions (
+      actor_definition_revision_id TEXT PRIMARY KEY,
+      actor_id TEXT NOT NULL REFERENCES actors(actor_id),
+      workspace_id TEXT NOT NULL,
+      revision_number INTEGER NOT NULL,
+      based_on_revision_id TEXT REFERENCES actor_definition_revisions(actor_definition_revision_id),
+      semantic_digest TEXT NOT NULL,
+      content_json TEXT NOT NULL,
+      created_by_principal_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      published_at TEXT,
+      withdrawn_at TEXT,
+      UNIQUE(actor_id, revision_number)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_actor_definition_revisions_actor
+      ON actor_definition_revisions(actor_id, revision_number DESC);
+
+    CREATE TABLE IF NOT EXISTS actor_definition_head_changes (
+      head_change_id TEXT PRIMARY KEY,
+      actor_id TEXT NOT NULL REFERENCES actors(actor_id),
+      workspace_id TEXT NOT NULL,
+      from_revision_id TEXT,
+      to_revision_id TEXT NOT NULL REFERENCES actor_definition_revisions(actor_definition_revision_id),
+      reason TEXT NOT NULL CHECK (reason IN ('publish', 'rollback')),
+      changed_by_principal_id TEXT NOT NULL,
+      changed_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_actor_definition_head_changes_actor
+      ON actor_definition_head_changes(actor_id, changed_at, head_change_id);
+
+    CREATE TABLE IF NOT EXISTS actor_lifecycle_push_outbox (
+      outbox_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      changed_at TEXT NOT NULL,
+      push_sequence INTEGER
+    );
+  `);
+  addColumnIfMissing3(db, "actors", "created_in_context_id", "TEXT");
+  addColumnIfMissing3(db, "actors", "created_in_scope_execution_id", "TEXT");
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_actors_creation_context
+      ON actors(workspace_id, created_in_context_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_actors_creation_scope_execution
+      ON actors(workspace_id, created_in_scope_execution_id, created_at);
+  `);
+}
+var ActorDefinitionStore = class {
+  db;
+  now;
+  validateHead;
+  lifecyclePushReady = null;
+  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead) {
+    this.db = db;
+    this.now = now3;
+    this.validateHead = validateHead;
+    applyActorDefinitionSchema(db);
   }
-  const revision = policies.getRevision(ref.revision);
-  const policy = revision ? policies.getPolicy(revision.policy_id) : null;
-  if (!revision || !policy || revision.policy_id !== ref.id || revision.workspace_id !== definition2.workspace_id) {
-    return { ok: false, reason: `Approval policy revision '${ref.revision}' does not exist in this Workspace.` };
+  createActor(input) {
+    nonEmpty("workspace_id", input.workspace_id);
+    nonEmpty("created_by_principal_id", input.created_by_principal_id);
+    validateActorDefinition(input.definition);
+    const actorId = input.actor_id ?? `actor_${randomUUID7()}`;
+    nonEmpty("actor_id", actorId);
+    const at = this.now();
+    let draft;
+    transaction(this.db, () => {
+      this.db.prepare(`
+        INSERT INTO actors (
+          actor_id, workspace_id, created_in_context_id, created_in_scope_execution_id,
+          status, current_definition_revision_id,
+          created_at, updated_at, retired_at
+        ) VALUES (?, ?, ?, ?, 'active', NULL, ?, ?, NULL)
+      `).run(actorId, input.workspace_id, input.created_in_context_id ?? null, input.created_in_scope_execution_id ?? null, at, at);
+      draft = this.insertDraft({
+        actor_id: actorId,
+        workspace_id: input.workspace_id,
+        based_on_revision_id: null,
+        created_by_principal_id: input.created_by_principal_id,
+        definition: input.definition
+      });
+      const actor = this.requireActor(actorId);
+      this.queueLifecyclePush("actor_created", {
+        workspace_id: actor.workspace_id,
+        actor
+      }, at);
+    });
+    this.notifyLifecyclePushReady();
+    return { actor: this.requireActor(actorId), draft };
   }
-  if (revision.category !== "approval") {
-    return { ok: false, reason: `Policy revision '${ref.revision}' is a '${revision.category}' policy, not an approval policy.` };
+  createDraft(input) {
+    const actor = this.requireActor(input.actor_id);
+    if (actor.status === "retired") {
+      throw new ActorDefinitionValidationError(`retired Actor '${actor.actor_id}' cannot receive a new definition draft`);
+    }
+    const basedOn = input.based_on_revision_id === void 0 ? actor.current_definition_revision_id : input.based_on_revision_id;
+    if (basedOn !== null)
+      this.requireRevisionForActor(basedOn, actor.actor_id);
+    return this.insertDraft({
+      actor_id: actor.actor_id,
+      workspace_id: actor.workspace_id,
+      based_on_revision_id: basedOn,
+      created_by_principal_id: input.created_by_principal_id,
+      definition: input.definition
+    });
   }
-  if (revision.published_at === null || revision.withdrawn_at !== null || policy.status !== "active") {
-    return { ok: false, reason: `Approval policy revision '${ref.revision}' is not published and live.` };
+  replaceDraft(input) {
+    validateActorDefinition(input.definition);
+    const revision = this.requireRevision(input.actor_definition_revision_id);
+    if (revision.published_at || revision.withdrawn_at) {
+      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
+    }
+    if (revision.semantic_digest !== input.expected_digest) {
+      throw new ActorDefinitionDraftConflictError(revision.actor_definition_revision_id, input.expected_digest, revision.semantic_digest);
+    }
+    this.db.prepare(`
+      UPDATE actor_definition_revisions
+      SET semantic_digest = ?, content_json = ?
+      WHERE actor_definition_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
+    `).run(actorDefinitionDigest(input.definition), JSON.stringify(input.definition), revision.actor_definition_revision_id);
+    return this.requireRevision(revision.actor_definition_revision_id);
   }
-  if (revision.content.rules.some((rule) => rule.effect.kind === "limit")) {
-    return { ok: false, reason: `Approval policy revision '${ref.revision}' has budget limits; bind budget policies instead.` };
+  publishDraft(input) {
+    const revision = this.requireRevision(input.actor_definition_revision_id);
+    if (revision.withdrawn_at)
+      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
+    if (revision.published_at) {
+      if (this.requireActor(revision.actor_id).current_definition_revision_id === revision.actor_definition_revision_id) {
+        return revision;
+      }
+      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
+    }
+    transaction(this.db, () => {
+      this.moveHead({
+        revision,
+        expected_current_revision_id: input.expected_current_revision_id,
+        changed_by_principal_id: input.changed_by_principal_id,
+        reason: "publish",
+        publish_at: this.now()
+      });
+      const actor = this.requireActor(revision.actor_id);
+      this.queueLifecyclePush("actor_definition_published", {
+        workspace_id: actor.workspace_id,
+        actor,
+        revision: this.requireRevision(revision.actor_definition_revision_id)
+      }, actor.updated_at);
+    });
+    this.notifyLifecyclePushReady();
+    return this.requireRevision(revision.actor_definition_revision_id);
   }
-  return { ok: true, policy_revision_id: revision.policy_revision_id };
+  rollback(input) {
+    const actor = this.requireActor(input.actor_id);
+    const revision = this.requireRevisionForActor(input.to_published_revision_id, actor.actor_id);
+    if (!revision.published_at || revision.withdrawn_at) {
+      throw new ActorDefinitionValidationError("rollback target must be a retained published definition");
+    }
+    transaction(this.db, () => this.moveHead({
+      revision,
+      expected_current_revision_id: input.expected_current_revision_id,
+      changed_by_principal_id: input.changed_by_principal_id,
+      reason: "rollback",
+      publish_at: null
+    }));
+    return revision;
+  }
+  withdrawDraft(actorDefinitionRevisionId) {
+    const revision = this.requireRevision(actorDefinitionRevisionId);
+    if (revision.published_at)
+      throw new ActorDefinitionImmutableError(actorDefinitionRevisionId);
+    if (!revision.withdrawn_at) {
+      this.db.prepare(`
+        UPDATE actor_definition_revisions SET withdrawn_at = ?
+        WHERE actor_definition_revision_id = ? AND published_at IS NULL
+      `).run(this.now(), actorDefinitionRevisionId);
+    }
+    return this.requireRevision(actorDefinitionRevisionId);
+  }
+  setActorStatus(input) {
+    const actor = this.requireActor(input.actor_id);
+    if (actor.current_definition_revision_id !== input.expected_current_definition_revision_id) {
+      throw new ActorDefinitionConflictError(actor.actor_id, input.expected_current_definition_revision_id, actor.current_definition_revision_id);
+    }
+    const at = this.now();
+    transaction(this.db, () => {
+      this.db.prepare(`
+        UPDATE actors SET status = ?, retired_at = ?, updated_at = ? WHERE actor_id = ?
+      `).run(input.status, input.status === "retired" ? at : null, at, actor.actor_id);
+      if (input.status === "retired") {
+        const retired = this.requireActor(actor.actor_id);
+        this.queueLifecyclePush("actor_retired", {
+          workspace_id: retired.workspace_id,
+          actor: retired
+        }, at);
+      }
+    });
+    if (input.status === "retired")
+      this.notifyLifecyclePushReady();
+    return this.requireActor(actor.actor_id);
+  }
+  getActor(actorId) {
+    const row = this.db.prepare(`SELECT * FROM actors WHERE actor_id = ?`).get(actorId);
+    return row ? rowToActor(row) : null;
+  }
+  requireActor(actorId) {
+    const actor = this.getActor(actorId);
+    if (!actor)
+      throw new ActorNotFoundError(actorId);
+    return actor;
+  }
+  listActors(workspaceId4, options = {}) {
+    const rows = this.db.prepare(`
+      SELECT * FROM actors
+      WHERE workspace_id = ?
+        AND (? = 1 OR status = 'active')
+        AND (? IS NULL OR created_in_context_id = ?)
+        AND (? IS NULL OR created_in_scope_execution_id = ?)
+      ORDER BY created_at, actor_id
+    `).all(workspaceId4, options.include_retired ? 1 : 0, options.created_in_context_id ?? null, options.created_in_context_id ?? null, options.created_in_scope_execution_id ?? null, options.created_in_scope_execution_id ?? null);
+    return rows.map(rowToActor);
+  }
+  setLifecyclePushReady(notify) {
+    this.lifecyclePushReady = notify;
+  }
+  getRevision(revisionId) {
+    const row = this.db.prepare(`
+      SELECT * FROM actor_definition_revisions WHERE actor_definition_revision_id = ?
+    `).get(revisionId);
+    return row ? rowToRevision(row) : null;
+  }
+  requireRevision(revisionId) {
+    const revision = this.getRevision(revisionId);
+    if (!revision)
+      throw new ActorDefinitionRevisionNotFoundError(revisionId);
+    return revision;
+  }
+  getCurrentDefinition(actorId) {
+    const actor = this.requireActor(actorId);
+    return actor.current_definition_revision_id ? this.requireRevision(actor.current_definition_revision_id) : null;
+  }
+  listRevisions(actorId) {
+    this.requireActor(actorId);
+    return this.db.prepare(`
+      SELECT * FROM actor_definition_revisions
+      WHERE actor_id = ? ORDER BY revision_number DESC
+    `).all(actorId).map(rowToRevision);
+  }
+  listHeadChanges(actorId) {
+    this.requireActor(actorId);
+    return this.db.prepare(`
+      SELECT * FROM actor_definition_head_changes
+      WHERE actor_id = ? ORDER BY changed_at, head_change_id
+    `).all(actorId);
+  }
+  insertDraft(input) {
+    nonEmpty("created_by_principal_id", input.created_by_principal_id);
+    validateActorDefinition(input.definition);
+    const revisionId = `actor_definition_${randomUUID7()}`;
+    const revisionNumber = Number(this.db.prepare(`
+      SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
+      FROM actor_definition_revisions WHERE actor_id = ?
+    `).get(input.actor_id).next);
+    this.db.prepare(`
+      INSERT INTO actor_definition_revisions (
+        actor_definition_revision_id, actor_id, workspace_id, revision_number,
+        based_on_revision_id, semantic_digest, content_json,
+        created_by_principal_id, created_at, published_at, withdrawn_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+    `).run(revisionId, input.actor_id, input.workspace_id, revisionNumber, input.based_on_revision_id, actorDefinitionDigest(input.definition), JSON.stringify(input.definition), input.created_by_principal_id, this.now());
+    return this.requireRevision(revisionId);
+  }
+  requireRevisionForActor(revisionId, actorId) {
+    const revision = this.requireRevision(revisionId);
+    if (revision.actor_id !== actorId) {
+      throw new ActorDefinitionValidationError(`definition '${revisionId}' belongs to another Actor`);
+    }
+    return revision;
+  }
+  moveHead(input) {
+    nonEmpty("changed_by_principal_id", input.changed_by_principal_id);
+    const actor = this.requireActor(input.revision.actor_id);
+    this.validateHead?.(actor.actor_id, actor.workspace_id, input.revision.content);
+    if (actor.status === "retired") {
+      throw new ActorDefinitionValidationError(`retired Actor '${actor.actor_id}' cannot change its current definition`);
+    }
+    if (actor.current_definition_revision_id !== input.expected_current_revision_id) {
+      throw new ActorDefinitionConflictError(actor.actor_id, input.expected_current_revision_id, actor.current_definition_revision_id);
+    }
+    const at = input.publish_at ?? this.now();
+    if (input.publish_at) {
+      this.db.prepare(`
+        UPDATE actor_definition_revisions SET published_at = ?
+        WHERE actor_definition_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
+      `).run(input.publish_at, input.revision.actor_definition_revision_id);
+    }
+    this.db.prepare(`
+      UPDATE actors SET current_definition_revision_id = ?, updated_at = ? WHERE actor_id = ?
+    `).run(input.revision.actor_definition_revision_id, at, actor.actor_id);
+    this.db.prepare(`
+      INSERT INTO actor_definition_head_changes (
+        head_change_id, actor_id, workspace_id, from_revision_id, to_revision_id,
+        reason, changed_by_principal_id, changed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(`actor_head_change_${randomUUID7()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+  }
+  queueLifecyclePush(type, payload, at) {
+    this.db.prepare(`
+      INSERT INTO actor_lifecycle_push_outbox (
+        workspace_id, event_type, payload_json, changed_at, push_sequence
+      ) VALUES (?, ?, ?, ?, NULL)
+    `).run(String(payload.workspace_id), type, JSON.stringify(payload), at);
+  }
+  notifyLifecyclePushReady() {
+    queueMicrotask(() => this.lifecyclePushReady?.());
+  }
+};
+function rowToActor(row) {
+  return {
+    actor_id: String(row.actor_id),
+    workspace_id: String(row.workspace_id),
+    created_in_context_id: row.created_in_context_id == null ? null : String(row.created_in_context_id),
+    created_in_scope_execution_id: row.created_in_scope_execution_id == null ? null : String(row.created_in_scope_execution_id),
+    status: String(row.status),
+    current_definition_revision_id: row.current_definition_revision_id == null ? null : String(row.current_definition_revision_id),
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+    retired_at: row.retired_at == null ? null : String(row.retired_at)
+  };
+}
+function rowToRevision(row) {
+  const content = JSON.parse(String(row.content_json));
+  validateActorDefinition(content);
+  return {
+    actor_definition_revision_id: String(row.actor_definition_revision_id),
+    actor_id: String(row.actor_id),
+    workspace_id: String(row.workspace_id),
+    revision_number: Number(row.revision_number),
+    based_on_revision_id: row.based_on_revision_id == null ? null : String(row.based_on_revision_id),
+    semantic_digest: String(row.semantic_digest),
+    content,
+    created_by_principal_id: String(row.created_by_principal_id),
+    created_at: String(row.created_at),
+    published_at: row.published_at == null ? null : String(row.published_at),
+    withdrawn_at: row.withdrawn_at == null ? null : String(row.withdrawn_at)
+  };
+}
+function nonEmpty(label, value) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new ActorDefinitionValidationError(`${label} must not be empty`);
+  }
+}
+function addColumnIfMissing3(db, table, column, definition2) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
+  }
+}
+function canonicalJson3(value) {
+  if (Array.isArray(value))
+    return `[${value.map(canonicalJson3).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson3(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+function transaction(db, action) {
+  db.exec("SAVEPOINT actor_definition_change");
+  try {
+    const result = action();
+    db.exec("RELEASE actor_definition_change");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK TO actor_definition_change");
+    db.exec("RELEASE actor_definition_change");
+    throw error;
+  }
 }
 
 // floe-bus/dist/tool-policy.js
@@ -68447,8 +68700,1002 @@ function deny(code, reason) {
   return { allowed: false, code, reason };
 }
 
+// floe-bus/dist/actor-tool-access.js
+var ALL_ENGINE_TOOL_OPERATION_IDS = Object.values(ENGINE_TOOL_OPERATIONS).sort();
+var ToolAccessWideningError = class extends Error {
+};
+function passOnEngineToolAccess(input) {
+  const limited = input.chosen_operation_ids !== void 0;
+  const wanted = [...new Set(input.chosen_operation_ids ?? ALL_ENGINE_TOOL_OPERATION_IDS)].sort();
+  const held = heldGrants(input.grants, input.authority);
+  const notGranted = [];
+  const granted = [];
+  const covered = /* @__PURE__ */ new Set();
+  for (const operationId of wanted) {
+    if (!held.some((grant) => grant.operation_ids.includes(operationId))) {
+      if (limited)
+        throw new ToolAccessWideningError(`You cannot give '${operationId}' because you do not hold it.`);
+      notGranted.push({ operation_id: operationId, reason: "The creator does not hold this engine tool." });
+    }
+  }
+  for (const source of held) {
+    const operations = source.operation_ids.filter((id) => wanted.includes(id) && !covered.has(id));
+    if (operations.length === 0)
+      continue;
+    try {
+      granted.push(input.grants.delegateGrant({
+        authority: input.authority,
+        source_grant_id: source.grant_id,
+        principal_id: input.draft.actor_id,
+        recipient: { kind: "actor", id: input.draft.actor_id },
+        operation_ids: operations,
+        // The Actor's access lasts exactly as long as the creator's source grant.
+        expires_at: source.expires_at,
+        invocation_id: input.invocation_id
+      }));
+      for (const id of operations)
+        covered.add(id);
+    } catch (error) {
+      if (limited)
+        throw new ToolAccessWideningError(error.message);
+      for (const id of operations)
+        notGranted.push({ operation_id: id, reason: error.message });
+    }
+  }
+  const grantIds = granted.map((grant) => grant.grant_id);
+  const draft = grantIds.length === 0 ? input.draft : input.actors.replaceDraft({
+    actor_definition_revision_id: input.draft.actor_definition_revision_id,
+    expected_digest: input.draft.semantic_digest,
+    definition: {
+      ...input.draft.content,
+      capability_grant_ids: [.../* @__PURE__ */ new Set([...input.draft.content.capability_grant_ids, ...grantIds])]
+    }
+  });
+  const settled = /* @__PURE__ */ new Map();
+  for (const item of notGranted)
+    if (!covered.has(item.operation_id))
+      settled.set(item.operation_id, item);
+  return {
+    draft,
+    tool_access: {
+      limited_by_creator: limited,
+      granted_operation_ids: [...covered].sort(),
+      grant_ids: grantIds,
+      not_granted: [...settled.values()].sort((a, b) => a.operation_id.localeCompare(b.operation_id))
+    }
+  };
+}
+function heldGrants(grants, authority) {
+  const inspection = grants.inspectSessionGrantIds({
+    principal_id: authority.principal_id,
+    boundary: authority.boundary,
+    grant_ids: authority.session_capability_grant_ids ?? []
+  });
+  return [...inspection.active_grants, ...inspection.delegable_grants].filter((grant) => grant.operation_ids.some((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id))).sort((a, b) => expiryMs(b.expires_at) - expiryMs(a.expires_at) || a.grant_id.localeCompare(b.grant_id));
+}
+
+// floe-bus/dist/actor-definition-operations.js
+function authorityWorkspaceId(context) {
+  return requireWorkspaceAuthorityId(context.authority);
+}
+var LIST_ACTORS_OPERATION_ID = "actor.list";
+var INSPECT_ACTOR_OPERATION_ID = "actor.inspect";
+var GET_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.get";
+var CREATE_ACTOR_OPERATION_ID = "actor.create";
+var CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID = "actor.definition.draft.create";
+var REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID = "actor.definition.draft.replace";
+var PUBLISH_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.publish";
+var ROLLBACK_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.rollback";
+var RETIRE_ACTOR_OPERATION_ID = "actor.retire";
+var REACTIVATE_ACTOR_OPERATION_ID = "actor.reactivate";
+var NO_ACTOR_DEFINITION_REVISION = "none";
+var nonEmptyString = { type: "string", minLength: 1 };
+var nullableString = { oneOf: [nonEmptyString, { type: "null" }] };
+var emptyInput2 = { type: "object", additionalProperties: false };
+var resourceRefSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "id", "revision"],
+  properties: { kind: nonEmptyString, id: nonEmptyString, revision: nullableString }
+};
+var responsibilitySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["responsibility_id", "title", "description"],
+  properties: {
+    responsibility_id: nonEmptyString,
+    title: nonEmptyString,
+    description: nonEmptyString
+  }
+};
+var escalationRuleSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["rule_id", "when", "action"],
+  properties: {
+    rule_id: nonEmptyString,
+    when: nonEmptyString,
+    action: { enum: ["decline", "delegate", "escalate", "signal_unowned"] },
+    target_actor_id: nullableString
+  }
+};
+var ACTOR_DEFINITION_CONTENT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "label",
+    "charter",
+    "responsibilities",
+    "instructions",
+    "knowledge_refs",
+    "capability_grant_ids",
+    "policy_refs",
+    "escalation_rules"
+  ],
+  properties: {
+    label: nonEmptyString,
+    charter: nonEmptyString,
+    responsibilities: { type: "array", items: responsibilitySchema },
+    instructions: nonEmptyString,
+    knowledge_refs: { type: "array", items: resourceRefSchema },
+    capability_grant_ids: {
+      type: "array",
+      items: nonEmptyString,
+      uniqueItems: true,
+      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list; actor.create adds its engine tool access for you. Delegate any other access it needs, then publish its own grants. Never copy another Actor's grant IDs."
+    },
+    policy_refs: {
+      type: "object",
+      additionalProperties: false,
+      required: ["budget", "trust", "approval"],
+      properties: {
+        budget: { oneOf: [resourceRefSchema, { type: "null" }] },
+        trust: { oneOf: [resourceRefSchema, { type: "null" }] },
+        approval: {
+          oneOf: [resourceRefSchema, { type: "null" }],
+          description: "Pinned Approval Policy revision { kind: 'policy', id: policy_id, revision: policy_revision_id }. It can only restrict engine tool calls; it never grants authority."
+        }
+      }
+    },
+    escalation_rules: { type: "array", items: escalationRuleSchema },
+    scope: {
+      type: "object",
+      additionalProperties: false,
+      required: ["paths"],
+      description: "Optional limit, chosen by a person: Workspace-relative folders that engine file tools must stay within. Omit for no folder limit. Use '.' for the whole Workspace. An Actor with a folder limit cannot use shell, because shell calls do not report which files they touch.",
+      properties: { paths: { type: "array", items: nonEmptyString, minItems: 1, uniqueItems: true } }
+    }
+  }
+};
+var actorSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actor_id",
+    "workspace_id",
+    "created_in_context_id",
+    "created_in_scope_execution_id",
+    "status",
+    "current_definition_revision_id",
+    "created_at",
+    "updated_at",
+    "retired_at"
+  ],
+  properties: {
+    actor_id: nonEmptyString,
+    workspace_id: nonEmptyString,
+    created_in_context_id: nullableString,
+    created_in_scope_execution_id: nullableString,
+    status: { enum: ["active", "retired"] },
+    current_definition_revision_id: nullableString,
+    created_at: nonEmptyString,
+    updated_at: nonEmptyString,
+    retired_at: nullableString
+  }
+};
+var actorDefinitionRevisionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "actor_definition_revision_id",
+    "actor_id",
+    "workspace_id",
+    "revision_number",
+    "based_on_revision_id",
+    "semantic_digest",
+    "content",
+    "created_by_principal_id",
+    "created_at",
+    "published_at",
+    "withdrawn_at"
+  ],
+  properties: {
+    actor_definition_revision_id: nonEmptyString,
+    actor_id: nonEmptyString,
+    workspace_id: nonEmptyString,
+    revision_number: { type: "integer", minimum: 1 },
+    based_on_revision_id: nullableString,
+    semantic_digest: nonEmptyString,
+    content: ACTOR_DEFINITION_CONTENT_SCHEMA,
+    created_by_principal_id: nonEmptyString,
+    created_at: nonEmptyString,
+    published_at: nullableString,
+    withdrawn_at: nullableString
+  }
+};
+var actorHeadChangeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "head_change_id",
+    "actor_id",
+    "workspace_id",
+    "from_revision_id",
+    "to_revision_id",
+    "reason",
+    "changed_by_principal_id",
+    "changed_at"
+  ],
+  properties: {
+    head_change_id: nonEmptyString,
+    actor_id: nonEmptyString,
+    workspace_id: nonEmptyString,
+    from_revision_id: nullableString,
+    to_revision_id: nonEmptyString,
+    reason: { enum: ["publish", "rollback"] },
+    changed_by_principal_id: nonEmptyString,
+    changed_at: nonEmptyString
+  }
+};
+var actorWithDefinitionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor", "current_definition"],
+  properties: {
+    actor: actorSchema,
+    current_definition: { oneOf: [actorDefinitionRevisionSchema, { type: "null" }] }
+  }
+};
+var actorListResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actors"],
+  properties: { actors: { type: "array", items: actorWithDefinitionSchema } }
+};
+var actorInspectionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor", "current_definition", "history_complete", "revisions", "head_changes"],
+  properties: {
+    actor: actorSchema,
+    current_definition: { oneOf: [actorDefinitionRevisionSchema, { type: "null" }] },
+    history_complete: { type: "boolean" },
+    revisions: { type: "array", items: actorDefinitionRevisionSchema },
+    head_changes: { type: "array", items: actorHeadChangeSchema }
+  }
+};
+var createdActorSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor", "draft", "tool_access"],
+  properties: {
+    actor: actorSchema,
+    draft: actorDefinitionRevisionSchema,
+    tool_access: {
+      type: "object",
+      additionalProperties: false,
+      required: ["limited_by_creator", "granted_operation_ids", "grant_ids", "not_granted"],
+      description: "Engine tool access the new Actor received from you, and anything you could not pass on.",
+      properties: {
+        limited_by_creator: { type: "boolean" },
+        granted_operation_ids: { type: "array", items: nonEmptyString },
+        grant_ids: { type: "array", items: nonEmptyString },
+        not_granted: { type: "array", items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["operation_id", "reason"],
+          properties: { operation_id: nonEmptyString, reason: nonEmptyString }
+        } }
+      }
+    }
+  }
+};
+var actorAndRevisionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor", "revision"],
+  properties: { actor: actorSchema, revision: actorDefinitionRevisionSchema }
+};
+var actorOnlySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor"],
+  properties: { actor: actorSchema }
+};
+var listInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    include_retired: { type: "boolean" },
+    created_in_context_id: nonEmptyString,
+    created_in_scope_execution_id: nonEmptyString
+  }
+};
+var inspectInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: { include_history: { type: "boolean" } }
+};
+var createActorInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["definition"],
+  properties: {
+    actor_id: nonEmptyString,
+    definition: ACTOR_DEFINITION_CONTENT_SCHEMA,
+    engine_tool_operation_ids: {
+      type: "array",
+      uniqueItems: true,
+      items: { enum: [...ALL_ENGINE_TOOL_OPERATION_IDS] },
+      description: "Optional limit. The new Actor may use every engine tool you hold by default. List only the engine tools it may use, or [] for none. You cannot give a tool you do not hold."
+    }
+  }
+};
+var createDraftInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["definition"],
+  properties: {
+    based_on_revision_id: nullableString,
+    definition: ACTOR_DEFINITION_CONTENT_SCHEMA
+  }
+};
+var replaceDraftInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["definition"],
+  properties: { definition: ACTOR_DEFINITION_CONTENT_SCHEMA }
+};
+var publishInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["expected_current_definition_revision_id"],
+  properties: { expected_current_definition_revision_id: nullableString }
+};
+var rollbackInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["to_published_revision_id"],
+  properties: { to_published_revision_id: nonEmptyString }
+};
+function actorRef(actor) {
+  return {
+    kind: "actor",
+    id: actor.actor_id,
+    revision: actor.current_definition_revision_id ?? NO_ACTOR_DEFINITION_REVISION
+  };
+}
+function definitionRef(revision) {
+  return {
+    kind: "actor_definition_revision",
+    id: revision.actor_definition_revision_id,
+    revision: revision.semantic_digest
+  };
+}
+function auditRef2(context) {
+  return { kind: "operation_invocation", id: context.invocation_id, revision: null };
+}
+function expectedHead(value) {
+  return value === NO_ACTOR_DEFINITION_REVISION ? null : value;
+}
+function actorInWorkspace(store, workspaceId4, actorId) {
+  const actor = store.getActor(actorId);
+  return actor?.workspace_id === workspaceId4 ? actor : null;
+}
+function revisionInWorkspace(store, workspaceId4, revisionId) {
+  const revision = store.getRevision(revisionId);
+  return revision?.workspace_id === workspaceId4 ? revision : null;
+}
+function actorAvailability(store, context, requiredStatus) {
+  const target = context.target?.ref;
+  const actor = target?.kind === "actor" ? actorInWorkspace(store, authorityWorkspaceId(context), target.id) : null;
+  if (!actor) {
+    return {
+      available: false,
+      refusal: refusal("actor_not_found", "This Actor is not available in the current Workspace.", false, requiredAction("refresh_actors", "Refresh Actors", "Refresh this Workspace and select an available Actor."))
+    };
+  }
+  if (requiredStatus && actor.status !== requiredStatus) {
+    return {
+      available: false,
+      refusal: refusal(requiredStatus === "active" ? "actor_already_retired" : "actor_already_active", requiredStatus === "active" ? "This Actor is already retired." : "This Actor is already active.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect the Actor's retained definition and current lifecycle state."))
+    };
+  }
+  return { available: true };
+}
+function revisionAvailability(store, context) {
+  const target = context.target?.ref;
+  const revision = target?.kind === "actor_definition_revision" ? revisionInWorkspace(store, authorityWorkspaceId(context), target.id) : null;
+  return revision ? { available: true } : {
+    available: false,
+    refusal: refusal("actor_definition_not_found", "This Actor definition revision is not available in the current Workspace.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect the Actor and select one retained definition revision."))
+  };
+}
+function actorOperationRefusal(error) {
+  if (error instanceof ActorDefinitionConflictError || error instanceof ActorDefinitionDraftConflictError) {
+    return refusal("actor_definition_revision_conflict", "The Actor definition changed before this operation completed.", true, requiredAction("refresh_actor", "Review the latest Actor", "Refresh the Actor and retry against its exact current revision."));
+  }
+  if (error instanceof ActorDefinitionImmutableError) {
+    return refusal("actor_definition_immutable", "Published or withdrawn Actor definitions cannot be replaced.", false, requiredAction("create_actor_definition_draft", "Create a new draft", "Create a new definition draft based on a retained revision."));
+  }
+  if (error instanceof ActorNotFoundError || error instanceof ActorDefinitionRevisionNotFoundError) {
+    return refusal("actor_not_found", "The requested Actor or definition revision was not found in this Workspace.", false, requiredAction("refresh_actors", "Refresh Actors", "Refresh retained Actors and choose an available exact revision."));
+  }
+  if (error instanceof ActorDefinitionValidationError) {
+    return refusal("actor_definition_invalid", error.message, false, requiredAction("correct_actor_definition", "Correct the Actor definition", "Use the exact discovered Actor definition contract."));
+  }
+  return refusal("actor_operation_failed", "Floe could not prove that the Actor operation completed.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect retained Actor state before deciding whether a retry is safe."));
+}
+async function handle2(work) {
+  try {
+    return await work();
+  } catch (error) {
+    return { state: "refused", refusal: actorOperationRefusal(error) };
+  }
+}
+function listActorsOperation(store) {
+  return {
+    operation_id: LIST_ACTORS_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "List Actors",
+    description: "List Actor identities in this Workspace with their current published definitions.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    required_grants: [LIST_ACTORS_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    input: { version: "1", schema: listInputSchema },
+    result: { version: "1", schema: actorListResultSchema },
+    handler: (context, input) => handle2(() => ({
+      state: "completed",
+      result: {
+        actors: store.listActors(authorityWorkspaceId(context), {
+          include_retired: input.include_retired === true,
+          ...input.created_in_context_id ? { created_in_context_id: input.created_in_context_id } : {},
+          ...input.created_in_scope_execution_id ? { created_in_scope_execution_id: input.created_in_scope_execution_id } : {}
+        }).map((actor) => ({ actor, current_definition: store.getCurrentDefinition(actor.actor_id) }))
+      },
+      audit_ref: auditRef2(context)
+    }))
+  };
+}
+function inspectActorOperation(store) {
+  return {
+    operation_id: INSPECT_ACTOR_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Inspect Actor",
+    description: "Inspect an Actor's stable identity, current definition, drafts, and optionally retained definition history.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    required_grants: [INSPECT_ACTOR_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor"], expected_revision: "not_applicable" },
+    input: { version: "1", schema: inspectInputSchema },
+    result: { version: "1", schema: actorInspectionSchema },
+    availability: (context) => actorAvailability(store, context),
+    handler: (context, input) => handle2(() => {
+      const actor = actorInWorkspace(store, authorityWorkspaceId(context), context.target.ref.id);
+      if (!actor)
+        throw new ActorNotFoundError(context.target.ref.id);
+      const all = store.listRevisions(actor.actor_id);
+      const includeHistory = input.include_history === true;
+      return {
+        state: "completed",
+        result: {
+          actor,
+          current_definition: store.getCurrentDefinition(actor.actor_id),
+          history_complete: includeHistory,
+          revisions: includeHistory ? all : all.filter((revision) => revision.actor_definition_revision_id === actor.current_definition_revision_id || !revision.published_at && !revision.withdrawn_at),
+          head_changes: includeHistory ? store.listHeadChanges(actor.actor_id) : []
+        },
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function getActorDefinitionOperation(store) {
+  return {
+    operation_id: GET_ACTOR_DEFINITION_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Get Actor definition",
+    description: "Get one exact retained ActorDefinitionRevision and its stable Actor identity.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    required_grants: [GET_ACTOR_DEFINITION_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "not_applicable" },
+    input: { version: "1", schema: emptyInput2 },
+    result: { version: "1", schema: actorAndRevisionSchema },
+    availability: (context) => revisionAvailability(store, context),
+    handler: (context) => handle2(() => {
+      const revision = revisionInWorkspace(store, authorityWorkspaceId(context), context.target.ref.id);
+      if (!revision)
+        throw new ActorDefinitionRevisionNotFoundError(context.target.ref.id);
+      return {
+        state: "completed",
+        result: { actor: store.requireActor(revision.actor_id), revision },
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function createActorOperation(store, grants) {
+  return {
+    operation_id: CREATE_ACTOR_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Create Actor",
+    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [CREATE_ACTOR_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    input: { version: "1", schema: createActorInputSchema },
+    result: { version: "1", schema: createdActorSchema },
+    handler: (context, input) => handle2(() => {
+      store.db.exec("SAVEPOINT create_actor");
+      try {
+        const created = store.createActor({
+          workspace_id: authorityWorkspaceId(context),
+          created_in_context_id: actorCreationContextId(store, context),
+          created_in_scope_execution_id: context.provenance.scope_execution_id,
+          created_by_principal_id: context.authority.principal_id,
+          definition: input.definition,
+          ...input.actor_id ? { actor_id: input.actor_id } : {}
+        });
+        const { draft, tool_access } = passOnEngineToolAccess({
+          grants,
+          actors: store,
+          authority: context.authority,
+          draft: created.draft,
+          chosen_operation_ids: input.engine_tool_operation_ids,
+          invocation_id: context.invocation_id
+        });
+        store.db.exec("RELEASE create_actor");
+        return {
+          state: "completed",
+          result: { actor: created.actor, draft, tool_access },
+          changed_refs: [
+            actorRef(created.actor),
+            definitionRef(draft),
+            ...tool_access.grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null }))
+          ],
+          audit_ref: auditRef2(context)
+        };
+      } catch (error) {
+        store.db.exec("ROLLBACK TO create_actor");
+        store.db.exec("RELEASE create_actor");
+        if (error instanceof ToolAccessWideningError) {
+          return { state: "refused", refusal: refusal("actor_tool_access_widened", error.message, false, null) };
+        }
+        throw error;
+      }
+    })
+  };
+}
+function actorCreationContextId(store, context) {
+  if (context.provenance.cause_event_id) {
+    const row = store.db.prepare(`
+      SELECT context_id FROM events WHERE event_id = ? AND workspace_id = ?
+    `).get(context.provenance.cause_event_id, authorityWorkspaceId(context));
+    if (row)
+      return row.context_id;
+  }
+  if (context.provenance.node_execution_id) {
+    const row = store.db.prepare(`
+      SELECT context_id FROM node_executions WHERE node_execution_id = ?
+    `).get(context.provenance.node_execution_id);
+    if (row)
+      return row.context_id;
+  }
+  return null;
+}
+function createActorDefinitionDraftOperation(store) {
+  return {
+    operation_id: CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Create Actor definition draft",
+    description: "Create a new definition draft from the Actor's current or an explicitly selected retained revision.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor"], expected_revision: "required" },
+    input: { version: "1", schema: createDraftInputSchema },
+    result: { version: "1", schema: actorAndRevisionSchema },
+    availability: (context) => actorAvailability(store, context, "active"),
+    handler: (context, input) => handle2(() => {
+      const actor = store.requireActor(context.target.ref.id);
+      const expected = expectedHead(context.expected_resource_revision);
+      if (actor.current_definition_revision_id !== expected) {
+        throw new ActorDefinitionConflictError(actor.actor_id, expected, actor.current_definition_revision_id);
+      }
+      const revision = store.createDraft({
+        actor_id: actor.actor_id,
+        created_by_principal_id: context.authority.principal_id,
+        definition: input.definition,
+        ...input.based_on_revision_id !== void 0 ? { based_on_revision_id: input.based_on_revision_id } : {}
+      });
+      return {
+        state: "completed",
+        result: { actor: store.requireActor(actor.actor_id), revision },
+        changed_refs: [actorRef(actor), definitionRef(revision)],
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function replaceActorDefinitionDraftOperation(store) {
+  return {
+    operation_id: REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Replace Actor definition draft",
+    description: "Replace only an unpublished Actor definition draft using its exact semantic digest.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "required" },
+    input: { version: "1", schema: replaceDraftInputSchema },
+    result: { version: "1", schema: actorAndRevisionSchema },
+    availability: (context) => revisionAvailability(store, context),
+    handler: (context, input) => handle2(() => {
+      const revision = store.replaceDraft({
+        actor_definition_revision_id: context.target.ref.id,
+        expected_digest: context.expected_resource_revision,
+        definition: input.definition
+      });
+      return {
+        state: "completed",
+        result: { actor: store.requireActor(revision.actor_id), revision },
+        changed_refs: [definitionRef(revision)],
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function publishActorDefinitionOperation(store) {
+  return {
+    operation_id: PUBLISH_ACTOR_DEFINITION_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Publish Actor definition",
+    description: "Make one draft the Actor's current definition while retaining every published revision.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [PUBLISH_ACTOR_DEFINITION_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "required" },
+    input: { version: "1", schema: publishInputSchema },
+    result: { version: "1", schema: actorAndRevisionSchema },
+    availability: (context) => revisionAvailability(store, context),
+    handler: (context, input) => handle2(() => {
+      const current = store.requireRevision(context.target.ref.id);
+      if (current.semantic_digest !== context.expected_resource_revision) {
+        throw new ActorDefinitionDraftConflictError(current.actor_definition_revision_id, context.expected_resource_revision, current.semantic_digest);
+      }
+      const revision = store.publishDraft({
+        actor_definition_revision_id: context.target.ref.id,
+        expected_current_revision_id: input.expected_current_definition_revision_id,
+        changed_by_principal_id: context.authority.principal_id
+      });
+      const actor = store.requireActor(revision.actor_id);
+      return {
+        state: "completed",
+        result: { actor, revision },
+        changed_refs: [actorRef(actor), definitionRef(revision)],
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function rollbackActorDefinitionOperation(store) {
+  return {
+    operation_id: ROLLBACK_ACTOR_DEFINITION_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Roll back Actor definition",
+    description: "Move the Actor's current definition to an exact retained published revision without rewriting history.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [ROLLBACK_ACTOR_DEFINITION_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor"], expected_revision: "required" },
+    input: { version: "1", schema: rollbackInputSchema },
+    result: { version: "1", schema: actorAndRevisionSchema },
+    availability: (context) => actorAvailability(store, context, "active"),
+    handler: (context, input) => handle2(() => {
+      const actor = store.requireActor(context.target.ref.id);
+      const revision = store.rollback({
+        actor_id: actor.actor_id,
+        to_published_revision_id: input.to_published_revision_id,
+        expected_current_revision_id: context.expected_resource_revision,
+        changed_by_principal_id: context.authority.principal_id
+      });
+      const changed = store.requireActor(actor.actor_id);
+      return {
+        state: "completed",
+        result: { actor: changed, revision },
+        changed_refs: [actorRef(changed), definitionRef(revision)],
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function actorStatusOperation(store, status) {
+  const reactivating = status === "active";
+  const operationId = reactivating ? REACTIVATE_ACTOR_OPERATION_ID : RETIRE_ACTOR_OPERATION_ID;
+  return {
+    operation_id: operationId,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: reactivating ? "Reactivate Actor" : "Retire Actor",
+    description: reactivating ? "Return a retired Actor to active use without deleting or replacing its retained definitions." : "Remove an Actor from active use while retaining its identity, definitions, and history.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    required_grants: [operationId],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["actor"], expected_revision: "required" },
+    input: { version: "1", schema: emptyInput2 },
+    result: { version: "1", schema: actorOnlySchema },
+    availability: (context) => actorAvailability(store, context, reactivating ? "retired" : "active"),
+    handler: (context) => handle2(() => {
+      const actor = store.setActorStatus({
+        actor_id: context.target.ref.id,
+        status,
+        expected_current_definition_revision_id: expectedHead(context.expected_resource_revision)
+      });
+      return {
+        state: "completed",
+        result: { actor },
+        changed_refs: [actorRef(actor)],
+        audit_ref: auditRef2(context)
+      };
+    })
+  };
+}
+function actorDefinitionOperationDefinitions(store, grants) {
+  return [
+    listActorsOperation(store),
+    inspectActorOperation(store),
+    getActorDefinitionOperation(store),
+    createActorOperation(store, grants),
+    createActorDefinitionDraftOperation(store),
+    replaceActorDefinitionDraftOperation(store),
+    publishActorDefinitionOperation(store),
+    rollbackActorDefinitionOperation(store),
+    actorStatusOperation(store, "retired"),
+    actorStatusOperation(store, "active")
+  ];
+}
+function registerActorDefinitionOperations(registry, store, grants) {
+  for (const definition2 of actorDefinitionOperationDefinitions(store, grants))
+    registry.register(definition2);
+  return registry;
+}
+
+// floe-bus/dist/capability-grant-operations.js
+var CAPABILITY_GRANT_OPERATION_IDS = ["capability.grant.list", "capability.grant.delegate", "capability.grant.revoke"];
+var text3 = { type: "string", minLength: 1 };
+var targets = { type: "array", items: {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "id"],
+  properties: { kind: text3, id: { oneOf: [text3, { type: "null" }] } }
+} };
+var grantSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence", "delegation_only"],
+  properties: {
+    grant_id: text3,
+    principal_id: text3,
+    boundary: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "workspace_id"],
+      properties: { kind: { const: "workspace" }, workspace_id: text3 }
+    },
+    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
+    targets,
+    issued_at: text3,
+    expires_at: { oneOf: [text3, { type: "null" }], description: "Null means until revoked." },
+    revoked_at: { oneOf: [text3, { type: "null" }] },
+    issuer_id: text3,
+    evidence: { type: "array", items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "ref"],
+      properties: { kind: text3, ref: text3 }
+    } },
+    delegation_only: { type: "boolean" }
+  }
+};
+var resultSchema = (properties) => ({ version: "1", schema: {
+  type: "object",
+  additionalProperties: false,
+  required: Object.keys(properties),
+  properties
+} });
+function capabilityGrantOperations(deps) {
+  const common = {
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "permissions",
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] }
+  };
+  const delegate = {
+    ...common,
+    operation_id: "capability.grant.delegate",
+    required_grants: ["capability.grant.delegate"],
+    title: "Delegate permitted access",
+    description: "Issue one Actor its own grant containing only the requested subset of one of your session's grants. Requires explicit delegation permission for that Actor. Source and delegation permission remain live dependencies; revoking either removes delegated access. Account purpose constraints are preserved. For an unpublished Actor, omit expected_resource_revision or supply its reported revision 'none'; otherwise supply its exact current_definition_revision_id. Choose the lifetime explicitly: until_revoked, or expires_at; it may not outlive the source or delegation permission. Add the returned grant ID to the recipient's Actor definition before publishing it; never copy another Actor's grant IDs.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "reference" },
+    target: { resource_kinds: ["actor"], expected_revision: "optional" },
+    result: resultSchema({ grant: grantSchema, delegation: {
+      type: "object",
+      additionalProperties: false,
+      required: ["source_grant_id", "authority_grant_id"],
+      properties: { source_grant_id: text3, authority_grant_id: text3 }
+    } }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["source_grant_id", "operation_ids"],
+      properties: {
+        source_grant_id: text3,
+        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
+        targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
+        until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
+        expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
+        delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
+      }
+    } },
+    handler: (context, input) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      const actor = deps.actors.getActor(context.target?.ref.id ?? "");
+      if (!actor || actor.workspace_id !== workspaceId4 || actor.status !== "active") {
+        return { state: "refused", refusal: refusal("delegation_actor_unavailable", "Select an active Actor in this Workspace.", false, null) };
+      }
+      const expected = context.expected_resource_revision === NO_ACTOR_DEFINITION_REVISION ? null : context.expected_resource_revision;
+      if (expected !== actor.current_definition_revision_id) {
+        return { state: "refused", refusal: refusal("delegation_actor_changed", "The Actor changed. Inspect it before delegating access.", true, null) };
+      }
+      if (input.until_revoked === true === (input.expires_at !== void 0)) {
+        return { state: "refused", refusal: refusal("delegation_lifetime_required", "Choose exactly one lifetime: until_revoked, or expires_at.", false, null) };
+      }
+      const { until_revoked: _untilRevoked, ...request } = input;
+      deps.actors.db.exec("SAVEPOINT delegate_capability");
+      try {
+        const grant = deps.grants.delegateGrant({
+          ...request,
+          expires_at: input.expires_at ?? null,
+          authority: context.authority,
+          principal_id: actor.actor_id,
+          recipient: { kind: "actor", id: actor.actor_id },
+          invocation_id: context.invocation_id
+        });
+        const constraint = deps.refs.getGrantConstraint(input.source_grant_id);
+        if (constraint)
+          deps.refs.attachGrantConstraint({
+            grant_id: grant.grant_id,
+            authority_boundary: context.authority.boundary,
+            secret_ref_id: constraint.secret_ref_id,
+            purposes: constraint.purposes
+          }, deps.grants);
+        deps.actors.db.exec("RELEASE delegate_capability");
+        return {
+          state: "completed",
+          result: { grant, delegation: deps.grants.getDelegation(grant.grant_id) },
+          changed_refs: [{ kind: "capability_grant", id: grant.grant_id, revision: null }],
+          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+        };
+      } catch (error) {
+        deps.actors.db.exec("ROLLBACK TO delegate_capability");
+        deps.actors.db.exec("RELEASE delegate_capability");
+        return { state: "refused", refusal: refusal("capability_delegation_refused", error.message, false, null) };
+      }
+    }
+  };
+  return [{
+    ...common,
+    operation_id: "capability.grant.list",
+    required_grants: ["capability.grant.list"],
+    title: "Inspect your permitted access",
+    description: "List the current grants pinned by your authenticated session, including their operation and target limits. active_grants authorize your own actions; delegable_grants can only be delegated onward. Delegation creates a new grant for another Actor; these IDs cannot be reused as that Actor's authority.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "reference" },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    result: resultSchema({
+      active_grants: { type: "array", items: grantSchema },
+      delegable_grants: { type: "array", items: grantSchema },
+      unavailable_grants: { type: "array", items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["grant_id", "code"],
+        properties: { grant_id: text3, code: text3 }
+      } }
+    }),
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    handler: (context) => ({ state: "completed", result: deps.grants.inspectSessionGrantIds({
+      principal_id: context.authority.principal_id,
+      boundary: context.authority.boundary,
+      grant_ids: context.authority.session_capability_grant_ids ?? []
+    }) })
+  }, delegate, {
+    ...common,
+    operation_id: "capability.grant.revoke",
+    required_grants: ["capability.grant.revoke"],
+    title: "Withdraw delegated access",
+    description: "Revoke a grant you delegated to this Actor. Dependent grants immediately lose authority as well; history remains available.",
+    effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "reference" },
+    target: { resource_kinds: ["actor"], expected_revision: "not_applicable" },
+    result: resultSchema({ grant: grantSchema }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["grant_id"],
+      properties: { grant_id: text3 }
+    } },
+    handler: (context, input) => {
+      const grant = deps.grants.getGrant(input.grant_id);
+      if (!grant || !deps.grants.getDelegation(grant.grant_id) || grant.issuer_id !== context.authority.principal_id || grant.principal_id !== context.target?.ref.id || grant.boundary.kind !== "workspace" || grant.boundary.workspace_id !== requireWorkspaceAuthorityId(context.authority)) {
+        return { state: "refused", refusal: refusal("delegation_grant_mismatch", "This is not a grant you delegated to the selected Actor.", false, null) };
+      }
+      deps.grants.revokeGrant(grant.grant_id);
+      return {
+        state: "completed",
+        result: { grant: deps.grants.getGrant(grant.grant_id) },
+        changed_refs: [{ kind: "capability_grant", id: grant.grant_id, revision: null }],
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  }];
+}
+
+// floe-bus/dist/actor-approval-policy.js
+var APPROVAL_POLICY_REF_KIND = "policy";
+function resolveActorApprovalPolicy(definition2, policies) {
+  const ref = definition2.content.policy_refs.approval;
+  if (!ref)
+    return { ok: true, policy_revision_id: null };
+  if (ref.kind !== APPROVAL_POLICY_REF_KIND || !ref.revision) {
+    return { ok: false, reason: "The approval policy reference must name a policy and its exact published revision." };
+  }
+  const revision = policies.getRevision(ref.revision);
+  const policy = revision ? policies.getPolicy(revision.policy_id) : null;
+  if (!revision || !policy || revision.policy_id !== ref.id || revision.workspace_id !== definition2.workspace_id) {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' does not exist in this Workspace.` };
+  }
+  if (revision.category !== "approval") {
+    return { ok: false, reason: `Policy revision '${ref.revision}' is a '${revision.category}' policy, not an approval policy.` };
+  }
+  if (revision.published_at === null || revision.withdrawn_at !== null || policy.status !== "active") {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' is not published and live.` };
+  }
+  if (revision.content.rules.some((rule) => rule.effect.kind === "limit")) {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' has budget limits; bind budget policies instead.` };
+  }
+  return { ok: true, policy_revision_id: revision.policy_revision_id };
+}
+
 // floe-bus/dist/actor-authority-adoption.js
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 var FLOE_ISSUED_EVIDENCE = /* @__PURE__ */ new Set(["workspace_configuration_import_policy", "local_product_policy"]);
 var AUTOMATIC_ADOPTION_PRINCIPAL = "system:actor-access-adoption:v0.4.0";
 var ActorAccessAdoption = class {
@@ -68615,11 +69862,11 @@ var ActorAccessAdoption = class {
   }
 };
 function digest4(parts) {
-  return createHash7("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
+  return createHash8("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
 }
 
 // floe-bus/dist/local-product-policy.js
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 var DEFAULT_ACTOR_OPERATIONS_V1 = Object.freeze([
   ...CAPABILITY_GRANT_OPERATION_IDS,
   "actor.create",
@@ -68705,7 +69952,7 @@ var localProductWorkspacePolicy = (input) => {
   if (operations.length === 0)
     return null;
   const assignments = input.inventory.actors.map((actor) => ({ source_actor_id: actor.source_actor_id, operation_ids: operations }));
-  const digest11 = createHash8("sha256").update(JSON.stringify({ workspace_id: input.workspace_id, assignments, root: root.grant_id })).digest("hex").slice(0, 24);
+  const digest11 = createHash9("sha256").update(JSON.stringify({ workspace_id: input.workspace_id, assignments, root: root.grant_id })).digest("hex").slice(0, 24);
   return {
     policy_revision: `person-delegated-actor-access-v1:${root.grant_id}:${digest11}`,
     actor_operation_authority: assignments,
@@ -68833,7 +70080,7 @@ function sortedUnique(values) {
 }
 
 // floe-bus/dist/workspace-access.js
-import { randomUUID as randomUUID7 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import path2 from "node:path";
 var HOME_FOLDER_ID = "home";
@@ -68954,7 +70201,7 @@ var WorkspaceAccessStore = class {
     }
     const at = this.now();
     this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
-      VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID7()}`, input.workspace_id, this.dependencies.host_id, locator, at, input.principal_id);
+      VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID8()}`, input.workspace_id, this.dependencies.host_id, locator, at, input.principal_id);
     this.record(input.workspace_id, "folder_added", `Added the folder ${locator}.`, locator, input.principal_id, at);
     return this.inspect(input.workspace_id);
   }
@@ -68996,7 +70243,7 @@ var WorkspaceAccessStore = class {
       return;
     for (const folder of folders) {
       this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID7()}`, input.workspace_id, host, folder.locator, folder.added_at, folder.added_by_principal_id);
+        VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID8()}`, input.workspace_id, host, folder.locator, folder.added_at, folder.added_by_principal_id);
     }
     if (system) {
       this.db.prepare(`INSERT INTO workspace_system_access (workspace_id, host_id, enabled, changed_at, changed_by_principal_id)
@@ -69090,7 +70337,7 @@ var WorkspaceAccessStore = class {
   }
   record(workspaceId4, kind, summary2, recordPath, principalId, at) {
     this.db.prepare(`INSERT INTO workspace_access_records
-      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID7()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
+      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID8()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
   }
 };
 function carriedSummary(how, folders, systemAccess) {
@@ -69290,8 +70537,8 @@ var EndpointWatermarkStore = class {
 };
 
 // floe-bus/dist/contexts/resolver.js
-import { randomUUID as randomUUID8 } from "node:crypto";
-var newContextId = () => `ctx_${randomUUID8()}`;
+import { randomUUID as randomUUID9 } from "node:crypto";
+var newContextId = () => `ctx_${randomUUID9()}`;
 var destinationEndpoint = (destination) => destination.kind === "endpoint" ? destination.endpoint_id : null;
 function rejection(context_id, source_endpoint_id, ctxStore) {
   return { error: "E_NOT_CONTEXT_PARTICIPANT", payload: { code: "E_NOT_CONTEXT_PARTICIPANT", message: `E_NOT_CONTEXT_PARTICIPANT: source endpoint ${source_endpoint_id} is not a participant of context ${context_id}.`, context_id, source_endpoint_id, available_contexts: ctxStore.listContextsForParticipant(source_endpoint_id).slice(0, 10).map((c) => ({ context_id: c.context_id, participants: c.participants, topic: c.topic ?? null })), recovery: ["Omit context_id to open a new context with {source, destination}.", "Pass a context_id from available_contexts where the source is already a participant.", "If the destination is in the current delivery context, omit context_id to continue it."] } };
@@ -69311,7 +70558,7 @@ function resolveContext(input, ctxStore) {
 }
 
 // floe-bus/dist/scopes/store.js
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 var RESERVED_DEFAULT_SCOPE_ID = "default";
 var ScopeAlreadyExistsError = class extends Error {
   workspace_id;
@@ -69407,7 +70654,7 @@ var ScopeStore = class {
     return row ? this.rowToScope(row) : null;
   }
   createScope(input) {
-    const scopeId = input.scope_id ?? `scope_${randomUUID9()}`;
+    const scopeId = input.scope_id ?? `scope_${randomUUID10()}`;
     if (scopeId === RESERVED_DEFAULT_SCOPE_ID) {
       throw new ScopeReservedIdError(input.workspace_id, scopeId);
     }
@@ -69468,7 +70715,7 @@ var ScopeStore = class {
 };
 
 // floe-bus/dist/scope-graphs.js
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 var ScopeGraphNotFoundError = class extends Error {
   workspace_id;
   graph_id;
@@ -69595,7 +70842,7 @@ var ScopeGraphStore = class {
   }
   insertScopeGraph(input) {
     validateScopeGraphNodes(input.nodes);
-    const graphId = `graph_${randomUUID10()}`;
+    const graphId = `graph_${randomUUID11()}`;
     const timestamp2 = nowIso3();
     this.db.prepare(`
       INSERT INTO scope_graphs (
@@ -69628,7 +70875,7 @@ var ScopeGraphStore = class {
 };
 
 // floe-bus/dist/scope-compositions.js
-import { createHash as createHash9, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID12 } from "node:crypto";
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -69684,16 +70931,16 @@ var ScopeCompositionImpactConflictError = class extends Error {
 function nowIso4() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
-function canonicalJson3(value) {
+function canonicalJson4(value) {
   if (Array.isArray(value))
-    return `[${value.map(canonicalJson3).join(",")}]`;
+    return `[${value.map(canonicalJson4).join(",")}]`;
   if (value && typeof value === "object") {
-    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson3(item)}`).join(",")}}`;
+    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson4(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
 function scopeCompositionDigest(content) {
-  return createHash9("sha256").update(canonicalJson3(normalizeCompositionContent(content))).digest("hex");
+  return createHash10("sha256").update(canonicalJson4(normalizeCompositionContent(content))).digest("hex");
 }
 function normalizeCompositionContent(content) {
   return {
@@ -69833,7 +71080,7 @@ function compareByStableId(from, to, idKey) {
   const removed = [...before.keys()].filter((id) => !after.has(id)).sort();
   const changed = [...after.keys()].filter((id) => {
     const prior = before.get(id);
-    return prior !== void 0 && canonicalJson3(prior) !== canonicalJson3(after.get(id));
+    return prior !== void 0 && canonicalJson4(prior) !== canonicalJson4(after.get(id));
   }).sort();
   return { added, removed, changed };
 }
@@ -70133,7 +71380,7 @@ var ScopeCompositionStore = class {
   createDraft(input) {
     const routingMode = input.routing_mode ?? "edge";
     validateScopeComposition(input.content, routingMode);
-    const revisionId = input.revision_id ?? `revision_${randomUUID11()}`;
+    const revisionId = input.revision_id ?? `revision_${randomUUID12()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM scope_composition_revisions
@@ -70233,7 +71480,7 @@ var ScopeCompositionStore = class {
     };
     return {
       ...impactWithoutDigest,
-      impact_digest: createHash9("sha256").update(canonicalJson3(impactWithoutDigest)).digest("hex")
+      impact_digest: createHash10("sha256").update(canonicalJson4(impactWithoutDigest)).digest("hex")
     };
   }
   /**
@@ -70459,7 +71706,7 @@ var ScopeCompositionStore = class {
 };
 
 // floe-bus/dist/scope-executions.js
-import { randomUUID as randomUUID12 } from "node:crypto";
+import { randomUUID as randomUUID13 } from "node:crypto";
 var ScopeExecutionReferenceError = class extends Error {
   reason;
   code = "E_SCOPE_EXECUTION_REFERENCE_UNAVAILABLE";
@@ -70738,31 +71985,31 @@ function applyScopeExecutionSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_node_execution_state_outbox_pending
       ON node_execution_state_outbox(push_sequence, changed_at, node_execution_id);
   `);
-  addColumnIfMissing3(db, "node_executions", "actor_definition_revision_id", "TEXT");
-  addColumnIfMissing3(db, "node_executions", "runtime_profile_revision_id", "TEXT");
-  addColumnIfMissing3(db, "node_executions", "actor_runtime_binding_id", "TEXT");
-  addColumnIfMissing3(db, "node_executions", "command_definition_revision_id", "TEXT");
-  addColumnIfMissing3(db, "node_executions", "command_worker_binding_id", "TEXT");
-  addColumnIfMissing3(db, "node_executions", "join_key", "TEXT");
-  addColumnIfMissing3(db, "scope_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing3(db, "node_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing3(db, "execution_attempts", "actor_definition_revision_id", "TEXT");
-  addColumnIfMissing3(db, "execution_attempts", "runtime_profile_revision_id", "TEXT");
-  addColumnIfMissing3(db, "execution_attempts", "actor_runtime_binding_id", "TEXT");
-  addColumnIfMissing3(db, "execution_attempts", "command_definition_revision_id", "TEXT");
-  addColumnIfMissing3(db, "execution_attempts", "command_worker_binding_id", "TEXT");
-  addColumnIfMissing3(db, "node_execution_inputs", "input_identity", "TEXT");
-  addColumnIfMissing3(db, "node_execution_inputs", "state", "TEXT NOT NULL DEFAULT 'received'");
-  addColumnIfMissing3(db, "node_execution_inputs", "supersedes_input_id", "TEXT");
-  addColumnIfMissing3(db, "node_execution_inputs", "reason_json", "TEXT NOT NULL DEFAULT '{}'");
-  addColumnIfMissing3(db, "scope_execution_pauses", "status", "TEXT NOT NULL DEFAULT 'paused'");
-  addColumnIfMissing3(db, "scope_execution_pauses", "deadline_at", "TEXT");
-  addColumnIfMissing3(db, "scope_execution_pauses", "completed_at", "TEXT");
-  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "delivery_id", "TEXT");
-  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "attempt_id", "TEXT");
-  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "cancellation_state", "TEXT NOT NULL DEFAULT 'not_required'");
-  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "outcome_unknown", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "interruption_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing4(db, "node_executions", "actor_definition_revision_id", "TEXT");
+  addColumnIfMissing4(db, "node_executions", "runtime_profile_revision_id", "TEXT");
+  addColumnIfMissing4(db, "node_executions", "actor_runtime_binding_id", "TEXT");
+  addColumnIfMissing4(db, "node_executions", "command_definition_revision_id", "TEXT");
+  addColumnIfMissing4(db, "node_executions", "command_worker_binding_id", "TEXT");
+  addColumnIfMissing4(db, "node_executions", "join_key", "TEXT");
+  addColumnIfMissing4(db, "scope_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing4(db, "node_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing4(db, "execution_attempts", "actor_definition_revision_id", "TEXT");
+  addColumnIfMissing4(db, "execution_attempts", "runtime_profile_revision_id", "TEXT");
+  addColumnIfMissing4(db, "execution_attempts", "actor_runtime_binding_id", "TEXT");
+  addColumnIfMissing4(db, "execution_attempts", "command_definition_revision_id", "TEXT");
+  addColumnIfMissing4(db, "execution_attempts", "command_worker_binding_id", "TEXT");
+  addColumnIfMissing4(db, "node_execution_inputs", "input_identity", "TEXT");
+  addColumnIfMissing4(db, "node_execution_inputs", "state", "TEXT NOT NULL DEFAULT 'received'");
+  addColumnIfMissing4(db, "node_execution_inputs", "supersedes_input_id", "TEXT");
+  addColumnIfMissing4(db, "node_execution_inputs", "reason_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing4(db, "scope_execution_pauses", "status", "TEXT NOT NULL DEFAULT 'paused'");
+  addColumnIfMissing4(db, "scope_execution_pauses", "deadline_at", "TEXT");
+  addColumnIfMissing4(db, "scope_execution_pauses", "completed_at", "TEXT");
+  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "delivery_id", "TEXT");
+  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "attempt_id", "TEXT");
+  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "cancellation_state", "TEXT NOT NULL DEFAULT 'not_required'");
+  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "outcome_unknown", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "interruption_json", "TEXT NOT NULL DEFAULT '{}'");
   db.exec(`
     UPDATE node_execution_inputs
     SET input_identity = CASE
@@ -70818,7 +72065,7 @@ var ScopeExecutionStore = class {
       if (existing)
         return this.rowToScopeExecution(existing);
     }
-    const id = `execution_${randomUUID12()}`;
+    const id = `execution_${randomUUID13()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_executions (
@@ -70967,7 +72214,7 @@ var ScopeExecutionStore = class {
           WHERE scope_execution_id = ? AND state IN ('held', 'queued')
           ORDER BY created_at, queue_id
         `).all(execution.execution_id) : [];
-    const pauseId = `pause_${randomUUID12()}`;
+    const pauseId = `pause_${randomUUID13()}`;
     const timestamp2 = nowIso5();
     const deadlineAt = new Date(Date.parse(timestamp2) + Math.max(1, input.deadline_ms ?? 1e4)).toISOString();
     this.transaction(() => {
@@ -71230,7 +72477,7 @@ var ScopeExecutionStore = class {
     if (placement.kind === "actor" && input.assigned_actor_ids && (input.assigned_actor_ids.length !== 1 || input.assigned_actor_ids[0] !== placement.resource_id)) {
       throw new ScopeExecutionReferenceError(`Actor assignment for node '${input.node_id}' does not match its published placement`);
     }
-    const id = `node_execution_${randomUUID12()}`;
+    const id = `node_execution_${randomUUID13()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "collecting";
     this.transaction(() => {
@@ -71316,7 +72563,7 @@ var ScopeExecutionStore = class {
       `).run(json2(input.reason ?? { code: "input_replaced" }), input.supersedes_input_id);
     }
     const record = {
-      input_id: `input_${randomUUID12()}`,
+      input_id: `input_${randomUUID13()}`,
       accepted_at: nowIso5()
     };
     this.db.prepare(`
@@ -71364,7 +72611,7 @@ var ScopeExecutionStore = class {
         if (existing)
           continue;
         const timestamp2 = nowIso5();
-        insert.run(`expectation_${randomUUID12()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
+        insert.run(`expectation_${randomUUID13()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
       }
     }
   }
@@ -71398,7 +72645,7 @@ var ScopeExecutionStore = class {
       keys.add(member.member_key);
     }
     const timestamp2 = nowIso5();
-    const membershipId = `membership_${randomUUID12()}`;
+    const membershipId = `membership_${randomUUID13()}`;
     this.db.prepare(`
       INSERT INTO node_execution_expected_memberships (
         membership_id, node_execution_id, collection_port_id, member_port_id,
@@ -71414,7 +72661,7 @@ var ScopeExecutionStore = class {
       ) VALUES (?, ?, ?, 'collection_member', ?, ?, ?, ?, ?, 'expected', '{}', ?, ?)
     `);
     for (const member of [...input.members].sort((left, right) => left.member_key.localeCompare(right.member_key))) {
-      insert.run(`expectation_${randomUUID12()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
+      insert.run(`expectation_${randomUUID13()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
     }
     return this.rowToExpectedMembership(this.db.prepare(`SELECT * FROM node_execution_expected_memberships WHERE membership_id = ?`).get(membershipId));
   }
@@ -71523,7 +72770,7 @@ var ScopeExecutionStore = class {
     const ordinal = Number(this.db.prepare(`
       SELECT COALESCE(MAX(ordinal), 0) + 1 AS next FROM execution_attempts WHERE node_execution_id = ?
     `).get(input.node_execution_id).next);
-    const id = `attempt_${randomUUID12()}`;
+    const id = `attempt_${randomUUID13()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "running";
     this.db.prepare(`
@@ -71629,7 +72876,7 @@ var ScopeExecutionStore = class {
     const existing = this.getPublicationByIdempotencyKey(input.idempotency_key);
     if (existing)
       return existing;
-    const id = `publication_${randomUUID12()}`;
+    const id = `publication_${randomUUID13()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_output_publications (
@@ -71651,7 +72898,7 @@ var ScopeExecutionStore = class {
       INSERT OR IGNORE INTO scope_edge_traversals (
         traversal_id, publication_id, edge_id, delivery_id, target_node_execution_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`traversal_${randomUUID12()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
+    `).run(`traversal_${randomUUID13()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
   }
   rowToScopeExecution(row) {
     return {
@@ -72139,7 +73386,7 @@ function expectationSatisfied(expectation, inputs) {
     return expectation.match_policy !== "member_key_and_version" || input.artefact_version_id === expectation.expected_artefact_version_id;
   });
 }
-function addColumnIfMissing3(db, table, column, definition2) {
+function addColumnIfMissing4(db, table, column, definition2) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((existing) => existing.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
@@ -72152,7 +73399,7 @@ function tableExists3(db, table) {
 }
 
 // floe-bus/dist/scope-composition-migration.js
-import { createHash as createHash10 } from "node:crypto";
+import { createHash as createHash11 } from "node:crypto";
 var STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var LegacyScopeGraphMigrationConflictError = class extends Error {
   revision_id;
@@ -72173,7 +73420,7 @@ function canonicalNodeIds(nodes) {
   return new Map(nodes.map((node, index) => {
     if (STABLE_ID.test(node.node_id))
       return [node.node_id, node.node_id];
-    const digest11 = createHash10("sha256").update(node.node_id).digest("hex").slice(0, 12);
+    const digest11 = createHash11("sha256").update(node.node_id).digest("hex").slice(0, 12);
     return [node.node_id, `legacy-node-${index + 1}-${digest11}`];
   }));
 }
@@ -72245,7 +73492,7 @@ function duplicateEndpointNodes(graph) {
   return new Map([...byEndpoint].filter(([, placements]) => placements.length > 1));
 }
 function migrationRevisionId(graph, digest11) {
-  const identity = createHash10("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest11}`).digest("hex").slice(0, 32);
+  const identity = createHash11("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest11}`).digest("hex").slice(0, 32);
   return `legacy-revision-${identity}`;
 }
 function projectLegacyScopeGraph(graph) {
@@ -72407,7 +73654,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
 }
 
 // floe-bus/dist/artefacts.js
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
 var SHA256_RE = /^[a-fA-F0-9]{64}$/;
 var EXTENSION_NAMESPACE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 var EXTENSION_LINEAGE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -72518,16 +73765,16 @@ function normalizeJsonValue(value, label = "JSON value") {
   }
   throw new ArtefactValidationError(`${label} is not JSON serializable`);
 }
-function canonicalJson4(value) {
+function canonicalJson5(value) {
   if (Array.isArray(value))
-    return `[${value.map(canonicalJson4).join(",")}]`;
+    return `[${value.map(canonicalJson5).join(",")}]`;
   if (value && typeof value === "object") {
-    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson4(item)}`).join(",")}}`;
+    return `{${Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson5(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
 function fingerprint(value) {
-  return createHash11("sha256").update(canonicalJson4(normalizeJsonValue(value))).digest("hex");
+  return createHash12("sha256").update(canonicalJson5(normalizeJsonValue(value))).digest("hex");
 }
 function normalizeDigest(value, label = "digest") {
   if (!value || value.algorithm !== "sha256" || typeof value.value !== "string" || !SHA256_RE.test(value.value)) {
@@ -72815,7 +74062,7 @@ var ArtefactStore = class {
         }
         return this.rowToArtefact(existing);
       }
-      const artefactId = requestedId ?? `artefact_${randomUUID13()}`;
+      const artefactId = requestedId ?? `artefact_${randomUUID14()}`;
       const conflictingId = this.getArtefact(artefactId);
       if (conflictingId)
         throw new ArtefactValidationError(`artefact_id '${artefactId}' already exists`);
@@ -72877,7 +74124,7 @@ var ArtefactStore = class {
         const version = this.requireVersion(member.member_version_id);
         this.requireSameWorkspace(artefact.workspace_id, version, `collection member '${version.artefact_version_id}'`);
       }
-      const versionId = requestedVersionId ?? `artefact_version_${randomUUID13()}`;
+      const versionId = requestedVersionId ?? `artefact_version_${randomUUID14()}`;
       if (this.getVersion(versionId))
         throw new ArtefactValidationError(`artefact_version_id '${versionId}' already exists`);
       if (lineage.some((relation2) => relation2.object_version_id === versionId)) {
@@ -72896,14 +74143,14 @@ var ArtefactStore = class {
           artefact_version_id, artefact_id, ordinal, schema_ref, content_ref_json,
           idempotency_key, request_fingerprint, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(versionId, artefactId, ordinal, schemaRef, canonicalJson4(normalizeJsonValue(contentRef)), idempotencyKey, requestFingerprint, timestamp2);
+      `).run(versionId, artefactId, ordinal, schemaRef, canonicalJson5(normalizeJsonValue(contentRef)), idempotencyKey, requestFingerprint, timestamp2);
       const insertLineage = this.db.prepare(`
         INSERT INTO artefact_lineage (
           lineage_id, workspace_id, subject_version_id, relation_type, object_version_id, created_at
         ) VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const relation2 of lineage) {
-        insertLineage.run(`lineage_${randomUUID13()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
+        insertLineage.run(`lineage_${randomUUID14()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
       }
       const insertMember = this.db.prepare(`
         INSERT INTO artefact_collection_members (
@@ -73005,7 +74252,7 @@ var ArtefactStore = class {
           throw new ArtefactWorkspaceMismatchError("legacy import target is not the requested workspace and Artefact");
         }
       }
-      const id = `legacy_import_${randomUUID13()}`;
+      const id = `legacy_import_${randomUUID14()}`;
       const timestamp2 = nowIso6();
       this.db.prepare(`
         INSERT INTO legacy_artefact_import_evidence (
@@ -73013,7 +74260,7 @@ var ArtefactStore = class {
           source_revision, content_identity, status, reason, artefact_id,
           artefact_version_id, evidence_json, request_fingerprint, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, importKey, workspaceId4, sourceDocument, legacyExternalId, sourceRevision, contentIdentity, outcome.status, outcome.reason, outcome.artefact_id, outcome.artefact_version_id, evidence === null ? null : canonicalJson4(evidence), requestFingerprint, timestamp2);
+      `).run(id, importKey, workspaceId4, sourceDocument, legacyExternalId, sourceRevision, contentIdentity, outcome.status, outcome.reason, outcome.artefact_id, outcome.artefact_version_id, evidence === null ? null : canonicalJson5(evidence), requestFingerprint, timestamp2);
       return this.getLegacyImport(id);
     });
   }
@@ -73255,7 +74502,7 @@ var ArtefactStore = class {
     `).get(input.artefact_version_id, input.target_kind, input.target_id, input.role);
     if (existingFact)
       return this.rowToAssociation(existingFact);
-    const id = `artefact_association_${randomUUID13()}`;
+    const id = `artefact_association_${randomUUID14()}`;
     this.db.prepare(`
       INSERT INTO artefact_associations (
         association_id, artefact_version_id, target_kind, target_id, role,
@@ -73283,14 +74530,14 @@ var ArtefactStore = class {
       }
       return this.rowToAnnotation(existing);
     }
-    const id = `artefact_annotation_${randomUUID13()}`;
+    const id = `artefact_annotation_${randomUUID14()}`;
     this.db.prepare(`
       INSERT INTO artefact_annotations (
         annotation_id, artefact_version_id, namespace, annotation_key,
         extension_package_version_ref, schema_ref, value_json,
         idempotency_key, request_fingerprint, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, input.artefact_version_id, input.namespace, input.key, input.extension_package_version_ref, input.schema_ref, canonicalJson4(input.value), input.idempotency_key, requestFingerprint, timestamp2);
+    `).run(id, input.artefact_version_id, input.namespace, input.key, input.extension_package_version_ref, input.schema_ref, canonicalJson5(input.value), input.idempotency_key, requestFingerprint, timestamp2);
     return this.listAnnotations(input.artefact_version_id).find((value) => value.annotation_id === id);
   }
   requireVersion(versionId) {
@@ -73381,7 +74628,7 @@ var ArtefactStore = class {
     };
   }
   transaction(fn) {
-    const savepoint = `artefact_${randomUUID13().replace(/-/g, "")}`;
+    const savepoint = `artefact_${randomUUID14().replace(/-/g, "")}`;
     this.db.exec(`SAVEPOINT ${savepoint}`);
     try {
       const result = fn();
@@ -73396,7 +74643,7 @@ var ArtefactStore = class {
 };
 
 // floe-bus/dist/artefact-content-resolver.js
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 import { readFileSync as readFileSync2, statSync as statSync2 } from "node:fs";
 import { extname } from "node:path";
 
@@ -73563,7 +74810,7 @@ function resolveWorkspaceArtefactContent(input) {
   if (contentRef.size_bytes != null && contentRef.size_bytes !== bytes.length) {
     throw new ArtefactContentMismatchError("size");
   }
-  const actualDigest = createHash12("sha256").update(bytes).digest("hex");
+  const actualDigest = createHash13("sha256").update(bytes).digest("hex");
   if (actualDigest !== contentRef.digest.value) {
     throw new ArtefactContentMismatchError("digest");
   }
@@ -73606,462 +74853,6 @@ var MEDIA_TYPE_BY_EXTENSION = /* @__PURE__ */ new Map([
   [".json", "application/json"],
   [".glb", "model/gltf-binary"]
 ]);
-
-// floe-bus/dist/actor-definitions.js
-import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
-var ActorNotFoundError = class extends Error {
-  actor_id;
-  code = "E_ACTOR_NOT_FOUND";
-  constructor(actor_id) {
-    super(`Actor not found: ${actor_id}`);
-    this.actor_id = actor_id;
-    this.name = "ActorNotFoundError";
-  }
-};
-var ActorDefinitionRevisionNotFoundError = class extends Error {
-  actor_definition_revision_id;
-  code = "E_ACTOR_DEFINITION_REVISION_NOT_FOUND";
-  constructor(actor_definition_revision_id) {
-    super(`Actor definition revision not found: ${actor_definition_revision_id}`);
-    this.actor_definition_revision_id = actor_definition_revision_id;
-    this.name = "ActorDefinitionRevisionNotFoundError";
-  }
-};
-var ActorDefinitionImmutableError = class extends Error {
-  actor_definition_revision_id;
-  code = "E_ACTOR_DEFINITION_IMMUTABLE";
-  constructor(actor_definition_revision_id) {
-    super(`Published Actor definition cannot be changed: ${actor_definition_revision_id}`);
-    this.actor_definition_revision_id = actor_definition_revision_id;
-    this.name = "ActorDefinitionImmutableError";
-  }
-};
-var ActorDefinitionConflictError = class extends Error {
-  actor_id;
-  expected_revision_id;
-  actual_revision_id;
-  code = "E_ACTOR_DEFINITION_CONFLICT";
-  constructor(actor_id, expected_revision_id, actual_revision_id) {
-    super(`Actor '${actor_id}' changed: expected definition '${expected_revision_id ?? "none"}', found '${actual_revision_id ?? "none"}'.`);
-    this.actor_id = actor_id;
-    this.expected_revision_id = expected_revision_id;
-    this.actual_revision_id = actual_revision_id;
-    this.name = "ActorDefinitionConflictError";
-  }
-};
-var ActorDefinitionDraftConflictError = class extends Error {
-  actor_definition_revision_id;
-  expected_digest;
-  actual_digest;
-  code = "E_ACTOR_DEFINITION_DRAFT_CONFLICT";
-  constructor(actor_definition_revision_id, expected_digest, actual_digest) {
-    super(`Actor definition draft '${actor_definition_revision_id}' changed before this edit was applied.`);
-    this.actor_definition_revision_id = actor_definition_revision_id;
-    this.expected_digest = expected_digest;
-    this.actual_digest = actual_digest;
-    this.name = "ActorDefinitionDraftConflictError";
-  }
-};
-function actorDefinitionDigest(content) {
-  validateActorDefinition(content);
-  return createHash13("sha256").update(canonicalJson5(content)).digest("hex");
-}
-function applyActorDefinitionSchema(db) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS actors (
-      actor_id TEXT PRIMARY KEY,
-      workspace_id TEXT NOT NULL,
-      created_in_context_id TEXT,
-      created_in_scope_execution_id TEXT,
-      status TEXT NOT NULL CHECK (status IN ('active', 'retired')),
-      current_definition_revision_id TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      retired_at TEXT
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_actors_workspace_status
-      ON actors(workspace_id, status, created_at);
-
-    CREATE TABLE IF NOT EXISTS actor_definition_revisions (
-      actor_definition_revision_id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL REFERENCES actors(actor_id),
-      workspace_id TEXT NOT NULL,
-      revision_number INTEGER NOT NULL,
-      based_on_revision_id TEXT REFERENCES actor_definition_revisions(actor_definition_revision_id),
-      semantic_digest TEXT NOT NULL,
-      content_json TEXT NOT NULL,
-      created_by_principal_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      published_at TEXT,
-      withdrawn_at TEXT,
-      UNIQUE(actor_id, revision_number)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_actor_definition_revisions_actor
-      ON actor_definition_revisions(actor_id, revision_number DESC);
-
-    CREATE TABLE IF NOT EXISTS actor_definition_head_changes (
-      head_change_id TEXT PRIMARY KEY,
-      actor_id TEXT NOT NULL REFERENCES actors(actor_id),
-      workspace_id TEXT NOT NULL,
-      from_revision_id TEXT,
-      to_revision_id TEXT NOT NULL REFERENCES actor_definition_revisions(actor_definition_revision_id),
-      reason TEXT NOT NULL CHECK (reason IN ('publish', 'rollback')),
-      changed_by_principal_id TEXT NOT NULL,
-      changed_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_actor_definition_head_changes_actor
-      ON actor_definition_head_changes(actor_id, changed_at, head_change_id);
-
-    CREATE TABLE IF NOT EXISTS actor_lifecycle_push_outbox (
-      outbox_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      workspace_id TEXT NOT NULL,
-      event_type TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      changed_at TEXT NOT NULL,
-      push_sequence INTEGER
-    );
-  `);
-  addColumnIfMissing4(db, "actors", "created_in_context_id", "TEXT");
-  addColumnIfMissing4(db, "actors", "created_in_scope_execution_id", "TEXT");
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_actors_creation_context
-      ON actors(workspace_id, created_in_context_id, created_at);
-    CREATE INDEX IF NOT EXISTS idx_actors_creation_scope_execution
-      ON actors(workspace_id, created_in_scope_execution_id, created_at);
-  `);
-}
-var ActorDefinitionStore = class {
-  db;
-  now;
-  validateHead;
-  lifecyclePushReady = null;
-  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead) {
-    this.db = db;
-    this.now = now3;
-    this.validateHead = validateHead;
-    applyActorDefinitionSchema(db);
-  }
-  createActor(input) {
-    nonEmpty("workspace_id", input.workspace_id);
-    nonEmpty("created_by_principal_id", input.created_by_principal_id);
-    validateActorDefinition(input.definition);
-    const actorId = input.actor_id ?? `actor_${randomUUID14()}`;
-    nonEmpty("actor_id", actorId);
-    const at = this.now();
-    let draft;
-    transaction(this.db, () => {
-      this.db.prepare(`
-        INSERT INTO actors (
-          actor_id, workspace_id, created_in_context_id, created_in_scope_execution_id,
-          status, current_definition_revision_id,
-          created_at, updated_at, retired_at
-        ) VALUES (?, ?, ?, ?, 'active', NULL, ?, ?, NULL)
-      `).run(actorId, input.workspace_id, input.created_in_context_id ?? null, input.created_in_scope_execution_id ?? null, at, at);
-      draft = this.insertDraft({
-        actor_id: actorId,
-        workspace_id: input.workspace_id,
-        based_on_revision_id: null,
-        created_by_principal_id: input.created_by_principal_id,
-        definition: input.definition
-      });
-      const actor = this.requireActor(actorId);
-      this.queueLifecyclePush("actor_created", {
-        workspace_id: actor.workspace_id,
-        actor
-      }, at);
-    });
-    this.notifyLifecyclePushReady();
-    return { actor: this.requireActor(actorId), draft };
-  }
-  createDraft(input) {
-    const actor = this.requireActor(input.actor_id);
-    if (actor.status === "retired") {
-      throw new ActorDefinitionValidationError(`retired Actor '${actor.actor_id}' cannot receive a new definition draft`);
-    }
-    const basedOn = input.based_on_revision_id === void 0 ? actor.current_definition_revision_id : input.based_on_revision_id;
-    if (basedOn !== null)
-      this.requireRevisionForActor(basedOn, actor.actor_id);
-    return this.insertDraft({
-      actor_id: actor.actor_id,
-      workspace_id: actor.workspace_id,
-      based_on_revision_id: basedOn,
-      created_by_principal_id: input.created_by_principal_id,
-      definition: input.definition
-    });
-  }
-  replaceDraft(input) {
-    validateActorDefinition(input.definition);
-    const revision = this.requireRevision(input.actor_definition_revision_id);
-    if (revision.published_at || revision.withdrawn_at) {
-      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
-    }
-    if (revision.semantic_digest !== input.expected_digest) {
-      throw new ActorDefinitionDraftConflictError(revision.actor_definition_revision_id, input.expected_digest, revision.semantic_digest);
-    }
-    this.db.prepare(`
-      UPDATE actor_definition_revisions
-      SET semantic_digest = ?, content_json = ?
-      WHERE actor_definition_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
-    `).run(actorDefinitionDigest(input.definition), JSON.stringify(input.definition), revision.actor_definition_revision_id);
-    return this.requireRevision(revision.actor_definition_revision_id);
-  }
-  publishDraft(input) {
-    const revision = this.requireRevision(input.actor_definition_revision_id);
-    if (revision.withdrawn_at)
-      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
-    if (revision.published_at) {
-      if (this.requireActor(revision.actor_id).current_definition_revision_id === revision.actor_definition_revision_id) {
-        return revision;
-      }
-      throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
-    }
-    transaction(this.db, () => {
-      this.moveHead({
-        revision,
-        expected_current_revision_id: input.expected_current_revision_id,
-        changed_by_principal_id: input.changed_by_principal_id,
-        reason: "publish",
-        publish_at: this.now()
-      });
-      const actor = this.requireActor(revision.actor_id);
-      this.queueLifecyclePush("actor_definition_published", {
-        workspace_id: actor.workspace_id,
-        actor,
-        revision: this.requireRevision(revision.actor_definition_revision_id)
-      }, actor.updated_at);
-    });
-    this.notifyLifecyclePushReady();
-    return this.requireRevision(revision.actor_definition_revision_id);
-  }
-  rollback(input) {
-    const actor = this.requireActor(input.actor_id);
-    const revision = this.requireRevisionForActor(input.to_published_revision_id, actor.actor_id);
-    if (!revision.published_at || revision.withdrawn_at) {
-      throw new ActorDefinitionValidationError("rollback target must be a retained published definition");
-    }
-    transaction(this.db, () => this.moveHead({
-      revision,
-      expected_current_revision_id: input.expected_current_revision_id,
-      changed_by_principal_id: input.changed_by_principal_id,
-      reason: "rollback",
-      publish_at: null
-    }));
-    return revision;
-  }
-  withdrawDraft(actorDefinitionRevisionId) {
-    const revision = this.requireRevision(actorDefinitionRevisionId);
-    if (revision.published_at)
-      throw new ActorDefinitionImmutableError(actorDefinitionRevisionId);
-    if (!revision.withdrawn_at) {
-      this.db.prepare(`
-        UPDATE actor_definition_revisions SET withdrawn_at = ?
-        WHERE actor_definition_revision_id = ? AND published_at IS NULL
-      `).run(this.now(), actorDefinitionRevisionId);
-    }
-    return this.requireRevision(actorDefinitionRevisionId);
-  }
-  setActorStatus(input) {
-    const actor = this.requireActor(input.actor_id);
-    if (actor.current_definition_revision_id !== input.expected_current_definition_revision_id) {
-      throw new ActorDefinitionConflictError(actor.actor_id, input.expected_current_definition_revision_id, actor.current_definition_revision_id);
-    }
-    const at = this.now();
-    transaction(this.db, () => {
-      this.db.prepare(`
-        UPDATE actors SET status = ?, retired_at = ?, updated_at = ? WHERE actor_id = ?
-      `).run(input.status, input.status === "retired" ? at : null, at, actor.actor_id);
-      if (input.status === "retired") {
-        const retired = this.requireActor(actor.actor_id);
-        this.queueLifecyclePush("actor_retired", {
-          workspace_id: retired.workspace_id,
-          actor: retired
-        }, at);
-      }
-    });
-    if (input.status === "retired")
-      this.notifyLifecyclePushReady();
-    return this.requireActor(actor.actor_id);
-  }
-  getActor(actorId) {
-    const row = this.db.prepare(`SELECT * FROM actors WHERE actor_id = ?`).get(actorId);
-    return row ? rowToActor(row) : null;
-  }
-  requireActor(actorId) {
-    const actor = this.getActor(actorId);
-    if (!actor)
-      throw new ActorNotFoundError(actorId);
-    return actor;
-  }
-  listActors(workspaceId4, options = {}) {
-    const rows = this.db.prepare(`
-      SELECT * FROM actors
-      WHERE workspace_id = ?
-        AND (? = 1 OR status = 'active')
-        AND (? IS NULL OR created_in_context_id = ?)
-        AND (? IS NULL OR created_in_scope_execution_id = ?)
-      ORDER BY created_at, actor_id
-    `).all(workspaceId4, options.include_retired ? 1 : 0, options.created_in_context_id ?? null, options.created_in_context_id ?? null, options.created_in_scope_execution_id ?? null, options.created_in_scope_execution_id ?? null);
-    return rows.map(rowToActor);
-  }
-  setLifecyclePushReady(notify) {
-    this.lifecyclePushReady = notify;
-  }
-  getRevision(revisionId) {
-    const row = this.db.prepare(`
-      SELECT * FROM actor_definition_revisions WHERE actor_definition_revision_id = ?
-    `).get(revisionId);
-    return row ? rowToRevision(row) : null;
-  }
-  requireRevision(revisionId) {
-    const revision = this.getRevision(revisionId);
-    if (!revision)
-      throw new ActorDefinitionRevisionNotFoundError(revisionId);
-    return revision;
-  }
-  getCurrentDefinition(actorId) {
-    const actor = this.requireActor(actorId);
-    return actor.current_definition_revision_id ? this.requireRevision(actor.current_definition_revision_id) : null;
-  }
-  listRevisions(actorId) {
-    this.requireActor(actorId);
-    return this.db.prepare(`
-      SELECT * FROM actor_definition_revisions
-      WHERE actor_id = ? ORDER BY revision_number DESC
-    `).all(actorId).map(rowToRevision);
-  }
-  listHeadChanges(actorId) {
-    this.requireActor(actorId);
-    return this.db.prepare(`
-      SELECT * FROM actor_definition_head_changes
-      WHERE actor_id = ? ORDER BY changed_at, head_change_id
-    `).all(actorId);
-  }
-  insertDraft(input) {
-    nonEmpty("created_by_principal_id", input.created_by_principal_id);
-    validateActorDefinition(input.definition);
-    const revisionId = `actor_definition_${randomUUID14()}`;
-    const revisionNumber = Number(this.db.prepare(`
-      SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
-      FROM actor_definition_revisions WHERE actor_id = ?
-    `).get(input.actor_id).next);
-    this.db.prepare(`
-      INSERT INTO actor_definition_revisions (
-        actor_definition_revision_id, actor_id, workspace_id, revision_number,
-        based_on_revision_id, semantic_digest, content_json,
-        created_by_principal_id, created_at, published_at, withdrawn_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
-    `).run(revisionId, input.actor_id, input.workspace_id, revisionNumber, input.based_on_revision_id, actorDefinitionDigest(input.definition), JSON.stringify(input.definition), input.created_by_principal_id, this.now());
-    return this.requireRevision(revisionId);
-  }
-  requireRevisionForActor(revisionId, actorId) {
-    const revision = this.requireRevision(revisionId);
-    if (revision.actor_id !== actorId) {
-      throw new ActorDefinitionValidationError(`definition '${revisionId}' belongs to another Actor`);
-    }
-    return revision;
-  }
-  moveHead(input) {
-    nonEmpty("changed_by_principal_id", input.changed_by_principal_id);
-    const actor = this.requireActor(input.revision.actor_id);
-    this.validateHead?.(actor.actor_id, actor.workspace_id, input.revision.content);
-    if (actor.status === "retired") {
-      throw new ActorDefinitionValidationError(`retired Actor '${actor.actor_id}' cannot change its current definition`);
-    }
-    if (actor.current_definition_revision_id !== input.expected_current_revision_id) {
-      throw new ActorDefinitionConflictError(actor.actor_id, input.expected_current_revision_id, actor.current_definition_revision_id);
-    }
-    const at = input.publish_at ?? this.now();
-    if (input.publish_at) {
-      this.db.prepare(`
-        UPDATE actor_definition_revisions SET published_at = ?
-        WHERE actor_definition_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
-      `).run(input.publish_at, input.revision.actor_definition_revision_id);
-    }
-    this.db.prepare(`
-      UPDATE actors SET current_definition_revision_id = ?, updated_at = ? WHERE actor_id = ?
-    `).run(input.revision.actor_definition_revision_id, at, actor.actor_id);
-    this.db.prepare(`
-      INSERT INTO actor_definition_head_changes (
-        head_change_id, actor_id, workspace_id, from_revision_id, to_revision_id,
-        reason, changed_by_principal_id, changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`actor_head_change_${randomUUID14()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
-  }
-  queueLifecyclePush(type, payload, at) {
-    this.db.prepare(`
-      INSERT INTO actor_lifecycle_push_outbox (
-        workspace_id, event_type, payload_json, changed_at, push_sequence
-      ) VALUES (?, ?, ?, ?, NULL)
-    `).run(String(payload.workspace_id), type, JSON.stringify(payload), at);
-  }
-  notifyLifecyclePushReady() {
-    queueMicrotask(() => this.lifecyclePushReady?.());
-  }
-};
-function rowToActor(row) {
-  return {
-    actor_id: String(row.actor_id),
-    workspace_id: String(row.workspace_id),
-    created_in_context_id: row.created_in_context_id == null ? null : String(row.created_in_context_id),
-    created_in_scope_execution_id: row.created_in_scope_execution_id == null ? null : String(row.created_in_scope_execution_id),
-    status: String(row.status),
-    current_definition_revision_id: row.current_definition_revision_id == null ? null : String(row.current_definition_revision_id),
-    created_at: String(row.created_at),
-    updated_at: String(row.updated_at),
-    retired_at: row.retired_at == null ? null : String(row.retired_at)
-  };
-}
-function rowToRevision(row) {
-  const content = JSON.parse(String(row.content_json));
-  validateActorDefinition(content);
-  return {
-    actor_definition_revision_id: String(row.actor_definition_revision_id),
-    actor_id: String(row.actor_id),
-    workspace_id: String(row.workspace_id),
-    revision_number: Number(row.revision_number),
-    based_on_revision_id: row.based_on_revision_id == null ? null : String(row.based_on_revision_id),
-    semantic_digest: String(row.semantic_digest),
-    content,
-    created_by_principal_id: String(row.created_by_principal_id),
-    created_at: String(row.created_at),
-    published_at: row.published_at == null ? null : String(row.published_at),
-    withdrawn_at: row.withdrawn_at == null ? null : String(row.withdrawn_at)
-  };
-}
-function nonEmpty(label, value) {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new ActorDefinitionValidationError(`${label} must not be empty`);
-  }
-}
-function addColumnIfMissing4(db, table, column, definition2) {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
-  if (!columns.some((item) => item.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
-  }
-}
-function canonicalJson5(value) {
-  if (Array.isArray(value))
-    return `[${value.map(canonicalJson5).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson5(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-function transaction(db, action) {
-  db.exec("SAVEPOINT actor_definition_change");
-  try {
-    const result = action();
-    db.exec("RELEASE actor_definition_change");
-    return result;
-  } catch (error) {
-    db.exec("ROLLBACK TO actor_definition_change");
-    db.exec("RELEASE actor_definition_change");
-    throw error;
-  }
-}
 
 // floe-bus/dist/command-definitions.js
 import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
@@ -74556,16 +75347,16 @@ var ROLLBACK_COMMAND_DEFINITION_OPERATION_ID = "command.definition.rollback";
 var RETIRE_COMMAND_OPERATION_ID = "command.retire";
 var REACTIVATE_COMMAND_OPERATION_ID = "command.reactivate";
 var NO_COMMAND_DEFINITION_REVISION = "none";
-var nonEmptyString = { type: "string", minLength: 1 };
-var nullableString = { oneOf: [nonEmptyString, { type: "null" }] };
-var emptyInput2 = { type: "object", additionalProperties: false };
+var nonEmptyString2 = { type: "string", minLength: 1 };
+var nullableString2 = { oneOf: [nonEmptyString2, { type: "null" }] };
+var emptyInput3 = { type: "object", additionalProperties: false };
 var ownerSchema = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id"],
   properties: {
     kind: { enum: ["workspace", "host", "extension_package_version"] },
-    id: nonEmptyString
+    id: nonEmptyString2
   }
 };
 var versionedSchemaSchema = {
@@ -74573,26 +75364,26 @@ var versionedSchemaSchema = {
   additionalProperties: false,
   required: ["version", "schema"],
   properties: {
-    version: nonEmptyString,
+    version: nonEmptyString2,
     schema: { type: "object" }
   }
 };
-var resourceRefSchema = {
+var resourceRefSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: nonEmptyString, id: nonEmptyString, revision: nonEmptyString }
+  properties: { kind: nonEmptyString2, id: nonEmptyString2, revision: nonEmptyString2 }
 };
 var sideEffectSchema = {
   type: "object",
   additionalProperties: false,
   required: ["effect_id", "title", "external", "reversibility", "resource_kinds"],
   properties: {
-    effect_id: nonEmptyString,
-    title: nonEmptyString,
+    effect_id: nonEmptyString2,
+    title: nonEmptyString2,
     external: { type: "boolean" },
     reversibility: { enum: ["none", "reversible", "irreversible"] },
-    resource_kinds: { type: "array", items: nonEmptyString, uniqueItems: true }
+    resource_kinds: { type: "array", items: nonEmptyString2, uniqueItems: true }
   }
 };
 var permissionSchema = {
@@ -74600,9 +75391,9 @@ var permissionSchema = {
   additionalProperties: false,
   required: ["permission_id", "operation_id", "purpose"],
   properties: {
-    permission_id: nonEmptyString,
-    operation_id: nonEmptyString,
-    purpose: nonEmptyString
+    permission_id: nonEmptyString2,
+    operation_id: nonEmptyString2,
+    purpose: nonEmptyString2
   }
 };
 var COMMAND_DEFINITION_CONTENT_SCHEMA = {
@@ -74622,8 +75413,8 @@ var COMMAND_DEFINITION_CONTENT_SCHEMA = {
     "entry_point"
   ],
   properties: {
-    label: nonEmptyString,
-    description: nonEmptyString,
+    label: nonEmptyString2,
+    description: nonEmptyString2,
     input: versionedSchemaSchema,
     output: versionedSchemaSchema,
     side_effects: { type: "array", items: sideEffectSchema },
@@ -74636,11 +75427,11 @@ var COMMAND_DEFINITION_CONTENT_SCHEMA = {
       required: ["mode", "key_schema_ref"],
       properties: {
         mode: { enum: ["pure", "content_addressed", "caller_key", "effect_receipt"] },
-        key_schema_ref: nullableString
+        key_schema_ref: nullableString2
       }
     },
-    implementation_ref: resourceRefSchema,
-    entry_point: nonEmptyString
+    implementation_ref: resourceRefSchema2,
+    entry_point: nonEmptyString2
   }
 };
 var commandSchema = {
@@ -74656,13 +75447,13 @@ var commandSchema = {
     "retired_at"
   ],
   properties: {
-    command_id: nonEmptyString,
+    command_id: nonEmptyString2,
     owner: ownerSchema,
     status: { enum: ["active", "retired"] },
-    current_revision_id: nullableString,
-    created_at: nonEmptyString,
-    updated_at: nonEmptyString,
-    retired_at: nullableString
+    current_revision_id: nullableString2,
+    created_at: nonEmptyString2,
+    updated_at: nonEmptyString2,
+    retired_at: nullableString2
   }
 };
 var revisionSchema = {
@@ -74682,17 +75473,17 @@ var revisionSchema = {
     "withdrawn_at"
   ],
   properties: {
-    command_definition_revision_id: nonEmptyString,
-    command_id: nonEmptyString,
+    command_definition_revision_id: nonEmptyString2,
+    command_id: nonEmptyString2,
     owner: ownerSchema,
     revision_number: { type: "integer", minimum: 1 },
-    based_on_revision_id: nullableString,
-    semantic_digest: nonEmptyString,
+    based_on_revision_id: nullableString2,
+    semantic_digest: nonEmptyString2,
     content: COMMAND_DEFINITION_CONTENT_SCHEMA,
-    created_by_principal_id: nonEmptyString,
-    created_at: nonEmptyString,
-    published_at: nullableString,
-    withdrawn_at: nullableString
+    created_by_principal_id: nonEmptyString2,
+    created_at: nonEmptyString2,
+    published_at: nullableString2,
+    withdrawn_at: nullableString2
   }
 };
 var headChangeSchema = {
@@ -74709,14 +75500,14 @@ var headChangeSchema = {
     "changed_at"
   ],
   properties: {
-    head_change_id: nonEmptyString,
-    command_id: nonEmptyString,
+    head_change_id: nonEmptyString2,
+    command_id: nonEmptyString2,
     owner: ownerSchema,
-    from_revision_id: nullableString,
-    to_revision_id: nonEmptyString,
+    from_revision_id: nullableString2,
+    to_revision_id: nonEmptyString2,
     reason: { enum: ["publish", "rollback"] },
-    changed_by_principal_id: nonEmptyString,
-    changed_at: nonEmptyString
+    changed_by_principal_id: nonEmptyString2,
+    changed_at: nonEmptyString2
   }
 };
 var commandAndRevisionSchema = {
@@ -74768,12 +75559,12 @@ var inspectionSchema = {
     head_changes: { type: "array", items: headChangeSchema }
   }
 };
-var listInputSchema = {
+var listInputSchema2 = {
   type: "object",
   additionalProperties: false,
   properties: { include_retired: { type: "boolean" } }
 };
-var inspectInputSchema = {
+var inspectInputSchema2 = {
   type: "object",
   additionalProperties: false,
   properties: { include_history: { type: "boolean" } }
@@ -74782,31 +75573,31 @@ var createInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["definition"],
-  properties: { command_id: nonEmptyString, definition: COMMAND_DEFINITION_CONTENT_SCHEMA }
+  properties: { command_id: nonEmptyString2, definition: COMMAND_DEFINITION_CONTENT_SCHEMA }
 };
-var createDraftInputSchema = {
+var createDraftInputSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["definition"],
-  properties: { based_on_revision_id: nullableString, definition: COMMAND_DEFINITION_CONTENT_SCHEMA }
+  properties: { based_on_revision_id: nullableString2, definition: COMMAND_DEFINITION_CONTENT_SCHEMA }
 };
-var replaceDraftInputSchema = {
+var replaceDraftInputSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["definition"],
   properties: { definition: COMMAND_DEFINITION_CONTENT_SCHEMA }
 };
-var publishInputSchema = {
+var publishInputSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["expected_current_revision_id"],
-  properties: { expected_current_revision_id: nullableString }
+  properties: { expected_current_revision_id: nullableString2 }
 };
-var rollbackInputSchema = {
+var rollbackInputSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["to_published_revision_id"],
-  properties: { to_published_revision_id: nonEmptyString }
+  properties: { to_published_revision_id: nonEmptyString2 }
 };
 function ownerForBoundary(boundary) {
   return { kind: boundary.kind, id: operationAuthorityBoundaryId(boundary) };
@@ -74847,10 +75638,10 @@ function revisionRef(revision) {
     revision: revision.semantic_digest
   };
 }
-function auditRef2(context) {
+function auditRef3(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
-function expectedHead(value) {
+function expectedHead2(value) {
   return value === NO_COMMAND_DEFINITION_REVISION ? null : value;
 }
 function commandAvailability(store, context, requiredStatus) {
@@ -74863,7 +75654,7 @@ function commandAvailability(store, context, requiredStatus) {
   }
   return { available: true };
 }
-function revisionAvailability(store, context) {
+function revisionAvailability2(store, context) {
   const target = context.target?.ref;
   return target?.kind === "command_definition_revision" && revisionInBoundary(store, context.authority.boundary, target.id) ? { available: true } : unavailable2("command_definition_not_found", "This Command definition revision is not available at the current authority boundary.");
 }
@@ -74888,7 +75679,7 @@ function commandOperationRefusal(error) {
   }
   return refusal("command_operation_failed", "Floe could not prove that the Command operation completed.", false, requiredAction("inspect_command", "Inspect Command", "Inspect retained Command state before deciding whether a retry is safe."));
 }
-async function handle2(work) {
+async function handle3(work) {
   try {
     return await work();
   } catch (error) {
@@ -74907,16 +75698,16 @@ function commandOperationDefinitions(store) {
     required_grants: [LIST_COMMANDS_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
-    input: { version: "1", schema: listInputSchema },
+    input: { version: "1", schema: listInputSchema2 },
     result: { version: "1", schema: listResultSchema },
-    handler: (context, input) => handle2(() => ({
+    handler: (context, input) => handle3(() => ({
       state: "completed",
       result: {
         commands: store.listCommands(ownerForBoundary(context.authority.boundary), {
           include_retired: input.include_retired === true
         }).map((command) => ({ command, current_definition: store.getCurrentDefinition(command.command_id) }))
       },
-      audit_ref: auditRef2(context)
+      audit_ref: auditRef3(context)
     }))
   };
   const inspect = {
@@ -74930,10 +75721,10 @@ function commandOperationDefinitions(store) {
     required_grants: [INSPECT_COMMAND_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command"], expected_revision: "not_applicable" },
-    input: { version: "1", schema: inspectInputSchema },
+    input: { version: "1", schema: inspectInputSchema2 },
     result: { version: "1", schema: inspectionSchema },
     availability: (context) => commandAvailability(store, context),
-    handler: (context, input) => handle2(() => {
+    handler: (context, input) => handle3(() => {
       const command = commandInBoundary(store, context.authority.boundary, context.target.ref.id);
       if (!command)
         throw new CommandNotFoundError(context.target.ref.id);
@@ -74948,7 +75739,7 @@ function commandOperationDefinitions(store) {
           revisions: includeHistory ? all : all.filter((revision) => revision.command_definition_revision_id === command.current_revision_id || !revision.published_at && !revision.withdrawn_at),
           head_changes: includeHistory ? store.listHeadChanges(command.command_id) : []
         },
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -74963,17 +75754,17 @@ function commandOperationDefinitions(store) {
     required_grants: [GET_COMMAND_DEFINITION_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command_definition_revision"], expected_revision: "not_applicable" },
-    input: { version: "1", schema: emptyInput2 },
+    input: { version: "1", schema: emptyInput3 },
     result: { version: "1", schema: commandAndRevisionSchema },
-    availability: (context) => revisionAvailability(store, context),
-    handler: (context) => handle2(() => {
+    availability: (context) => revisionAvailability2(store, context),
+    handler: (context) => handle3(() => {
       const revision = revisionInBoundary(store, context.authority.boundary, context.target.ref.id);
       if (!revision)
         throw new CommandDefinitionRevisionNotFoundError(context.target.ref.id);
       return {
         state: "completed",
         result: { command: store.requireCommand(revision.command_id), revision },
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -74990,7 +75781,7 @@ function commandOperationDefinitions(store) {
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     input: { version: "1", schema: createInputSchema },
     result: { version: "1", schema: commandAndDraftSchema },
-    handler: (context, input) => handle2(() => {
+    handler: (context, input) => handle3(() => {
       const created = store.createCommand({
         owner: ownerForBoundary(context.authority.boundary),
         created_by_principal_id: context.authority.principal_id,
@@ -75001,7 +75792,7 @@ function commandOperationDefinitions(store) {
         state: "completed",
         result: created,
         changed_refs: [commandRef(created.command), revisionRef(created.draft)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75016,12 +75807,12 @@ function commandOperationDefinitions(store) {
     required_grants: [CREATE_COMMAND_DEFINITION_DRAFT_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command"], expected_revision: "required" },
-    input: { version: "1", schema: createDraftInputSchema },
+    input: { version: "1", schema: createDraftInputSchema2 },
     result: { version: "1", schema: commandAndRevisionSchema },
     availability: (context) => commandAvailability(store, context, "active"),
-    handler: (context, input) => handle2(() => {
+    handler: (context, input) => handle3(() => {
       const command = store.requireCommand(context.target.ref.id);
-      const expected = expectedHead(context.expected_resource_revision);
+      const expected = expectedHead2(context.expected_resource_revision);
       if (command.current_revision_id !== expected) {
         throw new CommandDefinitionConflictError(command.command_id, expected, command.current_revision_id);
       }
@@ -75035,7 +75826,7 @@ function commandOperationDefinitions(store) {
         state: "completed",
         result: { command: store.requireCommand(command.command_id), revision },
         changed_refs: [commandRef(command), revisionRef(revision)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75050,10 +75841,10 @@ function commandOperationDefinitions(store) {
     required_grants: [REPLACE_COMMAND_DEFINITION_DRAFT_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command_definition_revision"], expected_revision: "required" },
-    input: { version: "1", schema: replaceDraftInputSchema },
+    input: { version: "1", schema: replaceDraftInputSchema2 },
     result: { version: "1", schema: commandAndRevisionSchema },
-    availability: (context) => revisionAvailability(store, context),
-    handler: (context, input) => handle2(() => {
+    availability: (context) => revisionAvailability2(store, context),
+    handler: (context, input) => handle3(() => {
       const revision = store.replaceDraft({
         command_definition_revision_id: context.target.ref.id,
         expected_digest: context.expected_resource_revision,
@@ -75063,7 +75854,7 @@ function commandOperationDefinitions(store) {
         state: "completed",
         result: { command: store.requireCommand(revision.command_id), revision },
         changed_refs: [revisionRef(revision)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75078,10 +75869,10 @@ function commandOperationDefinitions(store) {
     required_grants: [PUBLISH_COMMAND_DEFINITION_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command_definition_revision"], expected_revision: "required" },
-    input: { version: "1", schema: publishInputSchema },
+    input: { version: "1", schema: publishInputSchema2 },
     result: { version: "1", schema: commandAndRevisionSchema },
-    availability: (context) => revisionAvailability(store, context),
-    handler: (context, input) => handle2(() => {
+    availability: (context) => revisionAvailability2(store, context),
+    handler: (context, input) => handle3(() => {
       const current = store.requireRevision(context.target.ref.id);
       if (current.semantic_digest !== context.expected_resource_revision) {
         throw new CommandDefinitionDraftConflictError(current.command_definition_revision_id, context.expected_resource_revision, current.semantic_digest);
@@ -75096,7 +75887,7 @@ function commandOperationDefinitions(store) {
         state: "completed",
         result: { command, revision },
         changed_refs: [commandRef(command), revisionRef(revision)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75111,10 +75902,10 @@ function commandOperationDefinitions(store) {
     required_grants: [ROLLBACK_COMMAND_DEFINITION_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command"], expected_revision: "required" },
-    input: { version: "1", schema: rollbackInputSchema },
+    input: { version: "1", schema: rollbackInputSchema2 },
     result: { version: "1", schema: commandAndRevisionSchema },
     availability: (context) => commandAvailability(store, context, "active"),
-    handler: (context, input) => handle2(() => {
+    handler: (context, input) => handle3(() => {
       const command = store.requireCommand(context.target.ref.id);
       const revision = store.rollback({
         command_id: command.command_id,
@@ -75127,7 +75918,7 @@ function commandOperationDefinitions(store) {
         state: "completed",
         result: { command: changed, revision },
         changed_refs: [commandRef(changed), revisionRef(revision)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75158,20 +75949,20 @@ function commandStatusOperation(store, status) {
     required_grants: [operationId],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["command"], expected_revision: "required" },
-    input: { version: "1", schema: emptyInput2 },
+    input: { version: "1", schema: emptyInput3 },
     result: { version: "1", schema: commandOnlySchema },
     availability: (context) => commandAvailability(store, context, reactivating ? "retired" : "active"),
-    handler: (context) => handle2(() => {
+    handler: (context) => handle3(() => {
       const command = store.setCommandStatus({
         command_id: context.target.ref.id,
         status,
-        expected_current_revision_id: expectedHead(context.expected_resource_revision)
+        expected_current_revision_id: expectedHead2(context.expected_resource_revision)
       });
       return {
         state: "completed",
         result: { command },
         changed_refs: [commandRef(command)],
-        audit_ref: auditRef2(context)
+        audit_ref: auditRef3(context)
       };
     })
   };
@@ -75766,10 +76557,10 @@ var resolutionSchema = {
 function workspaceId(context) {
   return requireWorkspaceAuthorityId(context.authority);
 }
-function auditRef3(context) {
+function auditRef4(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
-function actorAvailability(store, context) {
+function actorAvailability2(store, context) {
   const actorId = context.target?.ref.id;
   const actor = actorId ? store.db.prepare(`
     SELECT actor_id FROM actors WHERE workspace_id = ? AND actor_id = ?
@@ -75787,7 +76578,7 @@ function roleAuthorityAvailability(store, context, kind) {
     refusal: refusal("actor_role_authority_not_found", "The selected authority record is not available in this Workspace.", false, null)
   };
 }
-function handle3(fn) {
+function handle4(fn) {
   try {
     return fn();
   } catch (error) {
@@ -75845,7 +76636,7 @@ function actorRoleOperationDefinitions(store) {
         }
       }
     },
-    availability: (context) => actorAvailability(store, context),
+    availability: (context) => actorAvailability2(store, context),
     handler: (context, input) => ({
       state: "completed",
       result: {
@@ -75859,7 +76650,7 @@ function actorRoleOperationDefinitions(store) {
           include_revoked: input.include_history === true
         })
       },
-      audit_ref: auditRef3(context)
+      audit_ref: auditRef4(context)
     })
   };
   const resolveOwn = {
@@ -75878,14 +76669,14 @@ function actorRoleOperationDefinitions(store) {
       schema: { type: "object", additionalProperties: false, properties: resolutionTargetProperties }
     },
     result: { version: "1", schema: resolutionSchema },
-    handler: (context, input) => handle3(() => ({
+    handler: (context, input) => handle4(() => ({
       state: "completed",
       result: store.resolveCurrent({
         workspace_id: workspaceId(context),
         principal_id: context.authority.principal_id,
         target: input
       }),
-      audit_ref: auditRef3(context)
+      audit_ref: auditRef4(context)
     }))
   };
   const bindPrincipal = {
@@ -75917,8 +76708,8 @@ function actorRoleOperationDefinitions(store) {
         properties: { binding: principalBindingSchema }
       }
     },
-    availability: (context) => actorAvailability(store, context),
-    handler: (context, input) => handle3(() => {
+    availability: (context) => actorAvailability2(store, context),
+    handler: (context, input) => handle4(() => {
       const binding = store.bindPrincipal({
         workspace_id: workspaceId(context),
         principal_id: input.principal_id,
@@ -75939,7 +76730,7 @@ function actorRoleOperationDefinitions(store) {
           id: binding.principal_actor_binding_id,
           revision: `bound:${binding.bound_at}`
         }],
-        audit_ref: auditRef3(context)
+        audit_ref: auditRef4(context)
       };
     })
   };
@@ -75973,7 +76764,7 @@ function actorRoleOperationDefinitions(store) {
       }
     },
     availability: (context) => roleAuthorityAvailability(store, context, "principal_binding"),
-    handler: (context, input) => handle3(() => {
+    handler: (context, input) => handle4(() => {
       const current = store.requirePrincipalBinding(context.target.ref.id);
       if (`bound:${current.bound_at}` !== expectedRevision(context) || current.status !== "active") {
         throw new ActorRoleAuthorityConflictError("the principal-to-Actor binding is no longer at the selected active revision");
@@ -75988,7 +76779,7 @@ function actorRoleOperationDefinitions(store) {
         state: "completed",
         result: { binding },
         changed_refs: [{ kind: "principal_actor_binding", id: binding.principal_actor_binding_id, revision: `bound:${binding.bound_at}` }],
-        audit_ref: auditRef3(context)
+        audit_ref: auditRef4(context)
       };
     })
   };
@@ -76021,8 +76812,8 @@ function actorRoleOperationDefinitions(store) {
         properties: { assignment: roleAssignmentSchema }
       }
     },
-    availability: (context) => actorAvailability(store, context),
-    handler: (context, input) => handle3(() => {
+    availability: (context) => actorAvailability2(store, context),
+    handler: (context, input) => handle4(() => {
       const assignment = store.assignRole({
         workspace_id: workspaceId(context),
         actor_id: context.target.ref.id,
@@ -76039,7 +76830,7 @@ function actorRoleOperationDefinitions(store) {
           id: assignment.actor_role_assignment_id,
           revision: `assigned:${assignment.assigned_at}`
         }],
-        audit_ref: auditRef3(context)
+        audit_ref: auditRef4(context)
       };
     })
   };
@@ -76073,7 +76864,7 @@ function actorRoleOperationDefinitions(store) {
       }
     },
     availability: (context) => roleAuthorityAvailability(store, context, "role_assignment"),
-    handler: (context, input) => handle3(() => {
+    handler: (context, input) => handle4(() => {
       const current = store.requireRoleAssignment(context.target.ref.id);
       if (`assigned:${current.assigned_at}` !== expectedRevision(context) || current.status !== "active") {
         throw new ActorRoleAuthorityConflictError("the Actor role assignment is no longer at the selected active revision");
@@ -76092,7 +76883,7 @@ function actorRoleOperationDefinitions(store) {
           id: assignment.actor_role_assignment_id,
           revision: `assigned:${assignment.assigned_at}`
         }],
-        audit_ref: auditRef3(context)
+        audit_ref: auditRef4(context)
       };
     })
   };
@@ -80469,8 +81260,8 @@ var LIST_POLICY_EVALUATIONS_OPERATION_ID = "policy.evaluation.list";
 var INSPECT_POLICY_EVALUATION_OPERATION_ID = "policy.evaluation.inspect";
 var text6 = { type: "string", minLength: 1 };
 var nullableText3 = { oneOf: [text6, { type: "null" }] };
-var emptyInput3 = { type: "object", additionalProperties: false };
-var resourceRefSchema2 = {
+var emptyInput4 = { type: "object", additionalProperties: false };
+var resourceRefSchema3 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
@@ -80721,7 +81512,7 @@ var policyEvaluationSchema = {
 function stringList(allowEmpty = false) {
   return { type: "array", minItems: allowEmpty ? 0 : 1, uniqueItems: true, items: text6 };
 }
-function auditRef4(context) {
+function auditRef5(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
 function writeEffects(reversibility = "reversible") {
@@ -80793,7 +81584,7 @@ function policyOperationDefinitions(store) {
             policies: store.listPolicies(workspaceId4, { include_retired: value.include_retired }),
             bindings: store.listBindings(workspaceId4, { include_revoked: value.include_revoked_bindings })
           },
-          audit_ref: auditRef4(context)
+          audit_ref: auditRef5(context)
         };
       }
     },
@@ -80808,7 +81599,7 @@ function policyOperationDefinitions(store) {
       required_grants: [INSPECT_POLICY_OPERATION_ID],
       interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
       target: { resource_kinds: ["policy"], expected_revision: "not_applicable" },
-      input: { version: "1", schema: emptyInput3 },
+      input: { version: "1", schema: emptyInput4 },
       result: {
         version: "1",
         schema: {
@@ -80833,7 +81624,7 @@ function policyOperationDefinitions(store) {
             revisions: store.listRevisions(policy.policy_id),
             bindings: store.listBindings(workspaceId4, { include_revoked: true }).filter((binding) => revisionIds.has(binding.policy_revision_id))
           },
-          audit_ref: auditRef4(context)
+          audit_ref: auditRef5(context)
         };
       }
     },
@@ -80868,7 +81659,7 @@ function policyOperationDefinitions(store) {
       handler: (context, input) => ({
         state: "completed",
         result: { evaluations: store.listEvaluations(requireWorkspaceAuthorityId(context.authority), input.limit) },
-        audit_ref: auditRef4(context)
+        audit_ref: auditRef5(context)
       })
     },
     {
@@ -80882,14 +81673,14 @@ function policyOperationDefinitions(store) {
       required_grants: [INSPECT_POLICY_EVALUATION_OPERATION_ID],
       interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
       target: { resource_kinds: ["policy_evaluation"], expected_revision: "not_applicable" },
-      input: { version: "1", schema: emptyInput3 },
+      input: { version: "1", schema: emptyInput4 },
       result: { version: "1", schema: policyEvaluationSchema },
       handler: (context) => {
         const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
         const evaluation = store.getEvaluation(context.target.ref.id);
         if (!evaluation || evaluation.workspace_id !== workspaceId4)
           throw new PolicyNotFoundError("revision", context.target.ref.id);
-        return { state: "completed", result: evaluation, audit_ref: auditRef4(context) };
+        return { state: "completed", result: evaluation, audit_ref: auditRef5(context) };
       }
     }
   ];
@@ -80934,7 +81725,7 @@ function createPolicyDefinition(store) {
           content: value.content,
           created_by_principal_id: context.authority.principal_id
         });
-        return { state: "completed", result, changed_refs: [policyRef(result.policy), revisionRef2(result.draft)], audit_ref: auditRef4(context) };
+        return { state: "completed", result, changed_refs: [policyRef(result.policy), revisionRef2(result.draft)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -80968,7 +81759,7 @@ function createDraftDefinition(store) {
           content: value.content,
           created_by_principal_id: context.authority.principal_id
         });
-        return { state: "completed", result: revision, changed_refs: [revisionRef2(revision)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: revision, changed_refs: [revisionRef2(revision)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -80997,7 +81788,7 @@ function replaceDraftDefinition(store) {
           expected_semantic_digest: context.expected_resource_revision,
           content: input.content
         });
-        return { state: "completed", result: revision, changed_refs: [revisionRef2(revision)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: revision, changed_refs: [revisionRef2(revision)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81028,7 +81819,7 @@ function publishDefinition(store) {
           policy_revision_id: selected.policy_revision_id,
           expected_current_revision_id: input.expected_current_revision_id
         });
-        return { state: "completed", result, changed_refs: [policyRef(result.policy), revisionRef2(result.revision)], audit_ref: auditRef4(context) };
+        return { state: "completed", result, changed_refs: [policyRef(result.policy), revisionRef2(result.revision)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81057,7 +81848,7 @@ function rollbackDefinition(store) {
           target_revision_id: input.target_revision_id,
           expected_current_revision_id: currentRevisionFromPolicyTarget(context)
         });
-        return { state: "completed", result: policy, changed_refs: [policyRef(policy)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: policy, changed_refs: [policyRef(policy)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81091,7 +81882,7 @@ function bindDefinition(store) {
           bound_by_principal_id: context.authority.principal_id,
           ...value.policy_binding_id ? { policy_binding_id: value.policy_binding_id } : {}
         });
-        return { state: "completed", result: binding, changed_refs: [bindingRef(binding)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: binding, changed_refs: [bindingRef(binding)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81123,7 +81914,7 @@ function revokeBindingDefinition(store) {
           revoked_by_principal_id: context.authority.principal_id,
           reason: input.reason
         });
-        return { state: "completed", result: binding, changed_refs: [bindingRef(binding)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: binding, changed_refs: [bindingRef(binding)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81143,7 +81934,7 @@ function lifecycleDefinition(store, action) {
     required_grants: [operationId],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy"], expected_revision: "required" },
-    input: { version: "1", schema: emptyInput3 },
+    input: { version: "1", schema: emptyInput4 },
     result: { version: "1", schema: policySchema },
     handler: (context) => {
       try {
@@ -81151,7 +81942,7 @@ function lifecycleDefinition(store, action) {
         if (current.updated_at !== context.expected_resource_revision)
           throw new PolicyConflictError(current.policy_id, "the Policy changed");
         const policy = action === "retire" ? store.retirePolicy({ workspace_id: requireWorkspaceAuthorityId(context.authority), policy_id: current.policy_id }) : store.reactivatePolicy({ workspace_id: requireWorkspaceAuthorityId(context.authority), policy_id: current.policy_id });
-        return { state: "completed", result: policy, changed_refs: [policyRef(policy)], audit_ref: auditRef4(context) };
+        return { state: "completed", result: policy, changed_refs: [policyRef(policy)], audit_ref: auditRef5(context) };
       } catch (error) {
         return { state: "refused", refusal: mapFailure(error) };
       }
@@ -81196,7 +81987,7 @@ var POLICY_OPERATION_SCHEMAS = Object.freeze({
   revision: policyRevisionSchema,
   binding: policyBindingSchema,
   evaluation: policyEvaluationSchema,
-  resource_ref: resourceRefSchema2,
+  resource_ref: resourceRefSchema3,
   effects: effectsSchema
 });
 
@@ -82344,7 +83135,7 @@ var reservationItemSchema = {
     estimated_amount: { type: "number", minimum: 0 }
   }
 };
-var emptyInput4 = { type: "object", additionalProperties: false };
+var emptyInput5 = { type: "object", additionalProperties: false };
 var reservationSchema = {
   type: "object",
   additionalProperties: true,
@@ -82423,7 +83214,7 @@ function readEffects2() {
 function writeEffects2() {
   return { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" };
 }
-function auditRef5(invocationId) {
+function auditRef6(invocationId) {
   return { kind: "operation_invocation", id: invocationId, revision: null };
 }
 function reservationRef(reservation) {
@@ -82475,7 +83266,7 @@ function budgetOperationDefinitions(store) {
         result: {
           reservations: store.listReservations(requireWorkspaceAuthorityId(context.authority), { state: input.state })
         },
-        audit_ref: auditRef5(context.invocation_id)
+        audit_ref: auditRef6(context.invocation_id)
       })
     },
     {
@@ -82489,12 +83280,12 @@ function budgetOperationDefinitions(store) {
       required_grants: [INSPECT_BUDGET_RESERVATION_OPERATION_ID],
       interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
       target: { resource_kinds: ["budget_reservation"], expected_revision: "not_applicable" },
-      input: { version: "1", schema: emptyInput4 },
+      input: { version: "1", schema: emptyInput5 },
       result: { version: "1", schema: reservationSchema },
       handler: (context) => ({
         state: "completed",
         result: store.requireReservationForWorkspace(context.target.ref.id, requireWorkspaceAuthorityId(context.authority)),
-        audit_ref: auditRef5(context.invocation_id)
+        audit_ref: auditRef6(context.invocation_id)
       })
     },
     {
@@ -82538,7 +83329,7 @@ function budgetOperationDefinitions(store) {
               ...value.limit ? { limit: value.limit } : {}
             })
           },
-          audit_ref: auditRef5(context.invocation_id)
+          audit_ref: auditRef6(context.invocation_id)
         };
       }
     },
@@ -82561,7 +83352,7 @@ function budgetOperationDefinitions(store) {
         }
       },
       target: { resource_kinds: ["budget_reservation"], expected_revision: "required" },
-      input: { version: "1", schema: emptyInput4 },
+      input: { version: "1", schema: emptyInput5 },
       result: { version: "1", schema: reservationSchema },
       handler: (context) => {
         try {
@@ -82578,7 +83369,7 @@ function budgetOperationDefinitions(store) {
             state: "completed",
             result: reservation,
             changed_refs: [reservationRef(reservation)],
-            audit_ref: auditRef5(context.invocation_id)
+            audit_ref: auditRef6(context.invocation_id)
           };
         } catch (error) {
           return { state: "refused", refusal: mapFailure2(error) };
@@ -82629,7 +83420,7 @@ var auditRecordSchema = {
 function readEffects3() {
   return { mode: "read", reversibility: "none", external: false, secret_access: "none" };
 }
-function auditRef6(record) {
+function auditRef7(record) {
   return {
     kind: "audit_record",
     id: record.request.audit_id,
@@ -82723,7 +83514,7 @@ function resolveAuditOperationResource(store, boundary, target) {
   const record = store.get(target.id);
   if (!record || !sameOperationAuthorityBoundary(record.request.authority_boundary, boundary))
     return null;
-  return { ref: auditRef6(record), state: record };
+  return { ref: auditRef7(record), state: record };
 }
 
 // floe-bus/dist/extensions.js
@@ -89164,7 +89955,7 @@ function applyDeliveryOperationAuthoritySchema(db) {
 }
 
 // floe-bus/dist/artefact-operations.js
-function authorityWorkspaceId(context) {
+function authorityWorkspaceId2(context) {
   return requireWorkspaceAuthorityId(context.authority);
 }
 var CREATE_ARTEFACT_OPERATION_ID = "artefact.create";
@@ -89506,7 +90297,7 @@ function targetUnavailable(store, context) {
     const version = store.getVersion(target.id);
     artefact = version ? store.getArtefact(version.artefact_id) : null;
   }
-  if (!artefact || artefact.workspace_id !== authorityWorkspaceId(context)) {
+  if (!artefact || artefact.workspace_id !== authorityWorkspaceId2(context)) {
     return refusal("artefact_not_found", "This Artefact is not available in the current Workspace.", false, requiredAction("refresh_artefacts", "Refresh Artefacts", "Refresh this Workspace and select an available Artefact."));
   }
   return null;
@@ -89557,7 +90348,7 @@ function createArtefactOperation(store) {
     handler: async (context, input) => {
       try {
         const artefact = store.createArtefact({
-          workspace_id: authorityWorkspaceId(context),
+          workspace_id: authorityWorkspaceId2(context),
           type_ref: input.type_ref,
           idempotency_key: context.idempotency_key,
           ...input.artefact_id ? { artefact_id: input.artefact_id } : {}
@@ -89653,7 +90444,7 @@ function inspectArtefactOperation(store) {
         } else {
           artefact = store.getArtefact(target.id);
         }
-        if (!artefact || artefact.workspace_id !== authorityWorkspaceId(context)) {
+        if (!artefact || artefact.workspace_id !== authorityWorkspaceId2(context)) {
           throw new ArtefactNotFoundError(target.id);
         }
         let selected = null;
@@ -89698,7 +90489,7 @@ function searchArtefactsOperation(store) {
     handler: async (context, input) => {
       try {
         const page = store.searchArtefacts({
-          workspace_id: authorityWorkspaceId(context),
+          workspace_id: authorityWorkspaceId2(context),
           ...input.query === void 0 ? {} : { query: input.query },
           ...input.type_ref === void 0 ? {} : { type_ref: input.type_ref },
           ...input.association === void 0 ? {} : { association: input.association },
@@ -89862,796 +90653,6 @@ function exportArtefactVersionOperation(store, workspaceLocator) {
       }
     }
   };
-}
-
-// floe-bus/dist/actor-tool-access.js
-var ALL_ENGINE_TOOL_OPERATION_IDS = Object.values(ENGINE_TOOL_OPERATIONS).sort();
-var ToolAccessWideningError = class extends Error {
-};
-function passOnEngineToolAccess(input) {
-  const limited = input.chosen_operation_ids !== void 0;
-  const wanted = [...new Set(input.chosen_operation_ids ?? ALL_ENGINE_TOOL_OPERATION_IDS)].sort();
-  const held = heldGrants(input.grants, input.authority);
-  const notGranted = [];
-  const granted = [];
-  const covered = /* @__PURE__ */ new Set();
-  for (const operationId of wanted) {
-    if (!held.some((grant) => grant.operation_ids.includes(operationId))) {
-      if (limited)
-        throw new ToolAccessWideningError(`You cannot give '${operationId}' because you do not hold it.`);
-      notGranted.push({ operation_id: operationId, reason: "The creator does not hold this engine tool." });
-    }
-  }
-  for (const source of held) {
-    const operations = source.operation_ids.filter((id) => wanted.includes(id) && !covered.has(id));
-    if (operations.length === 0)
-      continue;
-    try {
-      granted.push(input.grants.delegateGrant({
-        authority: input.authority,
-        source_grant_id: source.grant_id,
-        principal_id: input.draft.actor_id,
-        recipient: { kind: "actor", id: input.draft.actor_id },
-        operation_ids: operations,
-        // The Actor's access lasts exactly as long as the creator's source grant.
-        expires_at: source.expires_at,
-        invocation_id: input.invocation_id
-      }));
-      for (const id of operations)
-        covered.add(id);
-    } catch (error) {
-      if (limited)
-        throw new ToolAccessWideningError(error.message);
-      for (const id of operations)
-        notGranted.push({ operation_id: id, reason: error.message });
-    }
-  }
-  const grantIds = granted.map((grant) => grant.grant_id);
-  const draft = grantIds.length === 0 ? input.draft : input.actors.replaceDraft({
-    actor_definition_revision_id: input.draft.actor_definition_revision_id,
-    expected_digest: input.draft.semantic_digest,
-    definition: {
-      ...input.draft.content,
-      capability_grant_ids: [.../* @__PURE__ */ new Set([...input.draft.content.capability_grant_ids, ...grantIds])]
-    }
-  });
-  const settled = /* @__PURE__ */ new Map();
-  for (const item of notGranted)
-    if (!covered.has(item.operation_id))
-      settled.set(item.operation_id, item);
-  return {
-    draft,
-    tool_access: {
-      limited_by_creator: limited,
-      granted_operation_ids: [...covered].sort(),
-      grant_ids: grantIds,
-      not_granted: [...settled.values()].sort((a, b) => a.operation_id.localeCompare(b.operation_id))
-    }
-  };
-}
-function heldGrants(grants, authority) {
-  const inspection = grants.inspectSessionGrantIds({
-    principal_id: authority.principal_id,
-    boundary: authority.boundary,
-    grant_ids: authority.session_capability_grant_ids ?? []
-  });
-  return [...inspection.active_grants, ...inspection.delegable_grants].filter((grant) => grant.operation_ids.some((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id))).sort((a, b) => expiryMs(b.expires_at) - expiryMs(a.expires_at) || a.grant_id.localeCompare(b.grant_id));
-}
-
-// floe-bus/dist/actor-definition-operations.js
-function authorityWorkspaceId2(context) {
-  return requireWorkspaceAuthorityId(context.authority);
-}
-var LIST_ACTORS_OPERATION_ID = "actor.list";
-var INSPECT_ACTOR_OPERATION_ID = "actor.inspect";
-var GET_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.get";
-var CREATE_ACTOR_OPERATION_ID = "actor.create";
-var CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID = "actor.definition.draft.create";
-var REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID = "actor.definition.draft.replace";
-var PUBLISH_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.publish";
-var ROLLBACK_ACTOR_DEFINITION_OPERATION_ID = "actor.definition.rollback";
-var RETIRE_ACTOR_OPERATION_ID = "actor.retire";
-var REACTIVATE_ACTOR_OPERATION_ID = "actor.reactivate";
-var NO_ACTOR_DEFINITION_REVISION = "none";
-var nonEmptyString2 = { type: "string", minLength: 1 };
-var nullableString2 = { oneOf: [nonEmptyString2, { type: "null" }] };
-var emptyInput5 = { type: "object", additionalProperties: false };
-var resourceRefSchema3 = {
-  type: "object",
-  additionalProperties: false,
-  required: ["kind", "id", "revision"],
-  properties: { kind: nonEmptyString2, id: nonEmptyString2, revision: nullableString2 }
-};
-var responsibilitySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["responsibility_id", "title", "description"],
-  properties: {
-    responsibility_id: nonEmptyString2,
-    title: nonEmptyString2,
-    description: nonEmptyString2
-  }
-};
-var escalationRuleSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["rule_id", "when", "action"],
-  properties: {
-    rule_id: nonEmptyString2,
-    when: nonEmptyString2,
-    action: { enum: ["decline", "delegate", "escalate", "signal_unowned"] },
-    target_actor_id: nullableString2
-  }
-};
-var ACTOR_DEFINITION_CONTENT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "label",
-    "charter",
-    "responsibilities",
-    "instructions",
-    "knowledge_refs",
-    "capability_grant_ids",
-    "policy_refs",
-    "escalation_rules"
-  ],
-  properties: {
-    label: nonEmptyString2,
-    charter: nonEmptyString2,
-    responsibilities: { type: "array", items: responsibilitySchema },
-    instructions: nonEmptyString2,
-    knowledge_refs: { type: "array", items: resourceRefSchema3 },
-    capability_grant_ids: {
-      type: "array",
-      items: nonEmptyString2,
-      uniqueItems: true,
-      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list; actor.create adds its engine tool access for you. Delegate any other access it needs, then publish its own grants. Never copy another Actor's grant IDs."
-    },
-    policy_refs: {
-      type: "object",
-      additionalProperties: false,
-      required: ["budget", "trust", "approval"],
-      properties: {
-        budget: { oneOf: [resourceRefSchema3, { type: "null" }] },
-        trust: { oneOf: [resourceRefSchema3, { type: "null" }] },
-        approval: {
-          oneOf: [resourceRefSchema3, { type: "null" }],
-          description: "Pinned Approval Policy revision { kind: 'policy', id: policy_id, revision: policy_revision_id }. It can only restrict engine tool calls; it never grants authority."
-        }
-      }
-    },
-    escalation_rules: { type: "array", items: escalationRuleSchema },
-    scope: {
-      type: "object",
-      additionalProperties: false,
-      required: ["paths"],
-      description: "Optional limit, chosen by a person: Workspace-relative folders that engine file tools must stay within. Omit for no folder limit. Use '.' for the whole Workspace. An Actor with a folder limit cannot use shell, because shell calls do not report which files they touch.",
-      properties: { paths: { type: "array", items: nonEmptyString2, minItems: 1, uniqueItems: true } }
-    }
-  }
-};
-var actorSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "actor_id",
-    "workspace_id",
-    "created_in_context_id",
-    "created_in_scope_execution_id",
-    "status",
-    "current_definition_revision_id",
-    "created_at",
-    "updated_at",
-    "retired_at"
-  ],
-  properties: {
-    actor_id: nonEmptyString2,
-    workspace_id: nonEmptyString2,
-    created_in_context_id: nullableString2,
-    created_in_scope_execution_id: nullableString2,
-    status: { enum: ["active", "retired"] },
-    current_definition_revision_id: nullableString2,
-    created_at: nonEmptyString2,
-    updated_at: nonEmptyString2,
-    retired_at: nullableString2
-  }
-};
-var actorDefinitionRevisionSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "actor_definition_revision_id",
-    "actor_id",
-    "workspace_id",
-    "revision_number",
-    "based_on_revision_id",
-    "semantic_digest",
-    "content",
-    "created_by_principal_id",
-    "created_at",
-    "published_at",
-    "withdrawn_at"
-  ],
-  properties: {
-    actor_definition_revision_id: nonEmptyString2,
-    actor_id: nonEmptyString2,
-    workspace_id: nonEmptyString2,
-    revision_number: { type: "integer", minimum: 1 },
-    based_on_revision_id: nullableString2,
-    semantic_digest: nonEmptyString2,
-    content: ACTOR_DEFINITION_CONTENT_SCHEMA,
-    created_by_principal_id: nonEmptyString2,
-    created_at: nonEmptyString2,
-    published_at: nullableString2,
-    withdrawn_at: nullableString2
-  }
-};
-var actorHeadChangeSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "head_change_id",
-    "actor_id",
-    "workspace_id",
-    "from_revision_id",
-    "to_revision_id",
-    "reason",
-    "changed_by_principal_id",
-    "changed_at"
-  ],
-  properties: {
-    head_change_id: nonEmptyString2,
-    actor_id: nonEmptyString2,
-    workspace_id: nonEmptyString2,
-    from_revision_id: nullableString2,
-    to_revision_id: nonEmptyString2,
-    reason: { enum: ["publish", "rollback"] },
-    changed_by_principal_id: nonEmptyString2,
-    changed_at: nonEmptyString2
-  }
-};
-var actorWithDefinitionSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actor", "current_definition"],
-  properties: {
-    actor: actorSchema,
-    current_definition: { oneOf: [actorDefinitionRevisionSchema, { type: "null" }] }
-  }
-};
-var actorListResultSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actors"],
-  properties: { actors: { type: "array", items: actorWithDefinitionSchema } }
-};
-var actorInspectionSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actor", "current_definition", "history_complete", "revisions", "head_changes"],
-  properties: {
-    actor: actorSchema,
-    current_definition: { oneOf: [actorDefinitionRevisionSchema, { type: "null" }] },
-    history_complete: { type: "boolean" },
-    revisions: { type: "array", items: actorDefinitionRevisionSchema },
-    head_changes: { type: "array", items: actorHeadChangeSchema }
-  }
-};
-var createdActorSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actor", "draft", "tool_access"],
-  properties: {
-    actor: actorSchema,
-    draft: actorDefinitionRevisionSchema,
-    tool_access: {
-      type: "object",
-      additionalProperties: false,
-      required: ["limited_by_creator", "granted_operation_ids", "grant_ids", "not_granted"],
-      description: "Engine tool access the new Actor received from you, and anything you could not pass on.",
-      properties: {
-        limited_by_creator: { type: "boolean" },
-        granted_operation_ids: { type: "array", items: nonEmptyString2 },
-        grant_ids: { type: "array", items: nonEmptyString2 },
-        not_granted: { type: "array", items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["operation_id", "reason"],
-          properties: { operation_id: nonEmptyString2, reason: nonEmptyString2 }
-        } }
-      }
-    }
-  }
-};
-var actorAndRevisionSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actor", "revision"],
-  properties: { actor: actorSchema, revision: actorDefinitionRevisionSchema }
-};
-var actorOnlySchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["actor"],
-  properties: { actor: actorSchema }
-};
-var listInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    include_retired: { type: "boolean" },
-    created_in_context_id: nonEmptyString2,
-    created_in_scope_execution_id: nonEmptyString2
-  }
-};
-var inspectInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  properties: { include_history: { type: "boolean" } }
-};
-var createActorInputSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["definition"],
-  properties: {
-    actor_id: nonEmptyString2,
-    definition: ACTOR_DEFINITION_CONTENT_SCHEMA,
-    engine_tool_operation_ids: {
-      type: "array",
-      uniqueItems: true,
-      items: { enum: [...ALL_ENGINE_TOOL_OPERATION_IDS] },
-      description: "Optional limit. The new Actor may use every engine tool you hold by default. List only the engine tools it may use, or [] for none. You cannot give a tool you do not hold."
-    }
-  }
-};
-var createDraftInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  required: ["definition"],
-  properties: {
-    based_on_revision_id: nullableString2,
-    definition: ACTOR_DEFINITION_CONTENT_SCHEMA
-  }
-};
-var replaceDraftInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  required: ["definition"],
-  properties: { definition: ACTOR_DEFINITION_CONTENT_SCHEMA }
-};
-var publishInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  required: ["expected_current_definition_revision_id"],
-  properties: { expected_current_definition_revision_id: nullableString2 }
-};
-var rollbackInputSchema2 = {
-  type: "object",
-  additionalProperties: false,
-  required: ["to_published_revision_id"],
-  properties: { to_published_revision_id: nonEmptyString2 }
-};
-function actorRef(actor) {
-  return {
-    kind: "actor",
-    id: actor.actor_id,
-    revision: actor.current_definition_revision_id ?? NO_ACTOR_DEFINITION_REVISION
-  };
-}
-function definitionRef(revision) {
-  return {
-    kind: "actor_definition_revision",
-    id: revision.actor_definition_revision_id,
-    revision: revision.semantic_digest
-  };
-}
-function auditRef7(context) {
-  return { kind: "operation_invocation", id: context.invocation_id, revision: null };
-}
-function expectedHead2(value) {
-  return value === NO_ACTOR_DEFINITION_REVISION ? null : value;
-}
-function actorInWorkspace(store, workspaceId4, actorId) {
-  const actor = store.getActor(actorId);
-  return actor?.workspace_id === workspaceId4 ? actor : null;
-}
-function revisionInWorkspace(store, workspaceId4, revisionId) {
-  const revision = store.getRevision(revisionId);
-  return revision?.workspace_id === workspaceId4 ? revision : null;
-}
-function actorAvailability2(store, context, requiredStatus) {
-  const target = context.target?.ref;
-  const actor = target?.kind === "actor" ? actorInWorkspace(store, authorityWorkspaceId2(context), target.id) : null;
-  if (!actor) {
-    return {
-      available: false,
-      refusal: refusal("actor_not_found", "This Actor is not available in the current Workspace.", false, requiredAction("refresh_actors", "Refresh Actors", "Refresh this Workspace and select an available Actor."))
-    };
-  }
-  if (requiredStatus && actor.status !== requiredStatus) {
-    return {
-      available: false,
-      refusal: refusal(requiredStatus === "active" ? "actor_already_retired" : "actor_already_active", requiredStatus === "active" ? "This Actor is already retired." : "This Actor is already active.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect the Actor's retained definition and current lifecycle state."))
-    };
-  }
-  return { available: true };
-}
-function revisionAvailability2(store, context) {
-  const target = context.target?.ref;
-  const revision = target?.kind === "actor_definition_revision" ? revisionInWorkspace(store, authorityWorkspaceId2(context), target.id) : null;
-  return revision ? { available: true } : {
-    available: false,
-    refusal: refusal("actor_definition_not_found", "This Actor definition revision is not available in the current Workspace.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect the Actor and select one retained definition revision."))
-  };
-}
-function actorOperationRefusal(error) {
-  if (error instanceof ActorDefinitionConflictError || error instanceof ActorDefinitionDraftConflictError) {
-    return refusal("actor_definition_revision_conflict", "The Actor definition changed before this operation completed.", true, requiredAction("refresh_actor", "Review the latest Actor", "Refresh the Actor and retry against its exact current revision."));
-  }
-  if (error instanceof ActorDefinitionImmutableError) {
-    return refusal("actor_definition_immutable", "Published or withdrawn Actor definitions cannot be replaced.", false, requiredAction("create_actor_definition_draft", "Create a new draft", "Create a new definition draft based on a retained revision."));
-  }
-  if (error instanceof ActorNotFoundError || error instanceof ActorDefinitionRevisionNotFoundError) {
-    return refusal("actor_not_found", "The requested Actor or definition revision was not found in this Workspace.", false, requiredAction("refresh_actors", "Refresh Actors", "Refresh retained Actors and choose an available exact revision."));
-  }
-  if (error instanceof ActorDefinitionValidationError) {
-    return refusal("actor_definition_invalid", error.message, false, requiredAction("correct_actor_definition", "Correct the Actor definition", "Use the exact discovered Actor definition contract."));
-  }
-  return refusal("actor_operation_failed", "Floe could not prove that the Actor operation completed.", false, requiredAction("inspect_actor", "Inspect Actor", "Inspect retained Actor state before deciding whether a retry is safe."));
-}
-async function handle4(work) {
-  try {
-    return await work();
-  } catch (error) {
-    return { state: "refused", refusal: actorOperationRefusal(error) };
-  }
-}
-function listActorsOperation(store) {
-  return {
-    operation_id: LIST_ACTORS_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "List Actors",
-    description: "List Actor identities in this Workspace with their current published definitions.",
-    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
-    required_grants: [LIST_ACTORS_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: [], expected_revision: "not_applicable" },
-    input: { version: "1", schema: listInputSchema2 },
-    result: { version: "1", schema: actorListResultSchema },
-    handler: (context, input) => handle4(() => ({
-      state: "completed",
-      result: {
-        actors: store.listActors(authorityWorkspaceId2(context), {
-          include_retired: input.include_retired === true,
-          ...input.created_in_context_id ? { created_in_context_id: input.created_in_context_id } : {},
-          ...input.created_in_scope_execution_id ? { created_in_scope_execution_id: input.created_in_scope_execution_id } : {}
-        }).map((actor) => ({ actor, current_definition: store.getCurrentDefinition(actor.actor_id) }))
-      },
-      audit_ref: auditRef7(context)
-    }))
-  };
-}
-function inspectActorOperation(store) {
-  return {
-    operation_id: INSPECT_ACTOR_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Inspect Actor",
-    description: "Inspect an Actor's stable identity, current definition, drafts, and optionally retained definition history.",
-    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
-    required_grants: [INSPECT_ACTOR_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor"], expected_revision: "not_applicable" },
-    input: { version: "1", schema: inspectInputSchema2 },
-    result: { version: "1", schema: actorInspectionSchema },
-    availability: (context) => actorAvailability2(store, context),
-    handler: (context, input) => handle4(() => {
-      const actor = actorInWorkspace(store, authorityWorkspaceId2(context), context.target.ref.id);
-      if (!actor)
-        throw new ActorNotFoundError(context.target.ref.id);
-      const all = store.listRevisions(actor.actor_id);
-      const includeHistory = input.include_history === true;
-      return {
-        state: "completed",
-        result: {
-          actor,
-          current_definition: store.getCurrentDefinition(actor.actor_id),
-          history_complete: includeHistory,
-          revisions: includeHistory ? all : all.filter((revision) => revision.actor_definition_revision_id === actor.current_definition_revision_id || !revision.published_at && !revision.withdrawn_at),
-          head_changes: includeHistory ? store.listHeadChanges(actor.actor_id) : []
-        },
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function getActorDefinitionOperation(store) {
-  return {
-    operation_id: GET_ACTOR_DEFINITION_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Get Actor definition",
-    description: "Get one exact retained ActorDefinitionRevision and its stable Actor identity.",
-    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
-    required_grants: [GET_ACTOR_DEFINITION_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "not_applicable" },
-    input: { version: "1", schema: emptyInput5 },
-    result: { version: "1", schema: actorAndRevisionSchema },
-    availability: (context) => revisionAvailability2(store, context),
-    handler: (context) => handle4(() => {
-      const revision = revisionInWorkspace(store, authorityWorkspaceId2(context), context.target.ref.id);
-      if (!revision)
-        throw new ActorDefinitionRevisionNotFoundError(context.target.ref.id);
-      return {
-        state: "completed",
-        result: { actor: store.requireActor(revision.actor_id), revision },
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function createActorOperation(store, grants) {
-  return {
-    operation_id: CREATE_ACTOR_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Create Actor",
-    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [CREATE_ACTOR_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: [], expected_revision: "not_applicable" },
-    input: { version: "1", schema: createActorInputSchema },
-    result: { version: "1", schema: createdActorSchema },
-    handler: (context, input) => handle4(() => {
-      store.db.exec("SAVEPOINT create_actor");
-      try {
-        const created = store.createActor({
-          workspace_id: authorityWorkspaceId2(context),
-          created_in_context_id: actorCreationContextId(store, context),
-          created_in_scope_execution_id: context.provenance.scope_execution_id,
-          created_by_principal_id: context.authority.principal_id,
-          definition: input.definition,
-          ...input.actor_id ? { actor_id: input.actor_id } : {}
-        });
-        const { draft, tool_access } = passOnEngineToolAccess({
-          grants,
-          actors: store,
-          authority: context.authority,
-          draft: created.draft,
-          chosen_operation_ids: input.engine_tool_operation_ids,
-          invocation_id: context.invocation_id
-        });
-        store.db.exec("RELEASE create_actor");
-        return {
-          state: "completed",
-          result: { actor: created.actor, draft, tool_access },
-          changed_refs: [
-            actorRef(created.actor),
-            definitionRef(draft),
-            ...tool_access.grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null }))
-          ],
-          audit_ref: auditRef7(context)
-        };
-      } catch (error) {
-        store.db.exec("ROLLBACK TO create_actor");
-        store.db.exec("RELEASE create_actor");
-        if (error instanceof ToolAccessWideningError) {
-          return { state: "refused", refusal: refusal("actor_tool_access_widened", error.message, false, null) };
-        }
-        throw error;
-      }
-    })
-  };
-}
-function actorCreationContextId(store, context) {
-  if (context.provenance.cause_event_id) {
-    const row = store.db.prepare(`
-      SELECT context_id FROM events WHERE event_id = ? AND workspace_id = ?
-    `).get(context.provenance.cause_event_id, authorityWorkspaceId2(context));
-    if (row)
-      return row.context_id;
-  }
-  if (context.provenance.node_execution_id) {
-    const row = store.db.prepare(`
-      SELECT context_id FROM node_executions WHERE node_execution_id = ?
-    `).get(context.provenance.node_execution_id);
-    if (row)
-      return row.context_id;
-  }
-  return null;
-}
-function createActorDefinitionDraftOperation(store) {
-  return {
-    operation_id: CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Create Actor definition draft",
-    description: "Create a new definition draft from the Actor's current or an explicitly selected retained revision.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [CREATE_ACTOR_DEFINITION_DRAFT_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor"], expected_revision: "required" },
-    input: { version: "1", schema: createDraftInputSchema2 },
-    result: { version: "1", schema: actorAndRevisionSchema },
-    availability: (context) => actorAvailability2(store, context, "active"),
-    handler: (context, input) => handle4(() => {
-      const actor = store.requireActor(context.target.ref.id);
-      const expected = expectedHead2(context.expected_resource_revision);
-      if (actor.current_definition_revision_id !== expected) {
-        throw new ActorDefinitionConflictError(actor.actor_id, expected, actor.current_definition_revision_id);
-      }
-      const revision = store.createDraft({
-        actor_id: actor.actor_id,
-        created_by_principal_id: context.authority.principal_id,
-        definition: input.definition,
-        ...input.based_on_revision_id !== void 0 ? { based_on_revision_id: input.based_on_revision_id } : {}
-      });
-      return {
-        state: "completed",
-        result: { actor: store.requireActor(actor.actor_id), revision },
-        changed_refs: [actorRef(actor), definitionRef(revision)],
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function replaceActorDefinitionDraftOperation(store) {
-  return {
-    operation_id: REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Replace Actor definition draft",
-    description: "Replace only an unpublished Actor definition draft using its exact semantic digest.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [REPLACE_ACTOR_DEFINITION_DRAFT_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "required" },
-    input: { version: "1", schema: replaceDraftInputSchema2 },
-    result: { version: "1", schema: actorAndRevisionSchema },
-    availability: (context) => revisionAvailability2(store, context),
-    handler: (context, input) => handle4(() => {
-      const revision = store.replaceDraft({
-        actor_definition_revision_id: context.target.ref.id,
-        expected_digest: context.expected_resource_revision,
-        definition: input.definition
-      });
-      return {
-        state: "completed",
-        result: { actor: store.requireActor(revision.actor_id), revision },
-        changed_refs: [definitionRef(revision)],
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function publishActorDefinitionOperation(store) {
-  return {
-    operation_id: PUBLISH_ACTOR_DEFINITION_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Publish Actor definition",
-    description: "Make one draft the Actor's current definition while retaining every published revision.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [PUBLISH_ACTOR_DEFINITION_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor_definition_revision"], expected_revision: "required" },
-    input: { version: "1", schema: publishInputSchema2 },
-    result: { version: "1", schema: actorAndRevisionSchema },
-    availability: (context) => revisionAvailability2(store, context),
-    handler: (context, input) => handle4(() => {
-      const current = store.requireRevision(context.target.ref.id);
-      if (current.semantic_digest !== context.expected_resource_revision) {
-        throw new ActorDefinitionDraftConflictError(current.actor_definition_revision_id, context.expected_resource_revision, current.semantic_digest);
-      }
-      const revision = store.publishDraft({
-        actor_definition_revision_id: context.target.ref.id,
-        expected_current_revision_id: input.expected_current_definition_revision_id,
-        changed_by_principal_id: context.authority.principal_id
-      });
-      const actor = store.requireActor(revision.actor_id);
-      return {
-        state: "completed",
-        result: { actor, revision },
-        changed_refs: [actorRef(actor), definitionRef(revision)],
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function rollbackActorDefinitionOperation(store) {
-  return {
-    operation_id: ROLLBACK_ACTOR_DEFINITION_OPERATION_ID,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: "Roll back Actor definition",
-    description: "Move the Actor's current definition to an exact retained published revision without rewriting history.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [ROLLBACK_ACTOR_DEFINITION_OPERATION_ID],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor"], expected_revision: "required" },
-    input: { version: "1", schema: rollbackInputSchema2 },
-    result: { version: "1", schema: actorAndRevisionSchema },
-    availability: (context) => actorAvailability2(store, context, "active"),
-    handler: (context, input) => handle4(() => {
-      const actor = store.requireActor(context.target.ref.id);
-      const revision = store.rollback({
-        actor_id: actor.actor_id,
-        to_published_revision_id: input.to_published_revision_id,
-        expected_current_revision_id: context.expected_resource_revision,
-        changed_by_principal_id: context.authority.principal_id
-      });
-      const changed = store.requireActor(actor.actor_id);
-      return {
-        state: "completed",
-        result: { actor: changed, revision },
-        changed_refs: [actorRef(changed), definitionRef(revision)],
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function actorStatusOperation(store, status) {
-  const reactivating = status === "active";
-  const operationId = reactivating ? REACTIVATE_ACTOR_OPERATION_ID : RETIRE_ACTOR_OPERATION_ID;
-  return {
-    operation_id: operationId,
-    operation_version: "1",
-    authority_boundary_kinds: ["workspace"],
-    category: "actors",
-    title: reactivating ? "Reactivate Actor" : "Retire Actor",
-    description: reactivating ? "Return a retired Actor to active use without deleting or replacing its retained definitions." : "Remove an Actor from active use while retaining its identity, definitions, and history.",
-    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
-    required_grants: [operationId],
-    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
-    target: { resource_kinds: ["actor"], expected_revision: "required" },
-    input: { version: "1", schema: emptyInput5 },
-    result: { version: "1", schema: actorOnlySchema },
-    availability: (context) => actorAvailability2(store, context, reactivating ? "retired" : "active"),
-    handler: (context) => handle4(() => {
-      const actor = store.setActorStatus({
-        actor_id: context.target.ref.id,
-        status,
-        expected_current_definition_revision_id: expectedHead2(context.expected_resource_revision)
-      });
-      return {
-        state: "completed",
-        result: { actor },
-        changed_refs: [actorRef(actor)],
-        audit_ref: auditRef7(context)
-      };
-    })
-  };
-}
-function actorDefinitionOperationDefinitions(store, grants) {
-  return [
-    listActorsOperation(store),
-    inspectActorOperation(store),
-    getActorDefinitionOperation(store),
-    createActorOperation(store, grants),
-    createActorDefinitionDraftOperation(store),
-    replaceActorDefinitionDraftOperation(store),
-    publishActorDefinitionOperation(store),
-    rollbackActorDefinitionOperation(store),
-    actorStatusOperation(store, "retired"),
-    actorStatusOperation(store, "active")
-  ];
-}
-function registerActorDefinitionOperations(registry, store, grants) {
-  for (const definition2 of actorDefinitionOperationDefinitions(store, grants))
-    registry.register(definition2);
-  return registry;
 }
 
 // floe-bus/dist/runtime-profile-operations.js
@@ -105645,7 +105646,13 @@ var BusStore = class {
     }
     if (target.kind === "actor") {
       const actor = this.actorDefinitionStore.getActor(target.id);
-      return actor?.workspace_id === workspaceId4 ? { ref: { ...target, revision: actor.current_definition_revision_id }, state: actor } : null;
+      return actor?.workspace_id === workspaceId4 ? {
+        ref: {
+          ...target,
+          revision: actor.current_definition_revision_id ?? NO_ACTOR_DEFINITION_REVISION
+        },
+        state: actor
+      } : null;
     }
     if (target.kind === "actor_definition_revision") {
       const revision = this.actorDefinitionStore.getRevision(target.id);
@@ -105654,7 +105661,10 @@ var BusStore = class {
     }
     if (target.kind === "runtime_profile") {
       const profile = this.runtimeProfileStore.getProfile(target.id);
-      return profile?.owner.kind === "workspace" && profile.owner.id === workspaceId4 ? { ref: { ...target, revision: profile.current_revision_id }, state: profile } : null;
+      return profile?.owner.kind === "workspace" && profile.owner.id === workspaceId4 ? {
+        ref: { ...target, revision: profile.current_revision_id ?? NO_RUNTIME_PROFILE_REVISION },
+        state: profile
+      } : null;
     }
     if (target.kind === "runtime_profile_revision") {
       const revision = this.runtimeProfileStore.getRevision(target.id);
