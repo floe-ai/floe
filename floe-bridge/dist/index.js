@@ -6589,16 +6589,16 @@ import { CopilotClient as CopilotClient2 } from "@github/copilot-sdk";
 
 // node_modules/floe-runtime/src/adapters/copilot-tools.mjs
 import { createHash as createHash3, randomUUID as randomUUID3 } from "node:crypto";
-var COPILOT_TOOL_MANIFEST_VERSION = "copilot-cli-1.0.83-win32-v3";
+var COPILOT_TOOL_MANIFEST_VERSION = "copilot-cli-1.0.83-win32-linux-v4";
 var DEFAULT_CATALOG = "default";
 var CODEX_CATALOG = "codex";
 var descriptor = (operationId, catalogs = [DEFAULT_CATALOG, CODEX_CATALOG]) => Object.freeze({ operationId, catalogs: Object.freeze(catalogs) });
-var COPILOT_BUILTIN_TOOL_MANIFEST = Object.freeze({
-  win32: Object.freeze({
-    powershell: descriptor("engine.tool.process.execute"),
-    read_powershell: descriptor("engine.tool.process.execute"),
-    stop_powershell: descriptor("engine.tool.process.execute"),
-    list_powershell: descriptor("engine.tool.process.execute"),
+function platformManifest(shell) {
+  return Object.freeze({
+    [shell]: descriptor("engine.tool.process.execute"),
+    [`read_${shell}`]: descriptor("engine.tool.process.execute"),
+    [`stop_${shell}`]: descriptor("engine.tool.process.execute"),
+    [`list_${shell}`]: descriptor("engine.tool.process.execute"),
     view: descriptor("engine.tool.filesystem.read"),
     grep: descriptor("engine.tool.filesystem.read", [DEFAULT_CATALOG]),
     rg: descriptor("engine.tool.filesystem.read", [CODEX_CATALOG]),
@@ -6607,7 +6607,11 @@ var COPILOT_BUILTIN_TOOL_MANIFEST = Object.freeze({
     edit: descriptor("engine.tool.filesystem.write", [DEFAULT_CATALOG]),
     apply_patch: descriptor("engine.tool.filesystem.write", [CODEX_CATALOG]),
     web_fetch: descriptor("engine.tool.network.fetch")
-  })
+  });
+}
+var COPILOT_BUILTIN_TOOL_MANIFEST = Object.freeze({
+  win32: platformManifest("powershell"),
+  linux: platformManifest("bash")
 });
 function fault(code, message) {
   const error = new Error(message);
@@ -6781,7 +6785,7 @@ function toolFacts(toolName, toolArgs) {
     };
   }
   const args = requireObject(toolArgs, toolName);
-  if (toolName === "powershell") {
+  if (toolName === "powershell" || toolName === "bash") {
     const command = requireString(args.command, "command", toolName);
     return { ...common, fullCommandText: command, commandSegments: [{ identifier: null, fullCommandText: command }] };
   }
@@ -7640,6 +7644,25 @@ var CopilotRuntime = class extends Runtime {
     } else if (event.type === "session.idle") {
       task.idle = true;
       task.aborted = data.aborted === true;
+      if (task.aborted) {
+        const endedAt = Date.now();
+        for (const [toolCallId, activity] of task.activities) {
+          this.publish(sessionId, "activity", {
+            runtime: "copilot",
+            sessionId,
+            turnId: task.turnId,
+            id: toolCallId,
+            kind: "tool",
+            status: "failed",
+            title: activity.title,
+            command: activity.command,
+            startedAt: activity.startedAt,
+            endedAt,
+            raw: event
+          });
+        }
+        task.activities.clear();
+      }
       this.#finishTask(sessionId, task);
     } else if (event.type === "model.call_failure") {
       task.modelCallFailure = data;
