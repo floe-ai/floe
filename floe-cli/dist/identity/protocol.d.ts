@@ -14,6 +14,8 @@ export type RunFile = {
     started_at: string;
 };
 export declare function newAgentSecret(): string;
+/** The run directory holds the run file and, off Windows, the agent's socket. */
+export declare function ensureRunDir(home: string): void;
 export declare function writeRunFile(home: string, run: RunFile): void;
 export declare function readRunFile(home: string): RunFile | null;
 export declare function newNonce(): string;

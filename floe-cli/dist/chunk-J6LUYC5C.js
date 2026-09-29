@@ -11587,13 +11587,16 @@ function runFilePath(home) {
 function newAgentSecret() {
   return randomBytes(32).toString("hex");
 }
-function writeRunFile(home, run) {
+function ensureRunDir(home) {
   const dir = runDir(home);
   mkdirSync2(dir, { recursive: true });
   try {
     chmodSync(dir, 448);
   } catch {
   }
+}
+function writeRunFile(home, run) {
+  ensureRunDir(home);
   const path = runFilePath(home);
   const temporary = `${path}.${process.pid}.tmp`;
   writeFileSync2(temporary, JSON.stringify(run, null, 2) + "\n", { encoding: "utf8", mode: 384 });
@@ -12235,6 +12238,7 @@ export {
   agentAddress,
   runFilePath,
   newAgentSecret,
+  ensureRunDir,
   writeRunFile,
   readRunFile,
   newNonce,

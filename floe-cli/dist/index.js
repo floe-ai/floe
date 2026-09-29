@@ -2,4 +2,4 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 
 // floe-cli/dist/index.js
-await import("./cli-EPTKF25Q.js");
+await import("./cli-7F4IEQQF.js");

@@ -5,6 +5,7 @@ import {
   agentAddress,
   canonicalHome,
   ensureConfig,
+  ensureRunDir,
   external_exports,
   fetchHostControlToken,
   fetchIdentityDeviceKey,
@@ -19,7 +20,7 @@ import {
   runFilePath,
   thisInstallation,
   writeRunFile
-} from "../chunk-2CSRJ5FI.js";
+} from "../chunk-J6LUYC5C.js";
 
 // floe-cli/dist/identity/agent.js
 import { randomUUID } from "node:crypto";
@@ -10461,6 +10462,7 @@ async function serveAgent(agent, options) {
     socket.on("close", () => sockets.delete(socket));
     handleConnection(agent, socket, secret, log2);
   });
+  ensureRunDir(options.home);
   await listen(server, address);
   writeRunFile(options.home, {
     protocol: PROTOCOL_VERSION,

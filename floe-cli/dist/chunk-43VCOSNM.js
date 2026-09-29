@@ -17,7 +17,7 @@ import {
   resolveLocalPath,
   runFilePath,
   thisInstallation
-} from "./chunk-2CSRJ5FI.js";
+} from "./chunk-J6LUYC5C.js";
 
 // floe-cli/dist/startup.js
 import { randomUUID } from "node:crypto";
