@@ -1,9 +1,12 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
   DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES,
+  IDENTITY_CHANNEL,
   PROTOCOL_VERSION,
-  agentAddress,
   canonicalHome,
+  channelAddress,
+  channelProof,
+  channelRunFilePath,
   ensureConfig,
   ensureRunDir,
   external_exports,
@@ -12,16 +15,14 @@ import {
   forgetIdentityDeviceKey,
   frame,
   lineReader,
-  newAgentSecret,
+  newChannelSecret,
   newNonce,
-  proof,
   proofMatches,
-  readRunFile,
+  readChannelRunFile,
   resolveLocalPath,
-  runFilePath,
   thisInstallation,
-  writeRunFile
-} from "../chunk-J6LUYC5C.js";
+  writeChannelRunFile
+} from "../chunk-PQSQM3MJ.js";
 
 // floe-cli/dist/identity/agent.js
 import { randomUUID } from "node:crypto";
@@ -8924,9 +8925,9 @@ try {
 function useFetchImplementation3(fetchImplementation) {
   _fetch3 = fetchImplementation;
 }
-async function validateGithub(pubkey, username, proof2) {
+async function validateGithub(pubkey, username, proof) {
   try {
-    let res = await (await _fetch3(`https://gist.github.com/${username}/${proof2}/raw`)).text();
+    let res = await (await _fetch3(`https://gist.github.com/${username}/${proof}/raw`)).text();
     return res === `Verifying that I control the following Nostr public key: ${pubkey}`;
   } catch (_) {
     return false;
@@ -9912,14 +9913,182 @@ function joinInvalidMessage(error, detail) {
   }
 }
 
-// floe-cli/dist/identity/agent.js
-var AgentError = class extends Error {
+// floe-cli/dist/local-channel/server.js
+import { createConnection, createServer } from "node:net";
+import { rmSync as rmSync2, unlinkSync } from "node:fs";
+var HANDSHAKE_TIMEOUT_MS = 5e3;
+var ChannelAddressInUseError = class extends Error {
+  address;
+  constructor(address, label = "A Floe service") {
+    super(`${label} is already serving this Floe home at ${address}.`);
+    this.address = address;
+    this.name = "ChannelAddressInUseError";
+  }
+};
+async function serveChannel(spec, service, options) {
+  const log2 = options.log ?? (() => {
+  });
+  const address = channelAddress(spec, options.home);
+  const secret = options.secret ?? newChannelSecret();
+  const sockets = /* @__PURE__ */ new Set();
+  const server = createServer((socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    handleConnection(spec, service, socket, secret, log2);
+  });
+  ensureRunDir(options.home);
+  await listen(server, address, spec.label);
+  writeChannelRunFile(spec, options.home, {
+    protocol: PROTOCOL_VERSION,
+    pid: process.pid,
+    version: service.version,
+    address,
+    secret,
+    started_at: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  log2(`listening at ${address}`);
+  return {
+    address,
+    close: () => new Promise((resolve) => {
+      const run = readChannelRunFile(spec, options.home);
+      if (run && run.pid === process.pid)
+        rmSync2(channelRunFilePath(spec, options.home), { force: true });
+      for (const socket of sockets)
+        socket.destroy();
+      server.close(() => resolve());
+    })
+  };
+}
+async function listen(server, address, label) {
+  try {
+    await listenOnce(server, address);
+  } catch (error) {
+    if (error.code !== "EADDRINUSE")
+      throw error;
+    if (process.platform !== "win32" && !await answers(address)) {
+      unlinkSync(address);
+      await listenOnce(server, address);
+      return;
+    }
+    throw new ChannelAddressInUseError(address, label);
+  }
+}
+function listenOnce(server, address) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(address);
+  });
+}
+function answers(address) {
+  return new Promise((resolve) => {
+    const probe = createConnection(address);
+    probe.once("connect", () => {
+      probe.destroy();
+      resolve(true);
+    });
+    probe.once("error", () => resolve(false));
+  });
+}
+var ChannelError = class extends Error {
   code;
   details;
   constructor(code, message, details = {}) {
     super(message);
     this.code = code;
     this.details = details;
+    this.name = "ChannelError";
+  }
+};
+function refusalOf(error) {
+  if (error instanceof ChannelError)
+    return error;
+  return new ChannelError("failed", error instanceof Error ? error.message : String(error));
+}
+function handleConnection(spec, service, socket, secret, log2) {
+  let stage = "hello";
+  let serverNonce = "";
+  let probe = false;
+  let peer = null;
+  const send = (message) => {
+    if (!socket.destroyed)
+      socket.write(frame(message));
+  };
+  const refuse = (reason) => {
+    log2(`refused a connection: ${reason}`);
+    send({ type: "error", error: { code: "handshake_failed", message: reason } });
+    socket.end();
+    socket.destroySoon?.();
+  };
+  const timer = setTimeout(() => refuse("handshake timed out"), HANDSHAKE_TIMEOUT_MS);
+  socket.on("data", lineReader((message) => {
+    if (stage === "hello") {
+      if (message.type !== "hello" || message.protocol !== PROTOCOL_VERSION || typeof message.client_nonce !== "string") {
+        refuse(`expected hello for protocol ${PROTOCOL_VERSION}`);
+        return;
+      }
+      serverNonce = newNonce();
+      const surface = typeof message.surface === "string" && message.surface.trim() ? message.surface.trim().slice(0, 100) : "unnamed surface";
+      peer = { surface, send };
+      probe = message.probe === true;
+      stage = "prove";
+      send({
+        type: "challenge",
+        protocol: PROTOCOL_VERSION,
+        server_nonce: serverNonce,
+        server_proof: channelProof(spec, secret, "agent", message.client_nonce),
+        agent_version: service.version
+      });
+      return;
+    }
+    if (stage === "prove") {
+      if (message.type !== "prove" || !proofMatches(channelProof(spec, secret, "client", serverNonce), message.client_proof)) {
+        refuse("the client could not prove it runs as this user");
+        return;
+      }
+      clearTimeout(timer);
+      if (probe) {
+        send({ type: "welcome", state: service.state(), agent_version: service.version });
+        socket.end();
+        return;
+      }
+      stage = "ready";
+      service.attach(peer);
+      send({ type: "welcome", state: service.state(), agent_version: service.version });
+      return;
+    }
+    if (message.type !== "request" || typeof message.op !== "string") {
+      send({ type: "error", error: { code: "invalid_request", message: "Expected {type:'request', id, op, args}." } });
+      return;
+    }
+    const id = message.id;
+    const args = message.args && typeof message.args === "object" && !Array.isArray(message.args) ? message.args : {};
+    service.handle(peer, message.op, args).then((result) => send({ type: "response", id, ok: true, result }), (error) => {
+      const refusal = refusalOf(error);
+      send({ type: "response", id, ok: false, error: { code: refusal.code, message: refusal.message, ...refusal.details } });
+    });
+  }, (reason) => refuse(reason)));
+  socket.on("error", () => {
+  });
+  socket.on("close", () => {
+    clearTimeout(timer);
+    if (stage === "ready" && peer)
+      service.detach(peer);
+  });
+}
+
+// floe-cli/dist/identity/agent.js
+var AgentError = class extends ChannelError {
+  constructor(code, message, details = {}) {
+    super(code, message, details);
     this.name = "AgentError";
   }
 };
@@ -10576,160 +10745,8 @@ function messageOf(error) {
 }
 
 // floe-cli/dist/identity/agent-server.js
-import { createConnection, createServer } from "node:net";
-import { rmSync as rmSync2, unlinkSync } from "node:fs";
-var HANDSHAKE_TIMEOUT_MS = 5e3;
-var AgentAddressInUseError = class extends Error {
-  address;
-  constructor(address) {
-    super(`Another identity agent is already serving this Floe home at ${address}.`);
-    this.address = address;
-    this.name = "AgentAddressInUseError";
-  }
-};
-async function serveAgent(agent, options) {
-  const log2 = options.log ?? (() => {
-  });
-  const address = agentAddress(options.home);
-  const secret = options.secret ?? newAgentSecret();
-  const sockets = /* @__PURE__ */ new Set();
-  const server = createServer((socket) => {
-    sockets.add(socket);
-    socket.on("close", () => sockets.delete(socket));
-    handleConnection(agent, socket, secret, log2);
-  });
-  ensureRunDir(options.home);
-  await listen(server, address);
-  writeRunFile(options.home, {
-    protocol: PROTOCOL_VERSION,
-    pid: process.pid,
-    version: agent.version,
-    address,
-    secret,
-    started_at: (/* @__PURE__ */ new Date()).toISOString()
-  });
-  log2(`listening at ${address}`);
-  return {
-    address,
-    close: () => new Promise((resolve) => {
-      const run = readRunFile(options.home);
-      if (run && run.pid === process.pid)
-        rmSync2(runFilePath(options.home), { force: true });
-      for (const socket of sockets)
-        socket.destroy();
-      server.close(() => resolve());
-    })
-  };
-}
-async function listen(server, address) {
-  try {
-    await listenOnce(server, address);
-  } catch (error) {
-    if (error.code !== "EADDRINUSE")
-      throw error;
-    if (process.platform !== "win32" && !await answers(address)) {
-      unlinkSync(address);
-      await listenOnce(server, address);
-      return;
-    }
-    throw new AgentAddressInUseError(address);
-  }
-}
-function listenOnce(server, address) {
-  return new Promise((resolve, reject) => {
-    const onError = (error) => {
-      server.off("listening", onListening);
-      reject(error);
-    };
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
-    server.once("error", onError);
-    server.once("listening", onListening);
-    server.listen(address);
-  });
-}
-function answers(address) {
-  return new Promise((resolve) => {
-    const probe = createConnection(address);
-    probe.once("connect", () => {
-      probe.destroy();
-      resolve(true);
-    });
-    probe.once("error", () => resolve(false));
-  });
-}
-function handleConnection(agent, socket, secret, log2) {
-  let stage = "hello";
-  let serverNonce = "";
-  let probe = false;
-  let connection = null;
-  const send = (message) => {
-    if (!socket.destroyed)
-      socket.write(frame(message));
-  };
-  const refuse = (reason) => {
-    log2(`refused a connection: ${reason}`);
-    send({ type: "error", error: { code: "handshake_failed", message: reason } });
-    socket.end();
-    socket.destroySoon?.();
-  };
-  const timer = setTimeout(() => refuse("handshake timed out"), HANDSHAKE_TIMEOUT_MS);
-  socket.on("data", lineReader((message) => {
-    if (stage === "hello") {
-      if (message.type !== "hello" || message.protocol !== PROTOCOL_VERSION || typeof message.client_nonce !== "string") {
-        refuse(`expected hello for protocol ${PROTOCOL_VERSION}`);
-        return;
-      }
-      serverNonce = newNonce();
-      const surface = typeof message.surface === "string" && message.surface.trim() ? message.surface.trim().slice(0, 100) : "unnamed surface";
-      connection = { surface, send };
-      probe = message.probe === true;
-      stage = "prove";
-      send({
-        type: "challenge",
-        protocol: PROTOCOL_VERSION,
-        server_nonce: serverNonce,
-        server_proof: proof(secret, "agent", message.client_nonce),
-        agent_version: agent.version
-      });
-      return;
-    }
-    if (stage === "prove") {
-      if (message.type !== "prove" || !proofMatches(proof(secret, "client", serverNonce), message.client_proof)) {
-        refuse("the client could not prove it runs as this user");
-        return;
-      }
-      clearTimeout(timer);
-      if (probe) {
-        send({ type: "welcome", state: agent.state(), agent_version: agent.version });
-        socket.end();
-        return;
-      }
-      stage = "ready";
-      agent.attach(connection);
-      send({ type: "welcome", state: agent.state(), agent_version: agent.version });
-      return;
-    }
-    if (message.type !== "request" || typeof message.op !== "string") {
-      send({ type: "error", error: { code: "invalid_request", message: "Expected {type:'request', id, op, args}." } });
-      return;
-    }
-    const id = message.id;
-    const args = message.args && typeof message.args === "object" && !Array.isArray(message.args) ? message.args : {};
-    agent.handle(connection, message.op, args).then((result) => send({ type: "response", id, ok: true, result }), (error) => {
-      const agentError = error instanceof AgentError ? error : new AgentError("failed", error instanceof Error ? error.message : String(error));
-      send({ type: "response", id, ok: false, error: { code: agentError.code, message: agentError.message, ...agentError.details } });
-    });
-  }, (reason) => refuse(reason)));
-  socket.on("error", () => {
-  });
-  socket.on("close", () => {
-    clearTimeout(timer);
-    if (stage === "ready" && connection)
-      agent.detach(connection);
-  });
+function serveAgent(agent, options) {
+  return serveChannel(IDENTITY_CHANNEL, agent, options);
 }
 
 // floe-cli/dist/identity/agent-main.js
@@ -10761,7 +10778,7 @@ async function main(argv) {
   try {
     server = await serveAgent(agent, { home, log });
   } catch (error) {
-    if (error instanceof AgentAddressInUseError) {
+    if (error instanceof ChannelAddressInUseError) {
       log(error.message);
       process.exit(3);
     }

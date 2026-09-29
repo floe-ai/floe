@@ -1,7 +1,9 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
+  IDENTITY_CHANNEL,
   PROTOCOL_VERSION,
   canonicalHome,
+  channelProof,
   ensureConfig,
   ensureStage,
   fetchBridgeServiceToken,
@@ -10,18 +12,14 @@ import {
   isNpmInstalled,
   lineReader,
   newNonce,
-  proof,
   proofMatches,
   pruneStages,
+  readChannelRunFile,
   readRunFile,
   resolveLocalPath,
   runFilePath,
   thisInstallation
-} from "./chunk-J6LUYC5C.js";
-
-// floe-cli/dist/startup.js
-import { randomUUID } from "node:crypto";
-import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+} from "./chunk-PQSQM3MJ.js";
 
 // floe-cli/dist/process-manager.js
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
@@ -183,21 +181,22 @@ function clearRecords(configPath, config) {
     unlinkSync(path);
 }
 
-// floe-cli/dist/identity/connection.js
+// floe-cli/dist/local-channel/connection.js
 import { createConnection } from "node:net";
-var AgentUnavailableError = class extends Error {
+var ChannelUnavailableError = class extends Error {
   reason;
   constructor(reason, message) {
     super(message);
     this.reason = reason;
-    this.name = "AgentUnavailableError";
+    this.name = "ChannelUnavailableError";
   }
 };
 var HANDSHAKE_TIMEOUT_MS = 5e3;
-function openAgentChannel(home, surface, options = {}) {
-  const run = readRunFile(home);
+function openChannel(spec, home, surface, options = {}) {
+  const label = spec.label;
+  const run = readChannelRunFile(spec, home);
   if (!run)
-    return Promise.reject(new AgentUnavailableError("not_running", "Floe's identity agent is not running."));
+    return Promise.reject(new ChannelUnavailableError("not_running", `${label} is not running.`));
   return new Promise((resolve2, reject) => {
     const socket = createConnection(run.address);
     const clientNonce = newNonce();
@@ -214,13 +213,13 @@ function openAgentChannel(home, surface, options = {}) {
       socket.destroy();
       reject(error);
     };
-    const timer = setTimeout(() => fail(new AgentUnavailableError("refused", "Floe's identity agent did not complete the handshake.")), HANDSHAKE_TIMEOUT_MS);
+    const timer = setTimeout(() => fail(new ChannelUnavailableError("refused", `${label} did not complete the handshake.`)), HANDSHAKE_TIMEOUT_MS);
     socket.once("connect", () => {
       socket.write(frame({ type: "hello", protocol: PROTOCOL_VERSION, client_nonce: clientNonce, surface, ...options.probe ? { probe: true } : {} }));
     });
     socket.on("error", (error) => {
       const missing = error.code === "ENOENT" || error.code === "ECONNREFUSED";
-      fail(new AgentUnavailableError(missing ? "not_running" : "refused", missing ? "Floe's identity agent is not running." : `Floe's identity agent could not be reached (${error.message}).`));
+      fail(new ChannelUnavailableError(missing ? "not_running" : "refused", missing ? `${label} is not running.` : `${label} could not be reached (${error.message}).`));
     });
     socket.on("data", lineReader((message) => {
       if (stage === "open") {
@@ -229,21 +228,21 @@ function openAgentChannel(home, surface, options = {}) {
       }
       if (message.type === "error") {
         const detail = message.error?.message ?? "refused";
-        fail(new AgentUnavailableError("refused", `Floe's identity agent refused this connection (${detail}).`));
+        fail(new ChannelUnavailableError("refused", `${label} refused this connection (${detail}).`));
         return;
       }
       if (stage === "challenge") {
-        if (message.type !== "challenge" || !proofMatches(proof(run.secret, "agent", clientNonce), message.server_proof)) {
-          fail(new AgentUnavailableError("impostor", "Something answered at Floe's identity agent address but could not prove it is Floe's agent. Nothing was sent to it."));
+        if (message.type !== "challenge" || !proofMatches(channelProof(spec, run.secret, "agent", clientNonce), message.server_proof)) {
+          fail(new ChannelUnavailableError("impostor", `Something answered at the address of ${label} but could not prove it is Floe. Nothing was sent to it.`));
           return;
         }
         agentVersion = typeof message.agent_version === "string" ? message.agent_version : null;
         stage = "welcome";
-        socket.write(frame({ type: "prove", client_proof: proof(run.secret, "client", String(message.server_nonce)) }));
+        socket.write(frame({ type: "prove", client_proof: channelProof(spec, run.secret, "client", String(message.server_nonce)) }));
         return;
       }
       if (message.type !== "welcome") {
-        fail(new AgentUnavailableError("refused", "Floe's identity agent answered unexpectedly."));
+        fail(new ChannelUnavailableError("refused", `${label} answered unexpectedly.`));
         return;
       }
       stage = "open";
@@ -252,7 +251,7 @@ function openAgentChannel(home, surface, options = {}) {
       resolve2({
         socket,
         agentVersion,
-        welcomeState: message.state ?? { kind: "none" },
+        welcomeState: message.state ?? {},
         onMessage: (next) => {
           handler = next;
         },
@@ -261,12 +260,12 @@ function openAgentChannel(home, surface, options = {}) {
             socket.write(frame(outgoing));
         }
       });
-    }, (reason) => fail(new AgentUnavailableError("refused", `Floe's identity agent sent an invalid message (${reason}).`))));
+    }, (reason) => fail(new ChannelUnavailableError("refused", `${label} sent an invalid message (${reason}).`))));
   });
 }
-async function probeAgent(home) {
+async function probeChannel(spec, home) {
   try {
-    const channel = await openAgentChannel(home, "floe-probe", { probe: true });
+    const channel = await openChannel(spec, home, "floe-probe", { probe: true });
     channel.socket.end();
     return { version: channel.agentVersion, state: channel.welcomeState };
   } catch {
@@ -274,7 +273,22 @@ async function probeAgent(home) {
   }
 }
 
+// floe-cli/dist/identity/connection.js
+function probeAgent(home) {
+  return probeChannel(IDENTITY_CHANNEL, home);
+}
+
+// floe-cli/dist/engines/protocol.js
+var ENGINES_CHANNEL = {
+  name: "engines",
+  label: "Floe's engine control",
+  runFile: "engines.json",
+  socketFile: "engines.sock"
+};
+
 // floe-cli/dist/startup.js
+import { randomUUID } from "node:crypto";
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
 var ForeignBusError = class extends Error {
   url;
   code = "E_FOREIGN_BUS";
@@ -389,17 +403,20 @@ async function ensureIdentityAgent(configPath, config) {
   if (await probeAgent(home))
     return;
   const record = await startService(configPath, config, "identity");
+  await waitUntilAnswering("Floe's identity agent", record, () => probeAgent(home));
+}
+async function waitUntilAnswering(label, record, probe) {
   const started = Date.now();
   while (Date.now() - started < 15e3) {
-    if (await probeAgent(home))
+    if (await probe())
       return;
     if (record.pid && !isPidRunning(record.pid)) {
-      throw new Error(`Floe's identity agent exited before it was ready (pid ${record.pid}). Last lines of ${record.log_file}:
+      throw new Error(`${label} exited before it was ready (pid ${record.pid}). Last lines of ${record.log_file}:
 ${readLogTail(record.log_file)}`);
     }
     await sleep(200);
   }
-  throw new Error(`Floe's identity agent did not become ready within 15s. Last lines of ${record.log_file}:
+  throw new Error(`${label} did not become ready within 15s. Last lines of ${record.log_file}:
 ${readLogTail(record.log_file)}`);
 }
 async function startAll(configPath, config) {
@@ -420,162 +437,73 @@ async function startAll(configPath, config) {
   const bridgeServiceToken = await fetchBridgeServiceToken("bridge:local", busUrl);
   const bridge = await startService(configPath, config, "bridge", { FLOE_BRIDGE_SERVICE_TOKEN: bridgeServiceToken });
   await ensureIdentityAgent(configPath, config);
-  if (bridge.pid && !isPidRunning(bridge.pid)) {
-    throw new Error(`Floe's bridge exited while starting (pid ${bridge.pid}). Last lines of ${bridge.log_file}:
-${readLogTail(bridge.log_file)}`);
-  }
+  const home = floeHome(configPath, config);
+  await waitUntilAnswering("Floe's bridge", bridge, () => probeChannel(ENGINES_CHANNEL, home));
 }
 function sleep(ms) {
   return new Promise((resolve2) => setTimeout(resolve2, ms));
 }
 
-// floe-cli/dist/identity/client.js
-var IdentityError = class extends Error {
-  code;
-  details;
-  constructor(code, message, details = {}) {
-    super(message);
-    this.code = code;
-    this.details = details;
-    this.name = "IdentityError";
-  }
-};
-async function connectIdentity(options) {
+// floe-cli/dist/local-channel/connect.js
+async function connectChannel(spec, options) {
   const { configPath, config } = ensureConfig(options.configPath);
   const home = floeHome(configPath, config);
-  let channel;
   try {
-    channel = await openAgentChannel(home, options.surface);
+    return await openChannel(spec, home, options.surface);
   } catch (error) {
-    if (!(error instanceof AgentUnavailableError) || error.reason !== "not_running" || options.start === false)
+    if (!(error instanceof ChannelUnavailableError) || error.reason !== "not_running" || options.start === false)
       throw error;
-    await startFloe(configPath, config);
-    channel = await openAgentChannel(home, options.surface);
   }
-  return new IdentityClient(channel);
-}
-async function startFloe(configPath, config) {
   const plan = await ensureSubstrateForClient(configPath, config);
   if (plan === "blocked") {
-    throw new AgentUnavailableError("not_running", "Floe's identity agent is not running, and this machine does not let a surface start Floe (services.start_on_demand is false). Start Floe with `floe start`.");
+    throw new ChannelUnavailableError("not_running", `${spec.label} is not running, and this machine does not let a surface start Floe (services.start_on_demand is false). Start Floe with \`floe start\`.`);
   }
+  return openChannel(spec, home, options.surface);
 }
-var IdentityClient = class {
+function versionNote(spec, servingVersion) {
+  const own = thisInstallation().version;
+  if (!own || servingVersion === own)
+    return null;
+  return `Connected to ${spec.label} from ${servingVersion ? `Floe ${servingVersion}` : "an older Floe"}, but this surface ships Floe ${own}. It was already running, so it is left as is and keeps serving until Floe restarts.`;
+}
+
+// floe-cli/dist/local-channel/client.js
+var ChannelClient = class {
   channel;
-  current;
+  spec;
+  refusal;
   nextId = 1;
   pending = /* @__PURE__ */ new Map();
-  stateListeners = /* @__PURE__ */ new Set();
   closeListeners = /* @__PURE__ */ new Set();
-  sessionListeners = /* @__PURE__ */ new Map();
-  early = /* @__PURE__ */ new Map();
   closed = false;
-  /** @internal Use connectIdentity. */
-  constructor(channel) {
+  constructor(channel, spec, refusal) {
     this.channel = channel;
-    this.current = channel.welcomeState;
+    this.spec = spec;
+    this.refusal = refusal;
     channel.onMessage((message) => this.receive(message));
     channel.socket.on("close", () => this.handleClose());
   }
-  get state() {
-    return this.current;
-  }
-  /** The Floe version of the agent serving this machine. */
+  /** The Floe version of the process serving this channel. */
   get agentVersion() {
     return this.channel.agentVersion;
   }
   /**
-   * Set when the agent is a different Floe version from the copy this surface
-   * depends on. Connect-first: the running agent is used as is, never restarted.
+   * Set when the serving process is a different Floe version from the copy this
+   * surface depends on. Connect-first: it is used as is, never restarted.
    */
   get versionNote() {
-    const own = thisInstallation().version;
-    const agent = this.channel.agentVersion;
-    if (!own || agent === own)
-      return null;
-    return `Connected to the identity agent of ${agent ? `Floe ${agent}` : "an older Floe"}, but this surface ships Floe ${own}. It was already running, so it is left as is and keeps serving until Floe restarts.`;
-  }
-  onState(listener) {
-    this.stateListeners.add(listener);
-    return () => this.stateListeners.delete(listener);
+    return versionNote(this.spec, this.channel.agentVersion);
   }
   onClose(listener) {
     this.closeListeners.add(listener);
     return () => this.closeListeners.delete(listener);
-  }
-  /** Create an identity. An empty passphrase protects it with this device instead. */
-  create(input) {
-    return this.request("create", input);
-  }
-  unlock(passphrase = "") {
-    return this.request("unlock", { passphrase });
-  }
-  lock() {
-    return this.request("lock", {});
-  }
-  restore(input) {
-    return this.request("restore", input);
-  }
-  /** The backup: the recovery phrase, or an nsec for an identity that has none. */
-  reveal(input) {
-    return this.request("reveal", input);
-  }
-  /** Forgot the passphrase and have no phrase: a new identity, carried into the old one's workspaces. */
-  replace(input) {
-    return this.request("replace", input);
-  }
-  /** Import an identity file written by an earlier surface. Pass its parsed JSON. */
-  importLegacy(input) {
-    return this.request("import_legacy", input);
-  }
-  /** Create or join the workspace for a folder. Sessions waiting for a workspace then receive a bearer. */
-  joinFolder(input) {
-    return this.request("join_folder", input);
-  }
-  /**
-   * Ask for a bearer. The listener receives `ready` with the bearer, then `ready`
-   * again with a fresh one before each expiry, until the session ends.
-   */
-  async session(options, listener) {
-    const { session_id: id } = await this.request("session", options);
-    this.sessionListeners.set(id, listener);
-    for (const event of this.early.get(id) ?? [])
-      this.dispatchSession(id, event);
-    this.early.delete(id);
-    return {
-      id,
-      select: async (workspaceId) => {
-        await this.request("select_workspace", { session_id: id, workspace_id: workspaceId });
-      },
-      end: async () => {
-        await this.request("end_session", { session_id: id });
-        this.sessionListeners.delete(id);
-      }
-    };
-  }
-  sessions() {
-    return this.request("sessions", {});
-  }
-  revokeSession(sessionId) {
-    return this.request("revoke_session", { session_id: sessionId });
-  }
-  /** Every identity Floe holds here: the current one and each one set aside. */
-  listIdentities(input = {}) {
-    return this.request("list_identities", input);
-  }
-  /**
-   * Delete one identity for good. The current one also needs `revoke_admissions`
-   * (the person's choice) and, when passphrase protected, its passphrase.
-   */
-  deleteIdentity(input) {
-    return this.request("delete_identity", input);
   }
   close() {
     this.channel.socket.end();
   }
   request(op, args) {
     if (this.closed)
-      return Promise.reject(new AgentUnavailableError("not_running", "The connection to Floe's identity agent is closed."));
+      return Promise.reject(new ChannelUnavailableError("not_running", `The connection to ${this.spec.label} is closed.`));
     const id = this.nextId++;
     return new Promise((resolve2, reject) => {
       this.pending.set(id, { resolve: resolve2, reject });
@@ -583,46 +511,27 @@ var IdentityClient = class {
     });
   }
   receive(message) {
-    if (message.type === "response") {
-      const pending = this.pending.get(message.id);
-      if (!pending)
-        return;
-      this.pending.delete(message.id);
-      if (message.ok) {
-        pending.resolve(message.result);
-      } else {
-        const { code, message: text, ...details } = message.error ?? {};
-        pending.reject(new IdentityError(String(code ?? "failed"), String(text ?? "The identity agent refused."), details));
-      }
+    if (message.type !== "response") {
+      this.onPush(message);
       return;
     }
-    if (message.type === "state") {
-      this.current = message.state;
-      for (const listener of this.stateListeners)
-        listener(this.current);
+    const pending = this.pending.get(message.id);
+    if (!pending)
+      return;
+    this.pending.delete(message.id);
+    if (message.ok) {
+      pending.resolve(message.result);
       return;
     }
-    if (message.type === "session" && typeof message.session_id === "string") {
-      const { type: _type, session_id: id, ...event } = message;
-      this.dispatchSession(id, event);
-    }
-  }
-  dispatchSession(id, event) {
-    const listener = this.sessionListeners.get(id);
-    if (!listener) {
-      this.early.set(id, [...this.early.get(id) ?? [], event]);
-      return;
-    }
-    if (event.status === "ended")
-      this.sessionListeners.delete(id);
-    listener(event);
+    const { code, message: text, ...details } = message.error ?? {};
+    pending.reject(this.refusal(String(code ?? "failed"), String(text ?? `${this.spec.label} refused.`), details));
   }
   handleClose() {
     if (this.closed)
       return;
     this.closed = true;
     for (const pending of this.pending.values()) {
-      pending.reject(new AgentUnavailableError("not_running", "The connection to Floe's identity agent closed."));
+      pending.reject(new ChannelUnavailableError("not_running", `The connection to ${this.spec.label} closed.`));
     }
     this.pending.clear();
     for (const listener of this.closeListeners)
@@ -638,8 +547,9 @@ export {
   isPidRunning,
   stopService,
   clearRecords,
-  AgentUnavailableError,
+  ChannelUnavailableError,
   probeAgent,
+  ENGINES_CHANNEL,
   isHealthy,
   runningBusVersion,
   describeVersionMismatch,
@@ -647,7 +557,6 @@ export {
   ensureSubstrateForClient,
   floeHome,
   startAll,
-  IdentityError,
-  connectIdentity,
-  IdentityClient
+  connectChannel,
+  ChannelClient
 };

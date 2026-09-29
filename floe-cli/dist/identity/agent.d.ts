@@ -1,4 +1,5 @@
 import { type Protection, type ScryptParams, type SecretKind } from "./identity-file.js";
+import { ChannelError } from "../local-channel/server.js";
 export type IdentitySummary = {
     npub: string;
     pubkey_hex: string;
@@ -11,9 +12,7 @@ export type AgentState = {
 } | ({
     kind: "locked" | "unlocked";
 } & IdentitySummary);
-export declare class AgentError extends Error {
-    readonly code: string;
-    readonly details: Record<string, unknown>;
+export declare class AgentError extends ChannelError {
     constructor(code: string, message: string, details?: Record<string, unknown>);
 }
 /** One authenticated surface connection. */

@@ -11561,7 +11561,7 @@ function ensureLocalDirs(configPath, config) {
     mkdirSync(resolveLocalPath(configPath, config.home, path), { recursive: true });
 }
 
-// floe-cli/dist/identity/protocol.js
+// floe-cli/dist/local-channel/protocol.js
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync2, renameSync, writeFileSync as writeFileSync2 } from "node:fs";
 import { join as join2, resolve as resolve2 } from "node:path";
@@ -11571,20 +11571,20 @@ function canonicalHome(home) {
   const absolute = resolve2(home);
   return process.platform === "win32" ? absolute.toLowerCase() : absolute;
 }
-function agentAddress(home) {
+function channelAddress(spec, home) {
   if (process.platform === "win32") {
     const digest = createHash("sha256").update(canonicalHome(home)).digest("hex").slice(0, 24);
-    return `\\\\.\\pipe\\floe-identity-${digest}`;
+    return `\\\\.\\pipe\\floe-${spec.name}-${digest}`;
   }
-  return join2(home, "run", "identity.sock");
+  return join2(home, "run", spec.socketFile);
 }
 function runDir(home) {
   return join2(home, "run");
 }
-function runFilePath(home) {
-  return join2(runDir(home), "identity-agent.json");
+function channelRunFilePath(spec, home) {
+  return join2(runDir(home), spec.runFile);
 }
-function newAgentSecret() {
+function newChannelSecret() {
   return randomBytes(32).toString("hex");
 }
 function ensureRunDir(home) {
@@ -11595,15 +11595,15 @@ function ensureRunDir(home) {
   } catch {
   }
 }
-function writeRunFile(home, run) {
+function writeChannelRunFile(spec, home, run) {
   ensureRunDir(home);
-  const path = runFilePath(home);
+  const path = channelRunFilePath(spec, home);
   const temporary = `${path}.${process.pid}.tmp`;
   writeFileSync2(temporary, JSON.stringify(run, null, 2) + "\n", { encoding: "utf8", mode: 384 });
   renameSync(temporary, path);
 }
-function readRunFile(home) {
-  const path = runFilePath(home);
+function readChannelRunFile(spec, home) {
+  const path = channelRunFilePath(spec, home);
   if (!existsSync2(path))
     return null;
   try {
@@ -11618,8 +11618,8 @@ function readRunFile(home) {
 function newNonce() {
   return randomBytes(16).toString("hex");
 }
-function proof(secret, role, nonce) {
-  return createHmac("sha256", Buffer.from(secret, "hex")).update(`floe-identity:${role}:${nonce}`).digest("hex");
+function channelProof(spec, secret, role, nonce) {
+  return createHmac("sha256", Buffer.from(secret, "hex")).update(`floe-${spec.name}:${role}:${nonce}`).digest("hex");
 }
 function proofMatches(expected, received) {
   if (typeof received !== "string" || received.length !== expected.length)
@@ -11658,6 +11658,20 @@ function lineReader(onMessage, onError) {
 }
 function frame(message) {
   return JSON.stringify(message) + "\n";
+}
+
+// floe-cli/dist/identity/protocol.js
+var IDENTITY_CHANNEL = {
+  name: "identity",
+  label: "Floe's identity agent",
+  runFile: "identity-agent.json",
+  socketFile: "identity.sock"
+};
+function runFilePath(home) {
+  return channelRunFilePath(IDENTITY_CHANNEL, home);
+}
+function readRunFile(home) {
+  return readChannelRunFile(IDENTITY_CHANNEL, home);
 }
 
 // floe-cli/dist/installation.js
@@ -12235,17 +12249,20 @@ export {
   ensureLocalDirs,
   PROTOCOL_VERSION,
   canonicalHome,
-  agentAddress,
-  runFilePath,
-  newAgentSecret,
+  channelAddress,
+  channelRunFilePath,
+  newChannelSecret,
   ensureRunDir,
-  writeRunFile,
-  readRunFile,
+  writeChannelRunFile,
+  readChannelRunFile,
   newNonce,
-  proof,
+  channelProof,
   proofMatches,
   lineReader,
   frame,
+  IDENTITY_CHANNEL,
+  runFilePath,
+  readRunFile,
   isNpmInstalled,
   ensureStage,
   pruneStages,

@@ -103630,6 +103630,11 @@ var BusStore = class {
     const endpoint = this.getEndpoint(endpointId);
     if (!endpoint || String(endpoint.status) !== "runtime_unconfigured")
       return;
+    const latest = this.db.prepare(`
+      SELECT state, last_error FROM delivery_bundles
+      WHERE endpoint_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1
+    `).get(endpointId);
+    const deferredReason = latest?.state === "deferred" ? latest.last_error : null;
     this.appendRuntimeTelemetry({
       workspace_id: endpoint.workspace_id,
       endpoint_id: endpointId,
@@ -103637,7 +103642,7 @@ var BusStore = class {
       payload: {
         code: "runtime_unconfigured",
         trigger_event_id: event.event_id,
-        message: "No auth profile is bound to this agent/workspace, so the message was accepted but not delivered. Connect a model provider in Floe Settings and select it for this workspace to enable replies."
+        message: deferredReason ? `The message was accepted and is waiting; it will be delivered when this Actor's runtime is ready (${deferredReason}).` : "No auth profile is bound to this agent/workspace, so the message was accepted but not delivered. Connect a model provider in Floe Settings and select it for this workspace to enable replies."
       }
     }, broadcast);
   }
@@ -103918,9 +103923,10 @@ var BusStore = class {
           SET state = ?,
               delivery_id = NULL,
               lease_expires_at = NULL,
+              attempt_count = CASE WHEN ? = 'queued' THEN MAX(attempt_count - 1, 0) ELSE attempt_count END,
               last_error = ?
           WHERE delivery_id = ?
-        `).run(preparedAttempt ? "held" : "queued", input.error ?? null, input.delivery_id);
+        `).run(preparedAttempt ? "held" : "queued", preparedAttempt ? "held" : "queued", input.error ?? null, input.delivery_id);
         this.db.prepare(`
           UPDATE endpoints
           SET status = CASE WHEN bridge_id IS NOT NULL THEN 'runtime_unconfigured' ELSE status END,

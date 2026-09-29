@@ -1,3 +1,18 @@
+/**
+ * `floe/identity` — how a surface acts as the person without holding their key.
+ *
+ *   import { connectIdentity } from "floe/identity";
+ *   const identity = await connectIdentity({ surface: "my-surface" });
+ *   identity.onState((state) => render(state));
+ *   const session = await identity.session({}, (event) => {
+ *     if (event.status === "ready") useBearer(event.bearer_token);
+ *   });
+ *
+ * The agent pushes identity state on every change and each session's bearer
+ * when minted and again before it expires. A surface never polls. The wire
+ * protocol is documented in docs/reference/identity-agent-protocol.md.
+ */
+import { ChannelClient } from "../local-channel/client.js";
 import { AgentUnavailableError, type AgentChannel } from "./connection.js";
 export type Protection = "passphrase" | "device";
 export type SecretKind = "phrase" | "nsec";
@@ -89,28 +104,15 @@ export type ConnectOptions = {
     start?: boolean;
 };
 export declare function connectIdentity(options: ConnectOptions): Promise<IdentityClient>;
-export declare class IdentityClient {
-    private readonly channel;
+export declare class IdentityClient extends ChannelClient {
     private current;
-    private nextId;
-    private readonly pending;
     private readonly stateListeners;
-    private readonly closeListeners;
     private readonly sessionListeners;
     private readonly early;
-    private closed;
     /** @internal Use connectIdentity. */
     constructor(channel: AgentChannel);
     get state(): IdentityState;
-    /** The Floe version of the agent serving this machine. */
-    get agentVersion(): string | null;
-    /**
-     * Set when the agent is a different Floe version from the copy this surface
-     * depends on. Connect-first: the running agent is used as is, never restarted.
-     */
-    get versionNote(): string | null;
     onState(listener: (state: IdentityState) => void): () => void;
-    onClose(listener: () => void): () => void;
     /** Create an identity. An empty passphrase protects it with this device instead. */
     create(input: {
         display_name: string;
@@ -212,9 +214,6 @@ export declare class IdentityClient {
         } | null;
         device_key_removed: boolean;
     }>;
-    close(): void;
-    private request;
-    private receive;
+    protected onPush(message: Record<string, unknown>): void;
     private dispatchSession;
-    private handleClose;
 }

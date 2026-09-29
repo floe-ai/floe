@@ -1,13 +1,15 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
-  AgentUnavailableError,
   IdentityClient,
   IdentityError,
   connectIdentity
-} from "../chunk-736JASAT.js";
-import "../chunk-J6LUYC5C.js";
+} from "../chunk-PMVKPCPY.js";
+import {
+  ChannelUnavailableError
+} from "../chunk-ALUG6FMV.js";
+import "../chunk-PQSQM3MJ.js";
 export {
-  AgentUnavailableError,
+  ChannelUnavailableError as AgentUnavailableError,
   IdentityClient,
   IdentityError,
   connectIdentity

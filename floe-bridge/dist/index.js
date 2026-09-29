@@ -6,10 +6,289 @@ import {
   require_dist
 } from "./chunk-5Y3WRL4X.js";
 
+// floe-cli/dist/local-channel/protocol.js
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+var PROTOCOL_VERSION = 1;
+var MAX_LINE_BYTES = 1024 * 1024;
+function canonicalHome(home) {
+  const absolute = resolve(home);
+  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
+}
+function channelAddress(spec, home) {
+  if (process.platform === "win32") {
+    const digest2 = createHash("sha256").update(canonicalHome(home)).digest("hex").slice(0, 24);
+    return `\\\\.\\pipe\\floe-${spec.name}-${digest2}`;
+  }
+  return join(home, "run", spec.socketFile);
+}
+function runDir(home) {
+  return join(home, "run");
+}
+function channelRunFilePath(spec, home) {
+  return join(runDir(home), spec.runFile);
+}
+function newChannelSecret() {
+  return randomBytes(32).toString("hex");
+}
+function ensureRunDir(home) {
+  const dir = runDir(home);
+  mkdirSync(dir, { recursive: true });
+  try {
+    chmodSync(dir, 448);
+  } catch {
+  }
+}
+function writeChannelRunFile(spec, home, run) {
+  ensureRunDir(home);
+  const path2 = channelRunFilePath(spec, home);
+  const temporary = `${path2}.${process.pid}.tmp`;
+  writeFileSync(temporary, JSON.stringify(run, null, 2) + "\n", { encoding: "utf8", mode: 384 });
+  renameSync(temporary, path2);
+}
+function readChannelRunFile(spec, home) {
+  const path2 = channelRunFilePath(spec, home);
+  if (!existsSync(path2))
+    return null;
+  try {
+    const value = JSON.parse(readFileSync(path2, "utf8"));
+    if (typeof value.secret !== "string" || typeof value.address !== "string" || typeof value.pid !== "number")
+      return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+function newNonce() {
+  return randomBytes(16).toString("hex");
+}
+function channelProof(spec, secret, role, nonce) {
+  return createHmac("sha256", Buffer.from(secret, "hex")).update(`floe-${spec.name}:${role}:${nonce}`).digest("hex");
+}
+function proofMatches(expected, received) {
+  if (typeof received !== "string" || received.length !== expected.length)
+    return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+}
+function lineReader(onMessage, onError) {
+  let buffer = "";
+  return (chunk) => {
+    buffer += chunk.toString();
+    if (Buffer.byteLength(buffer) > MAX_LINE_BYTES && !buffer.includes("\n")) {
+      buffer = "";
+      onError("message too large");
+      return;
+    }
+    let index;
+    while ((index = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, index).trim();
+      buffer = buffer.slice(index + 1);
+      if (!line)
+        continue;
+      let parsed;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        onError("invalid JSON");
+        return;
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        onError("message is not an object");
+        return;
+      }
+      onMessage(parsed);
+    }
+  };
+}
+function frame(message) {
+  return JSON.stringify(message) + "\n";
+}
+
+// floe-cli/dist/local-channel/server.js
+import { createConnection, createServer } from "node:net";
+import { rmSync, unlinkSync } from "node:fs";
+var HANDSHAKE_TIMEOUT_MS = 5e3;
+var ChannelAddressInUseError = class extends Error {
+  address;
+  constructor(address, label = "A Floe service") {
+    super(`${label} is already serving this Floe home at ${address}.`);
+    this.address = address;
+    this.name = "ChannelAddressInUseError";
+  }
+};
+async function serveChannel(spec, service, options) {
+  const log = options.log ?? (() => {
+  });
+  const address = channelAddress(spec, options.home);
+  const secret = options.secret ?? newChannelSecret();
+  const sockets = /* @__PURE__ */ new Set();
+  const server = createServer((socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    handleConnection(spec, service, socket, secret, log);
+  });
+  ensureRunDir(options.home);
+  await listen(server, address, spec.label);
+  writeChannelRunFile(spec, options.home, {
+    protocol: PROTOCOL_VERSION,
+    pid: process.pid,
+    version: service.version,
+    address,
+    secret,
+    started_at: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  log(`listening at ${address}`);
+  return {
+    address,
+    close: () => new Promise((resolve6) => {
+      const run = readChannelRunFile(spec, options.home);
+      if (run && run.pid === process.pid)
+        rmSync(channelRunFilePath(spec, options.home), { force: true });
+      for (const socket of sockets)
+        socket.destroy();
+      server.close(() => resolve6());
+    })
+  };
+}
+async function listen(server, address, label) {
+  try {
+    await listenOnce(server, address);
+  } catch (error) {
+    if (error.code !== "EADDRINUSE")
+      throw error;
+    if (process.platform !== "win32" && !await answers(address)) {
+      unlinkSync(address);
+      await listenOnce(server, address);
+      return;
+    }
+    throw new ChannelAddressInUseError(address, label);
+  }
+}
+function listenOnce(server, address) {
+  return new Promise((resolve6, reject) => {
+    const onError = (error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve6();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(address);
+  });
+}
+function answers(address) {
+  return new Promise((resolve6) => {
+    const probe = createConnection(address);
+    probe.once("connect", () => {
+      probe.destroy();
+      resolve6(true);
+    });
+    probe.once("error", () => resolve6(false));
+  });
+}
+var ChannelError = class extends Error {
+  code;
+  details;
+  constructor(code, message, details = {}) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.name = "ChannelError";
+  }
+};
+function refusalOf(error) {
+  if (error instanceof ChannelError)
+    return error;
+  return new ChannelError("failed", error instanceof Error ? error.message : String(error));
+}
+function handleConnection(spec, service, socket, secret, log) {
+  let stage = "hello";
+  let serverNonce = "";
+  let probe = false;
+  let peer = null;
+  const send = (message) => {
+    if (!socket.destroyed)
+      socket.write(frame(message));
+  };
+  const refuse = (reason) => {
+    log(`refused a connection: ${reason}`);
+    send({ type: "error", error: { code: "handshake_failed", message: reason } });
+    socket.end();
+    socket.destroySoon?.();
+  };
+  const timer = setTimeout(() => refuse("handshake timed out"), HANDSHAKE_TIMEOUT_MS);
+  socket.on("data", lineReader((message) => {
+    if (stage === "hello") {
+      if (message.type !== "hello" || message.protocol !== PROTOCOL_VERSION || typeof message.client_nonce !== "string") {
+        refuse(`expected hello for protocol ${PROTOCOL_VERSION}`);
+        return;
+      }
+      serverNonce = newNonce();
+      const surface = typeof message.surface === "string" && message.surface.trim() ? message.surface.trim().slice(0, 100) : "unnamed surface";
+      peer = { surface, send };
+      probe = message.probe === true;
+      stage = "prove";
+      send({
+        type: "challenge",
+        protocol: PROTOCOL_VERSION,
+        server_nonce: serverNonce,
+        server_proof: channelProof(spec, secret, "agent", message.client_nonce),
+        agent_version: service.version
+      });
+      return;
+    }
+    if (stage === "prove") {
+      if (message.type !== "prove" || !proofMatches(channelProof(spec, secret, "client", serverNonce), message.client_proof)) {
+        refuse("the client could not prove it runs as this user");
+        return;
+      }
+      clearTimeout(timer);
+      if (probe) {
+        send({ type: "welcome", state: service.state(), agent_version: service.version });
+        socket.end();
+        return;
+      }
+      stage = "ready";
+      service.attach(peer);
+      send({ type: "welcome", state: service.state(), agent_version: service.version });
+      return;
+    }
+    if (message.type !== "request" || typeof message.op !== "string") {
+      send({ type: "error", error: { code: "invalid_request", message: "Expected {type:'request', id, op, args}." } });
+      return;
+    }
+    const id2 = message.id;
+    const args = message.args && typeof message.args === "object" && !Array.isArray(message.args) ? message.args : {};
+    service.handle(peer, message.op, args).then((result2) => send({ type: "response", id: id2, ok: true, result: result2 }), (error) => {
+      const refusal = refusalOf(error);
+      send({ type: "response", id: id2, ok: false, error: { code: refusal.code, message: refusal.message, ...refusal.details } });
+    });
+  }, (reason) => refuse(reason)));
+  socket.on("error", () => {
+  });
+  socket.on("close", () => {
+    clearTimeout(timer);
+    if (stage === "ready" && peer)
+      service.detach(peer);
+  });
+}
+
+// floe-cli/dist/engines/protocol.js
+var ENGINES_CHANNEL = {
+  name: "engines",
+  label: "Floe's engine control",
+  runFile: "engines.json",
+  socketFile: "engines.sock"
+};
+
 // floe-bridge/dist/config.js
 var import_yaml = __toESM(require_dist(), 1);
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname, isAbsolute, join as join2, resolve as resolve2 } from "node:path";
 import { homedir } from "node:os";
 
 // node_modules/zod/v3/external.js
@@ -4089,7 +4368,7 @@ var LocalConfigSchema = external_exports.object({
     default_auth_profile: external_exports.string().optional()
   }).optional()
 });
-function defaultConfig(home = join(homedir(), ".floe")) {
+function defaultConfig(home = join2(homedir(), ".floe")) {
   return {
     schema: "floe.local.v1",
     version: 1,
@@ -4121,17 +4400,17 @@ function expandHome(pathValue) {
   if (pathValue === "~")
     return homedir();
   if (pathValue.startsWith("~/") || pathValue.startsWith("~\\"))
-    return join(homedir(), pathValue.slice(2));
+    return join2(homedir(), pathValue.slice(2));
   return pathValue;
 }
 function resolveConfigPath(explicitPath) {
-  return resolve(expandHome(explicitPath ?? join(homedir(), ".floe", "config.yaml")));
+  return resolve2(expandHome(explicitPath ?? join2(homedir(), ".floe", "config.yaml")));
 }
 function resolveLocalPath(configPath, home, pathValue) {
   const expanded = expandHome(pathValue);
   if (isAbsolute(expanded))
-    return resolve(expanded);
-  return resolve(home ? expandHome(home) : dirname(configPath), expanded);
+    return resolve2(expanded);
+  return resolve2(home ? expandHome(home) : dirname(configPath), expanded);
 }
 function rejectRetiredKeys(raw, configPath) {
   const services = raw?.services;
@@ -4162,15 +4441,15 @@ Details: ${details}`);
 }
 function ensureConfig(explicitPath) {
   const configPath = resolveConfigPath(explicitPath);
-  if (!existsSync(configPath)) {
-    const config2 = defaultConfig(join(homedir(), ".floe"));
-    mkdirSync(dirname(configPath), { recursive: true });
-    writeFileSync(configPath, import_yaml.default.stringify(config2), "utf8");
+  if (!existsSync2(configPath)) {
+    const config2 = defaultConfig(join2(homedir(), ".floe"));
+    mkdirSync2(dirname(configPath), { recursive: true });
+    writeFileSync2(configPath, import_yaml.default.stringify(config2), "utf8");
   }
-  const raw = import_yaml.default.parse(readFileSync(configPath, "utf8"));
+  const raw = import_yaml.default.parse(readFileSync2(configPath, "utf8"));
   const config = parseLocalConfig(raw, configPath);
-  mkdirSync(resolveLocalPath(configPath, config.home, config.bridge.data_dir), { recursive: true });
-  mkdirSync(resolveLocalPath(configPath, config.home, config.bridge.log_dir), { recursive: true });
+  mkdirSync2(resolveLocalPath(configPath, config.home, config.bridge.data_dir), { recursive: true });
+  mkdirSync2(resolveLocalPath(configPath, config.home, config.bridge.log_dir), { recursive: true });
   return { configPath, config };
 }
 function bridgeHttpBase(config) {
@@ -4185,8 +4464,8 @@ function bridgeWsBase(config) {
 }
 
 // floe-bridge/dist/daemon.js
-import { existsSync as existsSync5 } from "node:fs";
-import { isAbsolute as isAbsolute4, relative as relative2, resolve as resolve4 } from "node:path";
+import { existsSync as existsSync8 } from "node:fs";
+import { isAbsolute as isAbsolute4, relative as relative3, resolve as resolve5 } from "node:path";
 
 // floe-bridge/dist/auth.js
 var RuntimeAuthError = class extends Error {
@@ -4674,18 +4953,18 @@ function isCredentialTransportSecure(value) {
 
 // floe-bridge/dist/project.js
 var import_yaml2 = __toESM(require_dist(), 1);
-import { createHash } from "node:crypto";
-import { existsSync as existsSync2, mkdirSync as mkdirSync2, readdirSync, readFileSync as readFileSync3, statSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { basename, dirname as dirname2, isAbsolute as isAbsolute2, join as join2, relative, resolve as resolve2 } from "node:path";
+import { createHash as createHash2 } from "node:crypto";
+import { existsSync as existsSync3, mkdirSync as mkdirSync3, readdirSync, readFileSync as readFileSync4, statSync, writeFileSync as writeFileSync3 } from "node:fs";
+import { basename, dirname as dirname2, isAbsolute as isAbsolute2, join as join3, relative, resolve as resolve3 } from "node:path";
 
 // floe-bridge/dist/prompt-assets.js
-import { readFileSync as readFileSync2 } from "node:fs";
+import { readFileSync as readFileSync3 } from "node:fs";
 var cache = /* @__PURE__ */ new Map();
 function readPromptAsset(name) {
-  const cached = cache.get(name);
-  if (cached != null)
-    return cached;
-  const text = readFileSync2(new URL(`./prompts/${name}`, import.meta.url), "utf8").trim();
+  const cached2 = cache.get(name);
+  if (cached2 != null)
+    return cached2;
+  const text = readFileSync3(new URL(`./prompts/${name}`, import.meta.url), "utf8").trim();
   cache.set(name, text);
   return text;
 }
@@ -4694,13 +4973,13 @@ function readPromptAsset(name) {
 var DEFAULT_FLOE_AGENT_BODY = readPromptAsset("default-floe-agent.md");
 var DEFAULT_SUBSTRATE_BUILD_SKILL = readPromptAsset("substrate-build-skill.md");
 function ensureProjectTemplate(workspacePath, workspaceName) {
-  const floeDir = join2(workspacePath, ".floe");
-  mkdirSync2(join2(floeDir, "agents"), { recursive: true });
-  mkdirSync2(join2(floeDir, "extensions"), { recursive: true });
-  mkdirSync2(join2(floeDir, "skills", "substrate-build"), { recursive: true });
-  mkdirSync2(join2(floeDir, "mcp"), { recursive: true });
-  mkdirSync2(join2(floeDir, "state"), { recursive: true });
-  writeIfMissing(join2(floeDir, "floe.yaml"), import_yaml2.default.stringify({
+  const floeDir = join3(workspacePath, ".floe");
+  mkdirSync3(join3(floeDir, "agents"), { recursive: true });
+  mkdirSync3(join3(floeDir, "extensions"), { recursive: true });
+  mkdirSync3(join3(floeDir, "skills", "substrate-build"), { recursive: true });
+  mkdirSync3(join3(floeDir, "mcp"), { recursive: true });
+  mkdirSync3(join3(floeDir, "state"), { recursive: true });
+  writeIfMissing(join3(floeDir, "floe.yaml"), import_yaml2.default.stringify({
     schema: "floe.workspace.v1",
     version: 1,
     applied_config: {
@@ -4723,7 +5002,7 @@ function ensureProjectTemplate(workspacePath, workspaceName) {
       path: "./state"
     }
   }), "utf8");
-  writeIfMissing(join2(floeDir, "agents", "floe.md"), `---
+  writeIfMissing(join3(floeDir, "agents", "floe.md"), `---
 schema: floe.agent.v1
 agent_id: floe
 label: Floe
@@ -4743,23 +5022,23 @@ scope:
 ---
 ${DEFAULT_FLOE_AGENT_BODY}
 `, "utf8");
-  writeIfMissing(join2(floeDir, "extensions", "README.md"), "# Extensions\n\nProject-local Floe extensions can be placed here.\n", "utf8");
-  writeIfMissing(join2(floeDir, "skills", "substrate-build", "SKILL.md"), `${DEFAULT_SUBSTRATE_BUILD_SKILL}
+  writeIfMissing(join3(floeDir, "extensions", "README.md"), "# Extensions\n\nProject-local Floe extensions can be placed here.\n", "utf8");
+  writeIfMissing(join3(floeDir, "skills", "substrate-build", "SKILL.md"), `${DEFAULT_SUBSTRATE_BUILD_SKILL}
 `, "utf8");
-  writeIfMissing(join2(floeDir, "mcp", "README.md"), "# MCP\n\nReference or copy runtime-native MCP profiles here when needed.\n", "utf8");
-  writeIfMissing(join2(floeDir, "state", "README.md"), "# State\n\nEphemeral project-local Floe runtime state may be placed here.\n", "utf8");
-  writeIfMissing(join2(floeDir, "state", ".gitignore"), "*\n!.gitignore\n!README.md\n", "utf8");
+  writeIfMissing(join3(floeDir, "mcp", "README.md"), "# MCP\n\nReference or copy runtime-native MCP profiles here when needed.\n", "utf8");
+  writeIfMissing(join3(floeDir, "state", "README.md"), "# State\n\nEphemeral project-local Floe runtime state may be placed here.\n", "utf8");
+  writeIfMissing(join3(floeDir, "state", ".gitignore"), "*\n!.gitignore\n!README.md\n", "utf8");
 }
 function writeIfMissing(path2, data, encoding) {
-  if (existsSync2(path2))
+  if (existsSync3(path2))
     return;
-  writeFileSync2(path2, data, encoding);
+  writeFileSync3(path2, data, encoding);
 }
 function loadProject(workspacePath) {
-  const floeDir = join2(workspacePath, ".floe");
+  const floeDir = join3(workspacePath, ".floe");
   const warnings = [];
   const errors = [];
-  if (!existsSync2(floeDir)) {
+  if (!existsSync3(floeDir)) {
     return {
       config_hash: "",
       agents: [],
@@ -4768,13 +5047,13 @@ function loadProject(workspacePath) {
       validation: { ok: false, warnings, errors: [".floe folder is missing"] }
     };
   }
-  const projectConfigPath = join2(floeDir, "floe.yaml");
-  if (!existsSync2(projectConfigPath))
+  const projectConfigPath = join3(floeDir, "floe.yaml");
+  if (!existsSync3(projectConfigPath))
     errors.push(".floe/floe.yaml is missing");
   let projectConfig = {};
-  if (existsSync2(projectConfigPath)) {
+  if (existsSync3(projectConfigPath)) {
     try {
-      projectConfig = import_yaml2.default.parse(readFileSync3(projectConfigPath, "utf8")) ?? {};
+      projectConfig = import_yaml2.default.parse(readFileSync4(projectConfigPath, "utf8")) ?? {};
       if (projectConfig.schema !== "floe.workspace.v1")
         warnings.push(".floe/floe.yaml schema is not floe.workspace.v1");
     } catch (error) {
@@ -4785,22 +5064,22 @@ function loadProject(workspacePath) {
   const agents = [];
   for (const entry of agentEntries) {
     const file = typeof entry.file === "string" ? entry.file : typeof entry.path === "string" ? entry.path : `agents/${entry.id ?? "floe"}.md`;
-    let resolvedPath = join2(floeDir, file);
-    if (!existsSync2(resolvedPath) && !file.endsWith(".md")) {
-      const dirAgent = join2(floeDir, file, "agent.md");
-      if (existsSync2(dirAgent))
+    let resolvedPath = join3(floeDir, file);
+    if (!existsSync3(resolvedPath) && !file.endsWith(".md")) {
+      const dirAgent = join3(floeDir, file, "agent.md");
+      if (existsSync3(dirAgent))
         resolvedPath = dirAgent;
     }
-    if (!existsSync2(resolvedPath)) {
-      const dirFallback = join2(floeDir, "agents", entry.id ?? "floe", "agent.md");
-      if (existsSync2(dirFallback)) {
+    if (!existsSync3(resolvedPath)) {
+      const dirFallback = join3(floeDir, "agents", entry.id ?? "floe", "agent.md");
+      if (existsSync3(dirFallback)) {
         resolvedPath = dirFallback;
       } else {
         errors.push(`Agent file is missing: ${file}`);
         continue;
       }
     }
-    const parsed = parseAgentFile(readFileSync3(resolvedPath, "utf8"));
+    const parsed = parseAgentFile(readFileSync4(resolvedPath, "utf8"));
     const agentId = String(parsed.frontmatter.agent_id ?? entry.id ?? basename(resolvedPath, ".md"));
     if ("endpoint_id" in parsed.frontmatter) {
       warnings.push(`${file} contains endpoint_id; canonical project files should omit workspace-specific endpoint ids`);
@@ -4844,9 +5123,9 @@ function loadProject(workspacePath) {
 }
 function materializeSavedConfig(workspacePath, config) {
   ensureProjectTemplate(workspacePath, basename(workspacePath));
-  const floeDir = join2(workspacePath, ".floe");
-  const projectConfigPath = join2(floeDir, "floe.yaml");
-  const projectConfig = import_yaml2.default.parse(readFileSync3(projectConfigPath, "utf8")) ?? {};
+  const floeDir = join3(workspacePath, ".floe");
+  const projectConfigPath = join3(floeDir, "floe.yaml");
+  const projectConfig = import_yaml2.default.parse(readFileSync4(projectConfigPath, "utf8")) ?? {};
   const agents = Array.isArray(projectConfig.agents) ? [...projectConfig.agents] : [];
   const configuredAgents = Array.isArray(config.agents) ? config.agents : [];
   for (const agent of configuredAgents) {
@@ -4863,7 +5142,7 @@ function materializeSavedConfig(workspacePath, config) {
       name,
       skills
     };
-    writeFileSync2(join2(floeDir, file), `---
+    writeFileSync3(join3(floeDir, file), `---
 ${import_yaml2.default.stringify(frontmatter).trim()}
 ---
 # ${name}
@@ -4877,7 +5156,7 @@ ${body.trim()}
       agents.push({ id: agentId, file });
   }
   projectConfig.agents = agents;
-  writeFileSync2(projectConfigPath, import_yaml2.default.stringify(projectConfig), "utf8");
+  writeFileSync3(projectConfigPath, import_yaml2.default.stringify(projectConfig), "utf8");
   return loadProject(workspacePath);
 }
 function parseAgentFile(content) {
@@ -4895,13 +5174,13 @@ function parseAgentFile(content) {
   };
 }
 function hashFloeDir(floeDir) {
-  const hash = createHash("sha256");
+  const hash = createHash2("sha256");
   for (const file of computeConfigSurface(floeDir)) {
     try {
       const rel = relative(floeDir, file).replace(/\\/g, "/");
       hash.update(rel);
       hash.update("\0");
-      hash.update(readFileSync3(file));
+      hash.update(readFileSync4(file));
       hash.update("\0");
     } catch {
     }
@@ -4911,22 +5190,22 @@ function hashFloeDir(floeDir) {
 function computeConfigSurface(floeDir) {
   const files = /* @__PURE__ */ new Set();
   const addIfExists = (p) => {
-    const abs = resolve2(p);
-    if (existsSync2(abs))
+    const abs = resolve3(p);
+    if (existsSync3(abs))
       files.add(abs);
   };
   const addAllUnder = (dir) => {
-    const abs = resolve2(dir);
-    if (existsSync2(abs)) {
+    const abs = resolve3(dir);
+    if (existsSync3(abs)) {
       for (const f of listFiles(abs))
         files.add(f);
     }
   };
-  addIfExists(join2(floeDir, "floe.yaml"));
-  addAllUnder(join2(floeDir, "agents"));
-  addAllUnder(join2(floeDir, "skills"));
-  addAllUnder(join2(floeDir, "mcp"));
-  const extensionsDir = join2(floeDir, "extensions");
+  addIfExists(join3(floeDir, "floe.yaml"));
+  addAllUnder(join3(floeDir, "agents"));
+  addAllUnder(join3(floeDir, "skills"));
+  addAllUnder(join3(floeDir, "mcp"));
+  const extensionsDir = join3(floeDir, "extensions");
   let extEntries;
   try {
     extEntries = readdirSync(extensionsDir);
@@ -4934,44 +5213,44 @@ function computeConfigSurface(floeDir) {
     extEntries = [];
   }
   for (const dirName of extEntries) {
-    const extDir = join2(extensionsDir, dirName);
+    const extDir = join3(extensionsDir, dirName);
     try {
       if (!statSync(extDir).isDirectory())
         continue;
     } catch {
       continue;
     }
-    const manifestPath = join2(extDir, "extension.json");
-    if (!existsSync2(manifestPath))
+    const manifestPath = join3(extDir, "extension.json");
+    if (!existsSync3(manifestPath))
       continue;
-    files.add(resolve2(manifestPath));
+    files.add(resolve3(manifestPath));
     let rawManifest;
     let manifestBaseDir = extDir;
     try {
-      rawManifest = JSON.parse(readFileSync3(manifestPath, "utf-8"));
+      rawManifest = JSON.parse(readFileSync4(manifestPath, "utf-8"));
     } catch {
       continue;
     }
     if (rawManifest !== null && typeof rawManifest.manifest_source === "string") {
-      const sourcePath = resolve2(extDir, rawManifest.manifest_source);
+      const sourcePath = resolve3(extDir, rawManifest.manifest_source);
       manifestBaseDir = dirname2(sourcePath);
       if (isUnderDir(sourcePath, floeDir))
         addIfExists(sourcePath);
       try {
-        rawManifest = JSON.parse(readFileSync3(sourcePath, "utf-8"));
+        rawManifest = JSON.parse(readFileSync4(sourcePath, "utf-8"));
       } catch {
         continue;
       }
     }
     if (typeof rawManifest.entry === "string") {
-      const entryPath = resolve2(manifestBaseDir, rawManifest.entry);
+      const entryPath = resolve3(manifestBaseDir, rawManifest.entry);
       if (isUnderDir(entryPath, floeDir))
         addIfExists(entryPath);
     }
     if (Array.isArray(rawManifest.agents)) {
       for (const agent of rawManifest.agents) {
         if (agent !== null && typeof agent === "object" && typeof agent.instructions_path === "string") {
-          const instrPath = resolve2(manifestBaseDir, agent.instructions_path);
+          const instrPath = resolve3(manifestBaseDir, agent.instructions_path);
           if (isUnderDir(instrPath, floeDir))
             addIfExists(instrPath);
         }
@@ -4981,13 +5260,13 @@ function computeConfigSurface(floeDir) {
   return [...files].sort();
 }
 function isUnderDir(filePath, dir) {
-  const rel = relative(resolve2(dir), resolve2(filePath));
+  const rel = relative(resolve3(dir), resolve3(filePath));
   return !rel.startsWith("..") && !isAbsolute2(rel);
 }
 function listFiles(root) {
   const results = [];
   for (const name of readdirSync(root)) {
-    const path2 = resolve2(root, name);
+    const path2 = resolve3(root, name);
     const stat = statSync(path2);
     if (stat.isDirectory())
       results.push(...listFiles(path2));
@@ -5001,6 +5280,227 @@ function titleCase(value) {
 }
 function slug(value) {
   return value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+// floe-bridge/dist/engines/engine-control.js
+var EngineControl = class {
+  accounts;
+  version;
+  log;
+  peers = /* @__PURE__ */ new Set();
+  operations = /* @__PURE__ */ new Map();
+  readyListeners = /* @__PURE__ */ new Set();
+  constructor(accounts, version, log = () => {
+  }) {
+    this.accounts = accounts;
+    this.version = version;
+    this.log = log;
+    for (const [engine, account] of accounts) {
+      let wasReady = account.currentState().phase === "ready";
+      account.on("state", (state) => {
+        this.broadcast({ type: "state", engine, state });
+        const ready = state.phase === "ready";
+        if (ready && !wasReady)
+          for (const listener of this.readyListeners)
+            listener(engine);
+        wasReady = ready;
+      });
+      account.on("sign_in", (progress) => {
+        if (progress.status === "starting")
+          this.operations.set(progress.operationId, engine);
+        else if (progress.status !== "waiting_for_person")
+          this.operations.delete(progress.operationId);
+        this.log("engine sign-in", { engine, operation_id: progress.operationId, status: progress.status });
+        this.broadcast({
+          type: "sign_in",
+          operation_id: progress.operationId,
+          engine,
+          status: progress.status,
+          message: progress.message
+        });
+      });
+    }
+  }
+  /** The engines this Bridge runs work on. */
+  get engines() {
+    return [...this.accounts.keys()];
+  }
+  /** One readiness check per engine at start. Deliveries wait on it through gate(). */
+  start() {
+    for (const engine of this.accounts.keys())
+      void this.recheck(engine);
+  }
+  /** Check an engine again, e.g. after one of its turns failed. */
+  recheck(engine) {
+    const account = this.accounts.get(engine);
+    if (!account)
+      return Promise.resolve(null);
+    return account.check().catch((error) => {
+      this.log("engine check failed", { engine, error: error instanceof Error ? error.message : String(error) });
+      return null;
+    });
+  }
+  /**
+   * The state work for this engine must see before it runs. A check in progress
+   * (or none yet) is awaited, never skipped: work never runs on a guess.
+   */
+  async gate(engine) {
+    const account = this.require(engine);
+    const current = account.currentState();
+    return current.phase === "checking" ? account.check() : current;
+  }
+  /** Called once each time an engine becomes ready. */
+  onReady(listener) {
+    this.readyListeners.add(listener);
+    return () => this.readyListeners.delete(listener);
+  }
+  state() {
+    const engines = {};
+    for (const [engine, account] of this.accounts)
+      engines[engine] = account.currentState();
+    return { engines };
+  }
+  attach(peer) {
+    this.peers.add(peer);
+  }
+  detach(peer) {
+    this.peers.delete(peer);
+  }
+  async handle(_peer, op, args) {
+    switch (op) {
+      case "state":
+        return this.state();
+      case "refresh":
+        return this.require(stringArg(args, "engine")).check();
+      case "sign_in": {
+        const engine = stringArg(args, "engine");
+        const account = this.require(engine);
+        if (!account.signIn)
+          throw new ChannelError("sign_in_unsupported", `The ${engine} engine has no sign-in.`);
+        const mode = args.mode === void 0 ? void 0 : args.mode;
+        if (mode !== void 0 && mode !== "browser") {
+          throw new ChannelError("invalid_sign_in_mode", 'mode must be "browser"; device-code sign-in is not available.');
+        }
+        const { id: id2 } = await vendor(() => account.signIn({ mode }));
+        return { operation_id: id2 };
+      }
+      case "cancel_sign_in": {
+        const operationId = stringArg(args, "operation_id");
+        const engine = this.operations.get(operationId);
+        const account = engine ? this.accounts.get(engine) : void 0;
+        if (!account?.cancelSignIn)
+          throw new ChannelError("sign_in_not_found", `Sign-in '${operationId}' is not active.`);
+        await vendor(() => account.cancelSignIn(operationId));
+        return { cancelled: true };
+      }
+      default:
+        throw new ChannelError("unknown_op", `Engine control has no operation '${op}'.`);
+    }
+  }
+  async close() {
+    for (const account of this.accounts.values())
+      await account.close?.().catch(() => {
+      });
+  }
+  require(engine) {
+    const account = this.accounts.get(engine);
+    if (!account)
+      throw new ChannelError("unknown_engine", `This Floe runs no engine named '${engine}'.`, { engines: this.engines });
+    return account;
+  }
+  broadcast(message) {
+    for (const peer of this.peers)
+      peer.send(message);
+  }
+};
+function stringArg(args, name) {
+  const value = args[name];
+  if (typeof value !== "string" || !value.trim())
+    throw new ChannelError("invalid_request", `${name} is required.`);
+  return value.trim();
+}
+async function vendor(action) {
+  try {
+    return await action();
+  } catch (error) {
+    const code = error.code;
+    throw new ChannelError(typeof code === "string" ? code : "failed", error instanceof Error ? error.message : String(error));
+  }
+}
+
+// floe-cli/dist/installation.js
+import { existsSync as existsSync5, readFileSync as readFileSync6, realpathSync as realpathSync2 } from "node:fs";
+import { basename as basename3, dirname as dirname4, join as join5 } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// floe-cli/dist/staging.js
+import { existsSync as existsSync4, mkdirSync as mkdirSync4, readdirSync as readdirSync2, readFileSync as readFileSync5, realpathSync, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2, writeFileSync as writeFileSync4 } from "node:fs";
+import { basename as basename2, dirname as dirname3, join as join4, relative as relative2, sep } from "node:path";
+var STAGE_MANIFEST = "stage.json";
+function readJson(path2) {
+  try {
+    return JSON.parse(readFileSync5(path2, "utf8"));
+  } catch {
+    return null;
+  }
+}
+function stageOf(path2) {
+  let dir = path2;
+  for (; ; ) {
+    const parent = dirname3(dir);
+    if (parent === dir)
+      return null;
+    if (basename2(dir) === "tree") {
+      const manifest = readJson(join4(parent, STAGE_MANIFEST));
+      if (manifest?.kind === "floe-stage")
+        return manifest;
+    }
+    dir = parent;
+  }
+}
+
+// floe-cli/dist/installation.js
+function nearestPackageDir(start) {
+  let dir = start;
+  for (; ; ) {
+    if (existsSync5(join5(dir, "package.json")))
+      return dir;
+    const parent = dirname4(dir);
+    if (parent === dir)
+      return null;
+    dir = parent;
+  }
+}
+function readPackage(dir) {
+  try {
+    return JSON.parse(readFileSync6(join5(dir, "package.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
+function classifyPackageDir(packageDir) {
+  const pkg = readPackage(packageDir);
+  const version = typeof pkg.version === "string" ? pkg.version : null;
+  let holder = dirname4(packageDir);
+  if (basename3(holder).startsWith("@"))
+    holder = dirname4(holder);
+  if (basename3(holder) !== "node_modules")
+    return { packageDir, version, dependencyOf: null };
+  const owner = dirname4(holder);
+  if (!existsSync5(join5(owner, "package.json")))
+    return { packageDir, version, dependencyOf: null };
+  const ownerName = readPackage(owner).name;
+  return { packageDir, version, dependencyOf: typeof ownerName === "string" ? ownerName : owner };
+}
+var cached;
+function thisInstallation() {
+  if (cached)
+    return cached;
+  const moduleDir = realpathSync2(dirname4(fileURLToPath(import.meta.url)));
+  const packageDir = nearestPackageDir(moduleDir) ?? moduleDir;
+  const stage = stageOf(packageDir);
+  cached = stage ? { packageDir: stage.source, version: stage.version, dependencyOf: stage.dependency_of } : classifyPackageDir(packageDir);
+  return cached;
 }
 
 // floe-bridge/dist/adapters/fake-runtime-adapter.js
@@ -5315,14 +5815,14 @@ function firstText(event) {
 }
 
 // floe-bridge/dist/adapters/floe-runtime-adapter.js
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 
 // node_modules/floe-runtime/src/runtime.mjs
 import { EventEmitter as EventEmitter2 } from "node:events";
 
 // node_modules/floe-runtime/src/jsonrpc.mjs
 import { spawn } from "node:child_process";
-import { existsSync as existsSync3 } from "node:fs";
+import { existsSync as existsSync6 } from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { EventEmitter } from "node:events";
@@ -5378,7 +5878,7 @@ function resolveExecutable(command, env = process.env) {
       candidates.push(path.join(dir, command));
     }
   }
-  const resolved = candidates.find((candidate) => existsSync3(candidate));
+  const resolved = candidates.find((candidate) => existsSync6(candidate));
   const file = resolved || command;
   const ext = path.extname(file).toLowerCase();
   return { file, needsShellWrapper: ext === ".cmd" || ext === ".bat" };
@@ -5461,7 +5961,7 @@ var JsonRpcPeer = class extends EventEmitter {
   }
   /** Sends a JSON-RPC request and resolves/rejects with the correlated response. */
   request(method, params, timeoutMs = 3e4) {
-    return new Promise((resolve5, reject) => {
+    return new Promise((resolve6, reject) => {
       if (!this.process?.stdin.writable) {
         reject(new RuntimeFault(this.unavailableCode, `${this.command} is unavailable.`, 503));
         return;
@@ -5471,7 +5971,7 @@ var JsonRpcPeer = class extends EventEmitter {
         this.pending.delete(requestId);
         reject(new RuntimeFault("rpc_timeout", `${method} did not acknowledge in time. Its outcome may be unknown.`, 504));
       }, timeoutMs);
-      this.pending.set(requestId, { resolve: resolve5, reject, timer });
+      this.pending.set(requestId, { resolve: resolve6, reject, timer });
       this.process.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: requestId, method, params }) + "\n", (error) => {
         if (error) {
           clearTimeout(timer);
@@ -5514,14 +6014,14 @@ var JsonRpcPeer = class extends EventEmitter {
   async terminate(graceMs = 3e3) {
     const proc = this.process;
     if (!proc || proc.exitCode !== null || proc.signalCode !== null) return;
-    await new Promise((resolve5) => {
+    await new Promise((resolve6) => {
       const timer = setTimeout(() => {
         proc.kill("SIGKILL");
-        resolve5();
+        resolve6();
       }, graceMs);
       proc.once("exit", () => {
         clearTimeout(timer);
-        resolve5();
+        resolve6();
       });
       proc.kill("SIGTERM");
     });
@@ -5577,17 +6077,17 @@ function watchEvents(runtime, conversationId, { since = 0 } = {}) {
     if (envelope.conversationId !== conversationId) return;
     queue.push(envelope);
     if (waiter) {
-      const resolve5 = waiter;
+      const resolve6 = waiter;
       waiter = null;
-      resolve5();
+      resolve6();
     }
   };
   const onLost = () => {
     closed = true;
     if (waiter) {
-      const resolve5 = waiter;
+      const resolve6 = waiter;
       waiter = null;
-      resolve5();
+      resolve6();
     }
   };
   runtime.on("event", push);
@@ -5598,8 +6098,8 @@ function watchEvents(runtime, conversationId, { since = 0 } = {}) {
       if (missed > 0) yield { seq: since, conversationId, type: "gap", replay: true, at: Date.now(), data: { missed } };
       for (const envelope of backlog) yield envelope;
       while (!closed) {
-        if (queue.length === 0) await new Promise((resolve5) => {
-          waiter = resolve5;
+        if (queue.length === 0) await new Promise((resolve6) => {
+          waiter = resolve6;
         });
         while (queue.length > 0) yield queue.shift();
       }
@@ -6005,8 +6505,313 @@ function unsupported(backend, feature) {
 }
 
 // node_modules/floe-runtime/src/adapters/copilot.mjs
-import { CopilotClient } from "@github/copilot-sdk";
+import { CopilotClient as CopilotClient2 } from "@github/copilot-sdk";
 import { defineTool } from "@github/copilot-sdk";
+
+// node_modules/floe-runtime/src/adapters/copilot-account.mjs
+import { spawn as spawn2 } from "node:child_process";
+import { randomUUID as randomUUID3 } from "node:crypto";
+import { EventEmitter as EventEmitter3 } from "node:events";
+import { CopilotClient } from "@github/copilot-sdk";
+var CREDENTIAL_ENVIRONMENT_KEYS = /* @__PURE__ */ new Set([
+  "COPILOT_GITHUB_TOKEN",
+  "GH_TOKEN",
+  "GITHUB_TOKEN"
+]);
+var PROCESS_GLOBAL_AUTH_TYPES = /* @__PURE__ */ new Set(["env", "token", "api-key", "gh-cli"]);
+var NOT_ENTITLED_CODES = /* @__PURE__ */ new Set([
+  "copilot_not_entitled",
+  "no_copilot_subscription",
+  "not_entitled",
+  "subscription_required"
+]);
+var POLICY_BLOCKED_CODES = /* @__PURE__ */ new Set([
+  "copilot_policy_blocked",
+  "organization_policy_blocked",
+  "policy_blocked"
+]);
+function copilotChildEnvironment(environment = process.env) {
+  return Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !CREDENTIAL_ENVIRONMENT_KEYS.has(key.toUpperCase()))
+  );
+}
+function errorCode(error) {
+  return typeof error?.code === "string" ? error.code.toLowerCase() : "";
+}
+function accountOf(auth) {
+  return auth.login ? { label: auth.login, ...auth.host ? { host: auth.host } : {} } : void 0;
+}
+var CopilotEngineAccountAdapter = class extends EventEmitter3 {
+  constructor({
+    clientFactory = (options) => new CopilotClient(options),
+    clientOptions = {},
+    cliPath,
+    environment = process.env,
+    spawnProcess = spawn2,
+    now = () => (/* @__PURE__ */ new Date()).toISOString(),
+    operationId = () => randomUUID3()
+  } = {}) {
+    super();
+    this.clientFactory = clientFactory;
+    this.clientOptions = clientOptions;
+    this.cliPath = cliPath;
+    this.environment = environment;
+    this.spawnProcess = spawnProcess;
+    this.now = now;
+    this.operationId = operationId;
+    this.revision = 0;
+    this.checking = null;
+    this.operations = /* @__PURE__ */ new Map();
+    this.current = {
+      engine: "copilot",
+      phase: "checking",
+      authentication: "unknown",
+      access: "unknown",
+      reachability: "unknown",
+      message: "Checking Copilot.",
+      checked_at: this.now(),
+      revision: this.revision
+    };
+  }
+  currentState() {
+    return { ...this.current, ...this.current.account ? { account: { ...this.current.account } } : {} };
+  }
+  async check() {
+    if (this.checking) return this.checking;
+    this.checking = this.#check();
+    try {
+      return await this.checking;
+    } finally {
+      this.checking = null;
+    }
+  }
+  async #check() {
+    this.#publishState({
+      phase: "checking",
+      authentication: "unknown",
+      access: "unknown",
+      reachability: "unknown",
+      message: "Checking Copilot."
+    });
+    let client;
+    try {
+      client = await this.clientFactory(this.#sdkOptions());
+      await client.start();
+      await client.ping();
+    } catch {
+      await this.#stopClient(client);
+      return this.#publishState({
+        phase: "unavailable",
+        authentication: "unknown",
+        access: "unknown",
+        reachability: "unreachable",
+        action: "retry",
+        message: "Copilot could not be reached."
+      });
+    }
+    try {
+      let auth;
+      try {
+        auth = await client.getAuthStatus();
+      } catch {
+        return this.#publishState({
+          phase: "unavailable",
+          authentication: "unknown",
+          access: "unknown",
+          reachability: "reachable",
+          action: "retry",
+          message: "Copilot authentication could not be checked."
+        });
+      }
+      if (!auth?.isAuthenticated) {
+        return this.#publishState({
+          phase: "action_required",
+          authentication: "signed_out",
+          access: "unknown",
+          reachability: "reachable",
+          action: "sign_in",
+          message: "Copilot is not signed in on this machine."
+        });
+      }
+      if (PROCESS_GLOBAL_AUTH_TYPES.has(auth.authType)) {
+        return this.#publishState({
+          phase: "action_required",
+          authentication: "signed_out",
+          access: "unknown",
+          reachability: "reachable",
+          action: "sign_in",
+          message: "Copilot found process-global credentials. Sign in with the vendor OAuth flow."
+        });
+      }
+      const account = accountOf(auth);
+      try {
+        const models = await client.listModels();
+        if (!Array.isArray(models) || models.length === 0) {
+          return this.#publishState({
+            phase: "action_required",
+            authentication: "signed_in",
+            access: "unknown",
+            reachability: "reachable",
+            account,
+            action: "retry",
+            message: `Signed in${account ? ` as ${account.label}` : ""}, but Copilot access could not be confirmed.`
+          });
+        }
+        return this.#publishState({
+          phase: "ready",
+          authentication: "signed_in",
+          access: "entitled",
+          reachability: "reachable",
+          account,
+          message: `Copilot is ready${account ? ` for ${account.label}` : ""}.`
+        });
+      } catch (error) {
+        const code = errorCode(error);
+        if (NOT_ENTITLED_CODES.has(code)) {
+          return this.#publishState({
+            phase: "action_required",
+            authentication: "signed_in",
+            access: "not_entitled",
+            reachability: "reachable",
+            account,
+            action: "check_subscription",
+            message: `Signed in${account ? ` as ${account.label}` : ""}, but this account has no Copilot plan usable by the CLI.`
+          });
+        }
+        if (POLICY_BLOCKED_CODES.has(code)) {
+          return this.#publishState({
+            phase: "action_required",
+            authentication: "signed_in",
+            access: "policy_blocked",
+            reachability: "reachable",
+            account,
+            action: "contact_admin",
+            message: `Signed in${account ? ` as ${account.label}` : ""}, but the organization has disabled Copilot CLI.`
+          });
+        }
+        return this.#publishState({
+          phase: "action_required",
+          authentication: "signed_in",
+          access: "unknown",
+          reachability: "reachable",
+          account,
+          action: "retry",
+          message: `Signed in${account ? ` as ${account.label}` : ""}, but Copilot access could not be confirmed.`
+        });
+      }
+    } finally {
+      await this.#stopClient(client);
+    }
+  }
+  async signIn({ mode = "browser" } = {}) {
+    if (mode !== "browser" && mode !== "device") {
+      throw new RuntimeFault("invalid_sign_in_mode", `Unsupported Copilot sign-in mode '${mode}'.`, 400);
+    }
+    if (!this.cliPath) {
+      throw new RuntimeFault("copilot_cli_unavailable", "The packaged Copilot CLI path is required for sign-in.", 503);
+    }
+    if (this.operations.size > 0) {
+      throw new RuntimeFault("sign_in_in_progress", "Copilot sign-in is already in progress.", 409);
+    }
+    const id2 = this.operationId();
+    const operation = { id: id2, child: null, cancellationRequested: false, finished: false };
+    this.operations.set(id2, operation);
+    this.#publishSignIn(operation, "starting", "Starting GitHub sign-in.");
+    const loginArgs = ["login", mode === "device" ? "--device-code" : "--web-flow"];
+    const isJavaScript = /\.[cm]?js$/i.test(this.cliPath);
+    const command = isJavaScript ? process.execPath : this.cliPath;
+    const args = isJavaScript ? [this.cliPath, ...loginArgs] : loginArgs;
+    try {
+      operation.child = this.spawnProcess(command, args, {
+        env: copilotChildEnvironment(this.environment),
+        stdio: "inherit",
+        windowsHide: false
+      });
+    } catch {
+      void this.#finishSignIn(operation, "failed");
+      return { id: id2 };
+    }
+    operation.child.once("spawn", () => {
+      if (!operation.finished) {
+        this.#publishSignIn(operation, "waiting_for_person", "Finish signing in with GitHub.");
+      }
+    });
+    operation.child.once("error", () => void this.#finishSignIn(operation, "failed"));
+    operation.child.once("exit", (code) => {
+      const outcome = operation.cancellationRequested ? "cancelled" : code === 0 ? "completed" : "failed";
+      void this.#finishSignIn(operation, outcome);
+    });
+    return { id: id2 };
+  }
+  async cancelSignIn(id2) {
+    const operation = this.operations.get(id2);
+    if (!operation || operation.finished) {
+      throw new RuntimeFault("sign_in_not_found", `Copilot sign-in operation '${id2}' is not active.`, 404);
+    }
+    operation.cancellationRequested = true;
+    operation.child?.kill();
+  }
+  async close() {
+    for (const operation of this.operations.values()) {
+      operation.cancellationRequested = true;
+      operation.child?.kill();
+    }
+  }
+  #sdkOptions() {
+    const { gitHubToken: _ignoredToken, connection, env: optionEnvironment, ...options } = this.clientOptions;
+    const environment = copilotChildEnvironment({ ...this.environment, ...optionEnvironment });
+    const safeConnection = connection && typeof connection === "object" ? { ...connection, ...connection.env ? { env: copilotChildEnvironment(connection.env) } : {} } : connection;
+    return {
+      ...options,
+      ...safeConnection ? { connection: safeConnection } : {},
+      env: environment,
+      useLoggedInUser: true
+    };
+  }
+  async #stopClient(client) {
+    if (!client?.stop) return;
+    try {
+      await client.stop();
+    } catch (error) {
+      this.emit("diagnostic", `Copilot account check could not stop its SDK client: ${error.message}`);
+    }
+  }
+  async #finishSignIn(operation, outcome) {
+    if (operation.finished) return;
+    operation.finished = true;
+    if (this.checking) await this.checking;
+    const state = await this.check();
+    if (outcome === "cancelled") {
+      this.#publishSignIn(operation, "cancelled", "GitHub sign-in was cancelled.");
+    } else if (outcome === "completed" && state.authentication === "signed_in") {
+      this.#publishSignIn(operation, "succeeded", "Signed in to GitHub Copilot.");
+    } else {
+      this.#publishSignIn(operation, "failed", "GitHub sign-in did not complete.");
+    }
+    this.operations.delete(operation.id);
+  }
+  #publishState(state) {
+    this.current = {
+      engine: "copilot",
+      ...state,
+      checked_at: this.now(),
+      revision: ++this.revision
+    };
+    const published = this.currentState();
+    this.emit("state", published);
+    return published;
+  }
+  #publishSignIn(operation, status, message) {
+    this.emit("sign_in", {
+      operationId: operation.id,
+      engine: "copilot",
+      status,
+      message
+    });
+  }
+};
+
+// node_modules/floe-runtime/src/adapters/copilot.mjs
 var COMPLETE_FINISH_REASONS = /* @__PURE__ */ new Set(["stop", "end_turn", "completed", "success"]);
 var DEFAULT_QUIESCE_TIMEOUT_MS = 1e4;
 var TOKEN_USAGE_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
@@ -6079,7 +6884,7 @@ var CopilotRuntime = class extends Runtime {
     this.timeoutMs = timeoutMs;
     this.quiesceTimeoutMs = quiesceTimeoutMs;
     this.client = client;
-    this.clientFactory = clientFactory || ((options) => new CopilotClient(options));
+    this.clientFactory = clientFactory || ((options) => new CopilotClient2(options));
     this.clientOptions = clientOptions;
     this.systemMessage = systemMessage;
     this.tools = tools.map(normalizeTool);
@@ -6147,13 +6952,13 @@ var CopilotRuntime = class extends Runtime {
     return { kind: "reject", feedback: decision === "cancel" ? "Floe cancelled this operation." : "Floe denied this operation." };
   }
   #manualPermission(request, normalized) {
-    return new Promise((resolve5) => {
+    return new Promise((resolve6) => {
       const timer = setTimeout(() => {
         this.pendingPermissions.delete(normalized.id);
-        resolve5(this.#permissionResult("reject_once"));
+        resolve6(this.#permissionResult("reject_once"));
       }, this.unhandledRequestTimeoutMs);
       timer.unref?.();
-      this.pendingPermissions.set(normalized.id, { resolve: resolve5, timer });
+      this.pendingPermissions.set(normalized.id, { resolve: resolve6, timer });
       this.emit("request", { id: normalized.id, method: "permission/request", params: normalized, raw: request });
     });
   }
@@ -6333,12 +7138,12 @@ var CopilotRuntime = class extends Runtime {
     let resolveResult;
     let rejectResult;
     let settle;
-    const completion = new Promise((resolve5, reject) => {
-      resolveResult = resolve5;
+    const completion = new Promise((resolve6, reject) => {
+      resolveResult = resolve6;
       rejectResult = reject;
     });
-    const settled = new Promise((resolve5) => {
-      settle = resolve5;
+    const settled = new Promise((resolve6) => {
+      settle = resolve6;
     });
     const task = {
       role,
@@ -6675,7 +7480,7 @@ async function requireOperationAuthority(bus, turn) {
 }
 
 // floe-bridge/dist/runtime-core/substrate-capability-tools.js
-import { randomUUID as randomUUID3 } from "node:crypto";
+import { randomUUID as randomUUID4 } from "node:crypto";
 function failure(message, error, details = {}) {
   return {
     content: [{ type: "text", text: message }],
@@ -6722,7 +7527,7 @@ async function executeUseCapability(bus, workspaceId, turn, params) {
   }
   try {
     const authority = await requireOperationAuthority(bus, turn);
-    const idempotencyKey = typeof params?.idempotency_key === "string" && params.idempotency_key.trim() ? params.idempotency_key.trim() : `runtime:${turn.delivery_id}:${randomUUID3()}`;
+    const idempotencyKey = typeof params?.idempotency_key === "string" && params.idempotency_key.trim() ? params.idempotency_key.trim() : `runtime:${turn.delivery_id}:${randomUUID4()}`;
     const response = await bus.invokeOperation(workspaceId, authority.bearer_token, {
       operation_id: operationId,
       operation_version: operationVersion,
@@ -6939,11 +7744,11 @@ function resolvedScopeIdFromCreatePulseResult(result2) {
   return typeof scopeId === "string" && scopeId ? scopeId : void 0;
 }
 async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
-  const { readFileSync: readFileSync4, writeFileSync: writeFileSync3 } = await import("node:fs");
-  const { join: join5 } = await import("node:path");
+  const { readFileSync: readFileSync7, writeFileSync: writeFileSync5 } = await import("node:fs");
+  const { join: join8 } = await import("node:path");
   const YAML3 = (await import("./dist-BSYBXLJX.js")).default;
-  const yamlPath = join5(workspaceLocator, ".floe", "floe.yaml");
-  const doc = YAML3.parseDocument(readFileSync4(yamlPath, "utf8"));
+  const yamlPath = join8(workspaceLocator, ".floe", "floe.yaml");
+  const doc = YAML3.parseDocument(readFileSync7(yamlPath, "utf8"));
   if (!doc.get("pulses"))
     doc.set("pulses", doc.createNode([]));
   const entry = {
@@ -6957,7 +7762,7 @@ async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
   if (pulseDef.subscribers.length > 0)
     entry.subscribers = pulseDef.subscribers;
   doc.get("pulses").add(doc.createNode(entry));
-  writeFileSync3(yamlPath, doc.toString(), "utf8");
+  writeFileSync5(yamlPath, doc.toString(), "utf8");
 }
 async function executeCreatePulse(bus, turn, params) {
   if (params?.persistence !== void 0 && params.persistence !== "workspace" && params.persistence !== "local") {
@@ -7057,7 +7862,7 @@ function executeCancelPulse(bus, params) {
 }
 
 // floe-bridge/dist/runtime-core/substrate-artefact-tools.js
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 var MAX_TEXT_UNITS = 16e3;
 function failure3(message, versionId) {
@@ -7106,7 +7911,7 @@ async function executeReadArtefact(bus, turn, params) {
       for (let at = text.indexOf("\n"); at >= 0 && at < offset; at = text.indexOf("\n", at + 1))
         firstLine++;
       const page = { offset, returned_units: end - offset, total_units: text.length, first_line: firstLine, next_offset: nextOffset };
-      const digest2 = { algorithm: "sha256", value: createHash2("sha256").update(bytes).digest("hex") };
+      const digest2 = { algorithm: "sha256", value: createHash3("sha256").update(bytes).digest("hex") };
       return {
         content: [
           {
@@ -7129,15 +7934,15 @@ Continue this version with offset: ${nextOffset}.`}`
 }
 
 // floe-bridge/dist/runtime-core/worklog.js
-import { existsSync as existsSync4, mkdirSync as mkdirSync3, appendFileSync } from "node:fs";
-import { join as join3 } from "node:path";
+import { existsSync as existsSync7, mkdirSync as mkdirSync5, appendFileSync } from "node:fs";
+import { join as join6 } from "node:path";
 function appendWorkLog(workspaceLocator, entry) {
   const date = entry.started_at.slice(0, 10);
-  const dir = join3(workspaceLocator, ".floe", "agents", entry.agent_id, "worklogs");
-  if (!existsSync4(dir)) {
-    mkdirSync3(dir, { recursive: true });
+  const dir = join6(workspaceLocator, ".floe", "agents", entry.agent_id, "worklogs");
+  if (!existsSync7(dir)) {
+    mkdirSync5(dir, { recursive: true });
   }
-  const filePath = join3(dir, `${date}.md`);
+  const filePath = join6(dir, `${date}.md`);
   const markdown = renderWorkLogEntry(entry);
   appendFileSync(filePath, markdown, "utf-8");
 }
@@ -8814,6 +9619,41 @@ function tokens(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+// floe-bridge/dist/engines/copilot.js
+import { createRequire } from "node:module";
+function packagedCopilotCliPath() {
+  const require2 = createRequire(import.meta.url);
+  let launcher;
+  try {
+    launcher = require2.resolve("@github/copilot/package.json");
+  } catch {
+    return null;
+  }
+  const fromLauncher = createRequire(launcher);
+  const platforms = process.platform !== "linux" ? [process.platform] : fromLauncher("detect-libc").isNonGlibcLinuxSync() ? ["linuxmusl", "linux"] : ["linux"];
+  for (const platform of platforms) {
+    try {
+      return fromLauncher.resolve(`@github/copilot-${platform}-${process.arch}`);
+    } catch {
+    }
+  }
+  return null;
+}
+function copilotEnvironment(environment = process.env) {
+  return copilotChildEnvironment(environment);
+}
+function createCopilotAccount(options = {}) {
+  const cliPath = options.cliPath === void 0 ? packagedCopilotCliPath() : options.cliPath;
+  if (cliPath)
+    console.log(`[floe-bridge] copilot sign-in cli: ${cliPath}`);
+  else
+    console.warn("[floe-bridge] copilot sign-in cli: not found; @github/copilot for this platform is not installed");
+  return new CopilotEngineAccountAdapter({
+    environment: options.environment ?? process.env,
+    ...cliPath ? { cliPath } : {}
+  });
+}
+
 // floe-bridge/dist/adapters/floe-runtime-adapter.js
 function recordToolActivity(turn, entry) {
   const existing = entry.call_id ? turn.tool_activity.find((activity) => activity.call_id === entry.call_id) : void 0;
@@ -8844,11 +9684,15 @@ function recordToolActivity(turn, entry) {
 }
 var FloeRuntimeAdapter = class {
   name = "floe-runtime";
+  engine = "copilot";
   // floe-runtime holds no credentials; the vendor CLI authenticates itself.
   sessions = /* @__PURE__ */ new Map();
   runtimeFactory;
   constructor(options) {
-    this.runtimeFactory = options?.runtimeFactory ?? (() => new CopilotRuntime());
+    this.runtimeFactory = options?.runtimeFactory ?? (() => new CopilotRuntime({ clientOptions: { env: copilotEnvironment() } }));
+  }
+  createEngineAccount() {
+    return createCopilotAccount();
   }
   beginCancellation(session, turn) {
     if (!session.sessionId || turn.cancellation)
@@ -9141,7 +9985,7 @@ var FloeRuntimeAdapter = class {
     const threadId = contextId ?? trigger?.thread_id ?? `thread:${bundle.workspace_id}:floe-runtime`;
     const sourceEndpoint = trigger?.source_endpoint_id || `actor:${bundle.workspace_id}:operator`;
     return {
-      runtime_turn_id: `rt_${randomUUID4()}`,
+      runtime_turn_id: `rt_${randomUUID5()}`,
       delivery_id: bundle.delivery_id,
       started_at: (/* @__PURE__ */ new Date()).toISOString(),
       endpoint_id: bundle.endpoint_id,
@@ -9332,9 +10176,9 @@ var HookRegistry = class {
 };
 
 // floe-bridge/dist/folder-watcher.js
-import { createHash as createHash3 } from "node:crypto";
-import { statSync as statSync2, watch as fsWatch } from "node:fs";
-import { extname, join as join4, resolve as resolve3 } from "node:path";
+import { createHash as createHash4 } from "node:crypto";
+import { statSync as statSync3, watch as fsWatch } from "node:fs";
+import { extname, join as join7, resolve as resolve4 } from "node:path";
 function watchFolder(folderPath, onFile, options = {}) {
   let watcher;
   const settleMs = Math.max(0, options.settle_ms ?? 250);
@@ -9350,13 +10194,13 @@ function watchFolder(folderPath, onFile, options = {}) {
       return;
     let stat;
     try {
-      stat = statSync2(filePath);
+      stat = statSync3(filePath);
     } catch {
       return;
     }
     if (!stat.isFile())
       return;
-    const arrivalId = createHash3("sha256").update(`${resolve3(filePath).toLowerCase()}\0${stat.size}\0${stat.mtimeMs}`).digest("hex");
+    const arrivalId = createHash4("sha256").update(`${resolve4(filePath).toLowerCase()}\0${stat.size}\0${stat.mtimeMs}`).digest("hex");
     if (lastArrivalByPath.get(filePath) === arrivalId)
       return;
     lastArrivalByPath.set(filePath, arrivalId);
@@ -9372,7 +10216,7 @@ function watchFolder(folderPath, onFile, options = {}) {
       if (!filename)
         return;
       const fileName = filename.toString();
-      const filePath = join4(folderPath, fileName);
+      const filePath = join7(folderPath, fileName);
       const existing = pending.get(filePath);
       if (existing)
         clearTimeout(existing);
@@ -9495,7 +10339,7 @@ function fail(reason) {
 }
 
 // floe-bridge/dist/workspace-config-inventory.js
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 import { isAbsolute as isAbsolute3 } from "node:path";
 var WorkspaceConfigurationInventoryError = class extends Error {
   reason;
@@ -9745,7 +10589,7 @@ function assertSafeJson(value, path2) {
   }
 }
 function sha256(value) {
-  return `sha256:${createHash4("sha256").update(value, "utf8").digest("hex")}`;
+  return `sha256:${createHash5("sha256").update(value, "utf8").digest("hex")}`;
 }
 function canonicalJson(value) {
   if (Array.isArray(value))
@@ -9766,7 +10610,11 @@ var BridgeDaemon = class {
   bridgeId;
   bus;
   adapter;
+  /** Engine readiness: gates work, and is served to surfaces by the process entry (index.ts). */
+  engines;
   #bridgeServiceToken;
+  /** Endpoints whose work is held until their engine is ready, keyed to that engine. */
+  heldForEngine = /* @__PURE__ */ new Map();
   endpointRuntime = /* @__PURE__ */ new Map();
   workspaceLocators = /* @__PURE__ */ new Map();
   workspaceHooks = /* @__PURE__ */ new Map();
@@ -9804,6 +10652,12 @@ var BridgeDaemon = class {
       this.bus.markAuthorityUnavailable("insecure_transport");
     }
     this.adapter = chooseAdapter(configPath, config);
+    const accounts = /* @__PURE__ */ new Map();
+    if (this.adapter.engine && this.adapter.createEngineAccount) {
+      accounts.set(this.adapter.engine, this.adapter.createEngineAccount());
+    }
+    this.engines = options.engines ?? new EngineControl(accounts, thisInstallation().version, (line, detail) => console.log(`[floe-bridge] ${line}`, detail ?? ""));
+    this.engines.onReady((engine) => this.releaseHeldWork(engine));
   }
   get transportAuthorityState() {
     return this.bus.authorityState;
@@ -9841,6 +10695,7 @@ var BridgeDaemon = class {
         stop();
     }
     this.workspaceWatchers.clear();
+    await this.engines.close();
     await this.adapter.dispose?.("bridge_shutdown");
   }
   async waitForBus() {
@@ -10166,8 +11021,8 @@ var BridgeDaemon = class {
       return;
     const workspaceId = String(workspace.workspace_id);
     const bindingId = String(binding.binding_id);
-    const locator = resolve4(String(binding.locator));
-    if (!this.config.bridge.workspace_access.local_paths || !existsSync5(locator)) {
+    const locator = resolve5(String(binding.locator));
+    if (!this.config.bridge.workspace_access.local_paths || !existsSync8(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -10211,7 +11066,7 @@ var BridgeDaemon = class {
           workspace_id: workspaceId,
           name: runtime.name,
           agent_id: runtime.agent_id,
-          status: runtime.runtime_status === "resolved" ? "idle" : "runtime_unconfigured",
+          status: runtime.runtime_status === "resolved" && !this.heldForEngine.has(runtime.endpoint_id) ? "idle" : "runtime_unconfigured",
           metadata: {
             runtime_adapter: runtime.adapter_id,
             actor_definition_revision_id: runtime.actor_definition_revision_id,
@@ -10271,15 +11126,15 @@ var BridgeDaemon = class {
       const watcherStops = [];
       const startedWatchers = /* @__PURE__ */ new Set();
       const startWatcher = (watcherDef) => {
-        const watchPath = resolve4(locator, watcherDef.path);
-        const workspaceRelative = relative2(locator, watchPath);
+        const watchPath = resolve5(locator, watcherDef.path);
+        const workspaceRelative = relative3(locator, watchPath);
         const watcherKey = `${watcherDef.graph_id}:${watcherDef.node_id}:${watchPath}`;
         if (workspaceRelative.startsWith("..") || isAbsolute4(workspaceRelative)) {
           console.error("[bridge] watcher path escapes workspace \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           return;
         }
-        if (!existsSync5(watchPath) || startedWatchers.has(watcherKey)) {
-          if (!existsSync5(watchPath)) {
+        if (!existsSync8(watchPath) || startedWatchers.has(watcherKey)) {
+          if (!existsSync8(watchPath)) {
             console.error("[bridge] watcher path does not exist \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           }
           return;
@@ -10340,15 +11195,15 @@ var BridgeDaemon = class {
       });
     }
   }
-  async reportOnce(workspaceId, bindingId, status, errorCode, configHash, validation) {
-    const key = JSON.stringify({ bindingId, status, errorCode, configHash, validation });
+  async reportOnce(workspaceId, bindingId, status, errorCode2, configHash, validation) {
+    const key = JSON.stringify({ bindingId, status, errorCode: errorCode2, configHash, validation });
     if (this.reportedAttachments.get(workspaceId) === key)
       return;
     await this.bus.reportAttachment(workspaceId, {
       binding_id: bindingId,
       status,
       config_hash: configHash,
-      error_code: errorCode,
+      error_code: errorCode2,
       validation
     });
     this.reportedAttachments.set(workspaceId, key);
@@ -10362,8 +11217,8 @@ var BridgeDaemon = class {
     if (!binding?.binding_id || !binding.locator)
       return;
     const bindingId = String(binding.binding_id);
-    const locator = resolve4(String(binding.locator));
-    if (!existsSync5(locator))
+    const locator = resolve5(String(binding.locator));
+    if (!existsSync8(locator))
       return;
     const project = loadProject(locator);
     await this.importProjectConfiguration(workspaceId, bindingId, project);
@@ -10377,8 +11232,8 @@ var BridgeDaemon = class {
     if (!binding?.binding_id || !binding.locator)
       return;
     const bindingId = String(binding.binding_id);
-    const locator = resolve4(String(binding.locator));
-    if (!existsSync5(locator)) {
+    const locator = resolve5(String(binding.locator));
+    if (!existsSync8(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -10456,6 +11311,8 @@ var BridgeDaemon = class {
       await this.reportTurnEndSafely(delivery.endpoint_id);
       return;
     }
+    if (this.adapter.engine && !await this.engineAdmits(delivery, this.adapter.engine))
+      return;
     console.log("[bridge] delivery claimed", {
       delivery_id: delivery.delivery_id,
       endpoint_id: delivery.endpoint_id,
@@ -10565,6 +11422,8 @@ var BridgeDaemon = class {
         return;
       }
       if (error instanceof TurnFailedError) {
+        if (this.adapter.engine)
+          void this.engines.recheck(this.adapter.engine);
         console.log("[bridge] turn failed", {
           delivery_id: error.delivery_id,
           source_endpoint_id: error.source_endpoint_id,
@@ -10657,6 +11516,66 @@ var BridgeDaemon = class {
       });
     }
   }
+  /**
+   * Work runs only on a ready engine. Otherwise the delivery is handed back to
+   * the Bus unstarted: its events stay queued, durably, and the Actor stays
+   * paused until the engine becomes ready (releaseHeldWork) or the Bridge
+   * restarts and re-registers it.
+   */
+  async engineAdmits(delivery, engine) {
+    let state;
+    try {
+      state = await this.engines.gate(engine);
+    } catch (error) {
+      state = {
+        engine,
+        phase: "unavailable",
+        authentication: "unknown",
+        access: "unknown",
+        reachability: "unknown",
+        action: "retry",
+        revision: 0,
+        checked_at: (/* @__PURE__ */ new Date()).toISOString(),
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+    if (state.phase === "ready")
+      return true;
+    this.heldForEngine.set(delivery.endpoint_id, engine);
+    console.log("[bridge] delivery held until engine is ready", {
+      delivery_id: delivery.delivery_id,
+      endpoint_id: delivery.endpoint_id,
+      engine,
+      phase: state.phase
+    });
+    try {
+      await this.bus.appendRuntimeTelemetry({
+        workspace_id: delivery.workspace_id,
+        endpoint_id: delivery.endpoint_id,
+        delivery_id: delivery.delivery_id,
+        kind: "engine_not_ready",
+        payload: { code: "engine_not_ready", engine, phase: state.phase, action: state.action, message: state.message }
+      });
+      await this.bus.reportDeliveryStatus(delivery.delivery_id, "deferred", `engine_not_ready: ${state.message}`);
+    } catch (error) {
+      console.error("[bridge] engine hold report failed", {
+        delivery_id: delivery.delivery_id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    if (this.engines.state().engines[engine]?.phase === "ready")
+      this.releaseHeldWork(engine);
+    return false;
+  }
+  releaseHeldWork(engine) {
+    for (const [endpointId, heldEngine] of this.heldForEngine) {
+      if (heldEngine !== engine)
+        continue;
+      this.heldForEngine.delete(endpointId);
+      console.log("[bridge] engine ready; releasing held work", { endpoint_id: endpointId, engine });
+      void this.updateEndpointStatusSafely(endpointId, "idle");
+    }
+  }
   async resolveAuthProfile(workspaceId, endpointId, runtimeConfig) {
     const bindings = await this.bus.resolveRuntimeBinding(workspaceId, endpointId);
     if (bindings.endpoint_auth_profile) {
@@ -10743,7 +11662,7 @@ function actorEndpointId(workspaceId, agentId) {
   return `actor:${workspaceId}:${agentId}`;
 }
 function sleep(ms) {
-  return new Promise((resolve5) => setTimeout(resolve5, ms));
+  return new Promise((resolve6) => setTimeout(resolve6, ms));
 }
 function extractRuntimeConfig(frontmatter) {
   const runtime = frontmatter.runtime ?? {};
@@ -10770,9 +11689,15 @@ async function main() {
   }
   const { configPath, config } = ensureConfig(getArgValue("--config"));
   const daemon = new BridgeDaemon(configPath, config);
+  const engineChannel = await serveChannel(ENGINES_CHANNEL, daemon.engines, {
+    home: canonicalHome(resolveLocalPath(configPath, config.home, ".")),
+    log: (line) => console.log(`[floe-bridge] engine control ${line}`)
+  });
+  daemon.engines.start();
+  const stop = () => void daemon.stop().finally(() => engineChannel.close()).finally(() => process.exit(0));
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
   await daemon.start();
-  process.on("SIGINT", () => void daemon.stop().finally(() => process.exit(0)));
-  process.on("SIGTERM", () => void daemon.stop().finally(() => process.exit(0)));
 }
 main().catch((error) => {
   console.error(error);

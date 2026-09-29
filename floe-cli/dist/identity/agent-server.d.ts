@@ -1,12 +1,11 @@
-import { type IdentityAgent } from "./agent.js";
-export type AgentServer = {
-    address: string;
-    close(): Promise<void>;
-};
-export declare class AgentAddressInUseError extends Error {
-    readonly address: string;
-    constructor(address: string);
-}
+/**
+ * Carries the identity agent over its local channel. The listening, mutual
+ * proof and relay are the shared Floe local channel (../local-channel/server.ts).
+ */
+import type { IdentityAgent } from "./agent.js";
+import { ChannelAddressInUseError, type ChannelServer } from "../local-channel/server.js";
+export type AgentServer = ChannelServer;
+export { ChannelAddressInUseError as AgentAddressInUseError };
 export declare function serveAgent(agent: IdentityAgent, options: {
     home: string;
     log?: (line: string) => void;
