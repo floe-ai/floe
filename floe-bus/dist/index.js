@@ -100295,12 +100295,14 @@ var stopExecutionResultSchema = {
 var executionControlResultSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["execution", "pause_id", "node_execution_ids", "delivery_ids"],
+  required: ["execution", "pause_id", "node_execution_ids", "delivery_ids", "active_delivery_ids", "deadline_at"],
   properties: {
     execution: scopeExecutionSchema,
     pause_id: nonEmptyString6,
     node_execution_ids: stringArray3,
-    delivery_ids: stringArray3
+    delivery_ids: stringArray3,
+    active_delivery_ids: stringArray3,
+    deadline_at: nonEmptyString6
   }
 };
 var executionAttemptSchema = {
