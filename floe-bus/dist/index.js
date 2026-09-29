@@ -39408,7 +39408,7 @@ var require_parse_url = __commonJS({
 var require_form_data = __commonJS({
   "node_modules/light-my-request/lib/form-data.js"(exports, module) {
     "use strict";
-    var { randomUUID: randomUUID40 } = __require("node:crypto");
+    var { randomUUID: randomUUID41 } = __require("node:crypto");
     var { Readable } = __require("node:stream");
     var textEncoder;
     function isFormDataLike(payload) {
@@ -39416,7 +39416,7 @@ var require_form_data = __commonJS({
     }
     function formDataToStream(formdata) {
       textEncoder = textEncoder ?? new TextEncoder();
-      const boundary = `----formdata-${randomUUID40()}`;
+      const boundary = `----formdata-${randomUUID41()}`;
       const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
       const escape2 = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
@@ -63039,7 +63039,7 @@ function parseListen(value) {
 var import_fastify = __toESM(require_fastify(), 1);
 var import_cors = __toESM(require_cors(), 1);
 var import_websocket = __toESM(require_websocket2(), 1);
-import { createHash as createHash36, randomUUID as randomUUID39 } from "node:crypto";
+import { createHash as createHash36, randomUUID as randomUUID40 } from "node:crypto";
 import { mkdirSync as mkdirSync9, readFileSync as readFileSync9, statSync as statSync6, writeFileSync as writeFileSync7 } from "node:fs";
 import { dirname as dirname10, extname as extname2 } from "node:path";
 
@@ -63047,7 +63047,7 @@ import { dirname as dirname10, extname as extname2 } from "node:path";
 var import_cron_parser = __toESM(require_dist6(), 1);
 import { existsSync as existsSync9, mkdirSync as mkdirSync7, readFileSync as readFileSync6, renameSync as renameSync2, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
 import { dirname as dirname7, join as join8, parse, resolve as resolve6 } from "node:path";
-import { randomUUID as randomUUID38, createHash as createHash35 } from "node:crypto";
+import { randomUUID as randomUUID39, createHash as createHash35 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -68096,6 +68096,9 @@ function runtimeCredentialAccessOperations(deps) {
   });
 }
 
+// floe-bus/dist/actor-definition-operations.js
+import { randomUUID as randomUUID8 } from "node:crypto";
+
 // floe-bus/dist/actor-definitions.js
 import { createHash as createHash7, randomUUID as randomUUID7 } from "node:crypto";
 var ActorNotFoundError = class extends Error {
@@ -68151,6 +68154,19 @@ var ActorDefinitionDraftConflictError = class extends Error {
     this.name = "ActorDefinitionDraftConflictError";
   }
 };
+function workspaceActorId(workspaceId4, name) {
+  nonEmpty("workspace_id", workspaceId4);
+  nonEmpty("name", name);
+  return `actor:${workspaceId4}:${name}`;
+}
+function workspaceActorName(workspaceId4, nameOrId) {
+  const prefix = `actor:${workspaceId4}:`;
+  const name = nameOrId.startsWith(prefix) ? nameOrId.slice(prefix.length) : nameOrId;
+  if (!name || name.includes(":")) {
+    throw new ActorDefinitionValidationError(`Actor name '${nameOrId}' must be a short name without ':' (or an ID in this Workspace, ${prefix}<name>)`);
+  }
+  return name;
+}
 function actorDefinitionDigest(content) {
   validateActorDefinition(content);
   return createHash7("sha256").update(canonicalJson3(content)).digest("hex");
@@ -69031,7 +69047,10 @@ var createActorInputSchema = {
   additionalProperties: false,
   required: ["definition"],
   properties: {
-    actor_id: nonEmptyString,
+    actor_id: {
+      ...nonEmptyString,
+      description: "Optional short name, unique in this Workspace, such as 'greeter'. The Actor's ID, and the address it receives work at, become actor:<workspace_id>:<name>."
+    },
     definition: ACTOR_DEFINITION_CONTENT_SCHEMA,
     engine_tool_operation_ids: {
       type: "array",
@@ -69239,7 +69258,7 @@ function createActorOperation(store, grants) {
     authority_boundary_kinds: ["workspace"],
     category: "actors",
     title: "Create Actor",
-    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits.",
+    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits. It cannot receive work until you publish its definition (actor.definition.publish) and bind it to a runtime (actor.runtime-binding.create).",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [CREATE_ACTOR_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -69249,13 +69268,22 @@ function createActorOperation(store, grants) {
     handler: (context, input) => handle2(() => {
       store.db.exec("SAVEPOINT create_actor");
       try {
+        const workspaceId4 = authorityWorkspaceId(context);
+        const actorId = workspaceActorId(workspaceId4, input.actor_id ? workspaceActorName(workspaceId4, input.actor_id) : `actor_${randomUUID8()}`);
+        if (store.getActor(actorId)) {
+          store.db.exec("RELEASE create_actor");
+          return {
+            state: "refused",
+            refusal: refusal("actor_name_taken", `An Actor named ${JSON.stringify(workspaceActorName(workspaceId4, actorId))} already exists in this Workspace (${actorId}).`, false, requiredAction("choose_actor_name", "Choose another name", "Create the Actor with a name no other Actor in this Workspace uses, or revise the existing Actor instead."))
+          };
+        }
         const created = store.createActor({
-          workspace_id: authorityWorkspaceId(context),
+          workspace_id: workspaceId4,
           created_in_context_id: actorCreationContextId(store, context),
           created_in_scope_execution_id: context.provenance.scope_execution_id,
           created_by_principal_id: context.authority.principal_id,
           definition: input.definition,
-          ...input.actor_id ? { actor_id: input.actor_id } : {}
+          actor_id: actorId
         });
         const { draft, tool_access } = passOnEngineToolAccess({
           grants,
@@ -69377,7 +69405,7 @@ function publishActorDefinitionOperation(store) {
     authority_boundary_kinds: ["workspace"],
     category: "actors",
     title: "Publish Actor definition",
-    description: "Make one draft the Actor's current definition while retaining every published revision.",
+    description: "Make one draft the Actor's current definition while retaining every published revision. A newly created Actor also needs a runtime binding (actor.runtime-binding.create) before it can receive work.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [PUBLISH_ACTOR_DEFINITION_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -70080,7 +70108,7 @@ function sortedUnique(values) {
 }
 
 // floe-bus/dist/workspace-access.js
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import path2 from "node:path";
 var HOME_FOLDER_ID = "home";
@@ -70201,7 +70229,7 @@ var WorkspaceAccessStore = class {
     }
     const at = this.now();
     this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
-      VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID8()}`, input.workspace_id, this.dependencies.host_id, locator, at, input.principal_id);
+      VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID9()}`, input.workspace_id, this.dependencies.host_id, locator, at, input.principal_id);
     this.record(input.workspace_id, "folder_added", `Added the folder ${locator}.`, locator, input.principal_id, at);
     return this.inspect(input.workspace_id);
   }
@@ -70243,7 +70271,7 @@ var WorkspaceAccessStore = class {
       return;
     for (const folder of folders) {
       this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID8()}`, input.workspace_id, host, folder.locator, folder.added_at, folder.added_by_principal_id);
+        VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID9()}`, input.workspace_id, host, folder.locator, folder.added_at, folder.added_by_principal_id);
     }
     if (system) {
       this.db.prepare(`INSERT INTO workspace_system_access (workspace_id, host_id, enabled, changed_at, changed_by_principal_id)
@@ -70337,7 +70365,7 @@ var WorkspaceAccessStore = class {
   }
   record(workspaceId4, kind, summary2, recordPath, principalId, at) {
     this.db.prepare(`INSERT INTO workspace_access_records
-      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID8()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
+      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID9()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
   }
 };
 function carriedSummary(how, folders, systemAccess) {
@@ -70537,8 +70565,8 @@ var EndpointWatermarkStore = class {
 };
 
 // floe-bus/dist/contexts/resolver.js
-import { randomUUID as randomUUID9 } from "node:crypto";
-var newContextId = () => `ctx_${randomUUID9()}`;
+import { randomUUID as randomUUID10 } from "node:crypto";
+var newContextId = () => `ctx_${randomUUID10()}`;
 var destinationEndpoint = (destination) => destination.kind === "endpoint" ? destination.endpoint_id : null;
 function rejection(context_id, source_endpoint_id, ctxStore) {
   return { error: "E_NOT_CONTEXT_PARTICIPANT", payload: { code: "E_NOT_CONTEXT_PARTICIPANT", message: `E_NOT_CONTEXT_PARTICIPANT: source endpoint ${source_endpoint_id} is not a participant of context ${context_id}.`, context_id, source_endpoint_id, available_contexts: ctxStore.listContextsForParticipant(source_endpoint_id).slice(0, 10).map((c) => ({ context_id: c.context_id, participants: c.participants, topic: c.topic ?? null })), recovery: ["Omit context_id to open a new context with {source, destination}.", "Pass a context_id from available_contexts where the source is already a participant.", "If the destination is in the current delivery context, omit context_id to continue it."] } };
@@ -70558,7 +70586,7 @@ function resolveContext(input, ctxStore) {
 }
 
 // floe-bus/dist/scopes/store.js
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 var RESERVED_DEFAULT_SCOPE_ID = "default";
 var ScopeAlreadyExistsError = class extends Error {
   workspace_id;
@@ -70654,7 +70682,7 @@ var ScopeStore = class {
     return row ? this.rowToScope(row) : null;
   }
   createScope(input) {
-    const scopeId = input.scope_id ?? `scope_${randomUUID10()}`;
+    const scopeId = input.scope_id ?? `scope_${randomUUID11()}`;
     if (scopeId === RESERVED_DEFAULT_SCOPE_ID) {
       throw new ScopeReservedIdError(input.workspace_id, scopeId);
     }
@@ -70715,7 +70743,7 @@ var ScopeStore = class {
 };
 
 // floe-bus/dist/scope-graphs.js
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 var ScopeGraphNotFoundError = class extends Error {
   workspace_id;
   graph_id;
@@ -70842,7 +70870,7 @@ var ScopeGraphStore = class {
   }
   insertScopeGraph(input) {
     validateScopeGraphNodes(input.nodes);
-    const graphId = `graph_${randomUUID11()}`;
+    const graphId = `graph_${randomUUID12()}`;
     const timestamp2 = nowIso3();
     this.db.prepare(`
       INSERT INTO scope_graphs (
@@ -70875,7 +70903,7 @@ var ScopeGraphStore = class {
 };
 
 // floe-bus/dist/scope-compositions.js
-import { createHash as createHash10, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash10, randomUUID as randomUUID13 } from "node:crypto";
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -71380,7 +71408,7 @@ var ScopeCompositionStore = class {
   createDraft(input) {
     const routingMode = input.routing_mode ?? "edge";
     validateScopeComposition(input.content, routingMode);
-    const revisionId = input.revision_id ?? `revision_${randomUUID12()}`;
+    const revisionId = input.revision_id ?? `revision_${randomUUID13()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM scope_composition_revisions
@@ -71706,7 +71734,7 @@ var ScopeCompositionStore = class {
 };
 
 // floe-bus/dist/scope-executions.js
-import { randomUUID as randomUUID13 } from "node:crypto";
+import { randomUUID as randomUUID14 } from "node:crypto";
 var ScopeExecutionReferenceError = class extends Error {
   reason;
   code = "E_SCOPE_EXECUTION_REFERENCE_UNAVAILABLE";
@@ -72065,7 +72093,7 @@ var ScopeExecutionStore = class {
       if (existing)
         return this.rowToScopeExecution(existing);
     }
-    const id = `execution_${randomUUID13()}`;
+    const id = `execution_${randomUUID14()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_executions (
@@ -72214,7 +72242,7 @@ var ScopeExecutionStore = class {
           WHERE scope_execution_id = ? AND state IN ('held', 'queued')
           ORDER BY created_at, queue_id
         `).all(execution.execution_id) : [];
-    const pauseId = `pause_${randomUUID13()}`;
+    const pauseId = `pause_${randomUUID14()}`;
     const timestamp2 = nowIso5();
     const deadlineAt = new Date(Date.parse(timestamp2) + Math.max(1, input.deadline_ms ?? 1e4)).toISOString();
     this.transaction(() => {
@@ -72477,7 +72505,7 @@ var ScopeExecutionStore = class {
     if (placement.kind === "actor" && input.assigned_actor_ids && (input.assigned_actor_ids.length !== 1 || input.assigned_actor_ids[0] !== placement.resource_id)) {
       throw new ScopeExecutionReferenceError(`Actor assignment for node '${input.node_id}' does not match its published placement`);
     }
-    const id = `node_execution_${randomUUID13()}`;
+    const id = `node_execution_${randomUUID14()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "collecting";
     this.transaction(() => {
@@ -72563,7 +72591,7 @@ var ScopeExecutionStore = class {
       `).run(json2(input.reason ?? { code: "input_replaced" }), input.supersedes_input_id);
     }
     const record = {
-      input_id: `input_${randomUUID13()}`,
+      input_id: `input_${randomUUID14()}`,
       accepted_at: nowIso5()
     };
     this.db.prepare(`
@@ -72611,7 +72639,7 @@ var ScopeExecutionStore = class {
         if (existing)
           continue;
         const timestamp2 = nowIso5();
-        insert.run(`expectation_${randomUUID13()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
+        insert.run(`expectation_${randomUUID14()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
       }
     }
   }
@@ -72645,7 +72673,7 @@ var ScopeExecutionStore = class {
       keys.add(member.member_key);
     }
     const timestamp2 = nowIso5();
-    const membershipId = `membership_${randomUUID13()}`;
+    const membershipId = `membership_${randomUUID14()}`;
     this.db.prepare(`
       INSERT INTO node_execution_expected_memberships (
         membership_id, node_execution_id, collection_port_id, member_port_id,
@@ -72661,7 +72689,7 @@ var ScopeExecutionStore = class {
       ) VALUES (?, ?, ?, 'collection_member', ?, ?, ?, ?, ?, 'expected', '{}', ?, ?)
     `);
     for (const member of [...input.members].sort((left, right) => left.member_key.localeCompare(right.member_key))) {
-      insert.run(`expectation_${randomUUID13()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
+      insert.run(`expectation_${randomUUID14()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
     }
     return this.rowToExpectedMembership(this.db.prepare(`SELECT * FROM node_execution_expected_memberships WHERE membership_id = ?`).get(membershipId));
   }
@@ -72770,7 +72798,7 @@ var ScopeExecutionStore = class {
     const ordinal = Number(this.db.prepare(`
       SELECT COALESCE(MAX(ordinal), 0) + 1 AS next FROM execution_attempts WHERE node_execution_id = ?
     `).get(input.node_execution_id).next);
-    const id = `attempt_${randomUUID13()}`;
+    const id = `attempt_${randomUUID14()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "running";
     this.db.prepare(`
@@ -72876,7 +72904,7 @@ var ScopeExecutionStore = class {
     const existing = this.getPublicationByIdempotencyKey(input.idempotency_key);
     if (existing)
       return existing;
-    const id = `publication_${randomUUID13()}`;
+    const id = `publication_${randomUUID14()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_output_publications (
@@ -72898,7 +72926,7 @@ var ScopeExecutionStore = class {
       INSERT OR IGNORE INTO scope_edge_traversals (
         traversal_id, publication_id, edge_id, delivery_id, target_node_execution_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`traversal_${randomUUID13()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
+    `).run(`traversal_${randomUUID14()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
   }
   rowToScopeExecution(row) {
     return {
@@ -73179,7 +73207,7 @@ var ScopeExecutionStore = class {
       WHERE pause_id = ? AND delivery_id IS NOT NULL ORDER BY delivery_id
     `).all(pauseId).map((row) => row.delivery_id);
     const pause = this.db.prepare(`
-      SELECT COALESCE(deadline_at, paused_at) AS deadline_at
+      SELECT paused_at AS requested_at, COALESCE(deadline_at, paused_at) AS deadline_at
       FROM scope_execution_pauses WHERE pause_id = ?
     `).get(pauseId);
     return {
@@ -73188,6 +73216,7 @@ var ScopeExecutionStore = class {
       node_execution_ids: nodeIds,
       delivery_ids: deliveryIds,
       active_delivery_ids: activeDeliveryIds,
+      requested_at: pause.requested_at,
       deadline_at: pause.deadline_at
     };
   }
@@ -73654,7 +73683,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
 }
 
 // floe-bus/dist/artefacts.js
-import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
 var SHA256_RE = /^[a-fA-F0-9]{64}$/;
 var EXTENSION_NAMESPACE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 var EXTENSION_LINEAGE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -74062,7 +74091,7 @@ var ArtefactStore = class {
         }
         return this.rowToArtefact(existing);
       }
-      const artefactId = requestedId ?? `artefact_${randomUUID14()}`;
+      const artefactId = requestedId ?? `artefact_${randomUUID15()}`;
       const conflictingId = this.getArtefact(artefactId);
       if (conflictingId)
         throw new ArtefactValidationError(`artefact_id '${artefactId}' already exists`);
@@ -74124,7 +74153,7 @@ var ArtefactStore = class {
         const version = this.requireVersion(member.member_version_id);
         this.requireSameWorkspace(artefact.workspace_id, version, `collection member '${version.artefact_version_id}'`);
       }
-      const versionId = requestedVersionId ?? `artefact_version_${randomUUID14()}`;
+      const versionId = requestedVersionId ?? `artefact_version_${randomUUID15()}`;
       if (this.getVersion(versionId))
         throw new ArtefactValidationError(`artefact_version_id '${versionId}' already exists`);
       if (lineage.some((relation2) => relation2.object_version_id === versionId)) {
@@ -74150,7 +74179,7 @@ var ArtefactStore = class {
         ) VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const relation2 of lineage) {
-        insertLineage.run(`lineage_${randomUUID14()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
+        insertLineage.run(`lineage_${randomUUID15()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
       }
       const insertMember = this.db.prepare(`
         INSERT INTO artefact_collection_members (
@@ -74252,7 +74281,7 @@ var ArtefactStore = class {
           throw new ArtefactWorkspaceMismatchError("legacy import target is not the requested workspace and Artefact");
         }
       }
-      const id = `legacy_import_${randomUUID14()}`;
+      const id = `legacy_import_${randomUUID15()}`;
       const timestamp2 = nowIso6();
       this.db.prepare(`
         INSERT INTO legacy_artefact_import_evidence (
@@ -74502,7 +74531,7 @@ var ArtefactStore = class {
     `).get(input.artefact_version_id, input.target_kind, input.target_id, input.role);
     if (existingFact)
       return this.rowToAssociation(existingFact);
-    const id = `artefact_association_${randomUUID14()}`;
+    const id = `artefact_association_${randomUUID15()}`;
     this.db.prepare(`
       INSERT INTO artefact_associations (
         association_id, artefact_version_id, target_kind, target_id, role,
@@ -74530,7 +74559,7 @@ var ArtefactStore = class {
       }
       return this.rowToAnnotation(existing);
     }
-    const id = `artefact_annotation_${randomUUID14()}`;
+    const id = `artefact_annotation_${randomUUID15()}`;
     this.db.prepare(`
       INSERT INTO artefact_annotations (
         annotation_id, artefact_version_id, namespace, annotation_key,
@@ -74628,7 +74657,7 @@ var ArtefactStore = class {
     };
   }
   transaction(fn) {
-    const savepoint = `artefact_${randomUUID14().replace(/-/g, "")}`;
+    const savepoint = `artefact_${randomUUID15().replace(/-/g, "")}`;
     this.db.exec(`SAVEPOINT ${savepoint}`);
     try {
       const result = fn();
@@ -74855,7 +74884,7 @@ var MEDIA_TYPE_BY_EXTENSION = /* @__PURE__ */ new Map([
 ]);
 
 // floe-bus/dist/command-definitions.js
-import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
 var CommandDefinitionValidationError = class extends Error {
   reason;
   code = "E_COMMAND_DEFINITION_INVALID";
@@ -75021,7 +75050,7 @@ var CommandDefinitionStore = class {
     validateOwner(input.owner);
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const commandId = input.command_id ?? `command_${randomUUID15()}`;
+    const commandId = input.command_id ?? `command_${randomUUID16()}`;
     nonEmpty2("command_id", commandId);
     const at = this.now();
     let draft;
@@ -75184,7 +75213,7 @@ var CommandDefinitionStore = class {
   insertDraft(input) {
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const revisionId = `command_definition_${randomUUID15()}`;
+    const revisionId = `command_definition_${randomUUID16()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM command_definition_revisions WHERE command_id = ?
@@ -75229,7 +75258,7 @@ var CommandDefinitionStore = class {
         head_change_id, command_id, owner_kind, owner_id, from_revision_id,
         to_revision_id, reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`command_head_change_${randomUUID15()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+    `).run(`command_head_change_${randomUUID16()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
 };
 function rowToCommand(row) {
@@ -75322,7 +75351,7 @@ function canonicalJson6(value) {
   return JSON.stringify(value);
 }
 function transaction2(db, action) {
-  const savepoint = `command_definition_change_${randomUUID15().replaceAll("-", "")}`;
+  const savepoint = `command_definition_change_${randomUUID16().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${savepoint}`);
   try {
     const result = action();
@@ -76250,7 +76279,7 @@ function sha256(value) {
 }
 
 // floe-bus/dist/isolated-command-host.js
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 import { spawn } from "node:child_process";
 import { dirname as dirname3 } from "node:path";
 var CommandRuntimeHostError = class extends Error {
@@ -76275,7 +76304,7 @@ var IsolatedCoreCommandProcessHost = class {
     if (ref.kind !== "core_command_implementation" || !ref.revision) {
       return Promise.reject(new CommandRuntimeHostError("command_implementation_unavailable", "The Command does not reference an exact core implementation."));
     }
-    const requestId = `command_host_request_${randomUUID16()}`;
+    const requestId = `command_host_request_${randomUUID17()}`;
     const child = spawn(process.execPath, [
       "--permission",
       `--allow-fs-read=${dirname3(this.scriptPath)}`,
@@ -76919,7 +76948,7 @@ function resolveActorRoleAuthorityResource(store, workspaceId4, target) {
 }
 
 // floe-bus/dist/runtime-profiles.js
-import { createHash as createHash16, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID18 } from "node:crypto";
 var CLIENT_ADAPTER_ID = "client";
 var RuntimeProfileValidationError = class extends Error {
   reason;
@@ -77084,7 +77113,7 @@ var RuntimeProfileStore = class {
     validateOwner2(input.owner);
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID17()}`;
+    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID18()}`;
     nonEmpty3("runtime_profile_id", profileId);
     const at = this.now();
     let draft;
@@ -77226,7 +77255,7 @@ var RuntimeProfileStore = class {
     }
     const profile = this.requireProfile(revision.runtime_profile_id);
     const at = this.now();
-    const bindingId = `actor_runtime_binding_${randomUUID17()}`;
+    const bindingId = `actor_runtime_binding_${randomUUID18()}`;
     transaction3(this.db, () => {
       if (current) {
         this.db.prepare(`
@@ -77313,7 +77342,7 @@ var RuntimeProfileStore = class {
   insertDraft(input) {
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const revisionId = `runtime_profile_revision_${randomUUID17()}`;
+    const revisionId = `runtime_profile_revision_${randomUUID18()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM runtime_profile_revisions WHERE runtime_profile_id = ?
@@ -77340,7 +77369,7 @@ var RuntimeProfileStore = class {
         head_change_id, runtime_profile_id, from_revision_id, to_revision_id,
         reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(`runtime_profile_head_change_${randomUUID17()}`, change2.runtime_profile_id, change2.from_revision_id, change2.to_revision_id, change2.reason, change2.changed_by_principal_id, change2.changed_at);
+    `).run(`runtime_profile_head_change_${randomUUID18()}`, change2.runtime_profile_id, change2.from_revision_id, change2.to_revision_id, change2.reason, change2.changed_by_principal_id, change2.changed_at);
   }
 };
 function rowToProfile(row) {
@@ -77468,7 +77497,7 @@ function transaction3(db, action) {
 }
 
 // floe-bus/dist/connectors.js
-import { createHash as createHash17, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID19 } from "node:crypto";
 var ConnectorValidationError = class extends Error {
   reason;
   code = "E_CONNECTOR_INVALID";
@@ -77744,9 +77773,9 @@ var ConnectorStore = class {
   createDefinition(input) {
     const owner = normalizeOwner(input.owner);
     validateConnectorDefinition(input.content);
-    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID18()}`, "connector_definition_id");
+    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID19()}`, "connector_definition_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID18()}`;
+    const revisionId = `connector_definition_revision_${randomUUID19()}`;
     const at = this.now();
     const digest11 = connectorDefinitionDigest(input.content);
     transaction4(this.db, "connector_definition_create", () => {
@@ -77780,7 +77809,7 @@ var ConnectorStore = class {
     }
     validateConnectorDefinition(input.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID18()}`;
+    const revisionId = `connector_definition_revision_${randomUUID19()}`;
     const nextOrdinal = this.nextOrdinal("connector_definition_revisions", "connector_definition_id", definition2.connector_definition_id);
     const at = this.now();
     transaction4(this.db, "connector_definition_revise", () => {
@@ -77823,9 +77852,9 @@ var ConnectorStore = class {
     if (definition2.status !== "active")
       throw new ConnectorValidationError("a retired ConnectorDefinition cannot receive a new binding");
     validateConnectorBinding(input.content, definitionRevision.content);
-    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID18()}`, "connector_binding_id");
+    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID19()}`, "connector_binding_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID18()}`;
+    const revisionId = `connector_binding_revision_${randomUUID19()}`;
     const at = this.now();
     transaction4(this.db, "connector_binding_create", () => {
       this.db.prepare(`
@@ -77864,7 +77893,7 @@ var ConnectorStore = class {
     }
     validateConnectorBinding(input.content, definitionRevision.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID18()}`;
+    const revisionId = `connector_binding_revision_${randomUUID19()}`;
     const nextOrdinal = this.nextOrdinal("connector_binding_revisions", "connector_binding_id", binding.connector_binding_id);
     const at = this.now();
     transaction4(this.db, "connector_binding_revise", () => {
@@ -77935,7 +77964,7 @@ var ConnectorStore = class {
       throw new ConnectorRevisionConflictError(binding.connector_binding_id, input.connector_binding_revision_id, binding.current_revision_id);
     }
     const evidenceRefs = normalizeRefs(input.evidence_refs ?? [], "evidence_refs");
-    const id = `connector_health_${randomUUID18()}`;
+    const id = `connector_health_${randomUUID19()}`;
     const recordedAt = this.now();
     this.db.prepare(`
       INSERT INTO connector_health_observations (
@@ -78112,7 +78141,7 @@ var ConnectorStore = class {
       }
     }
     const evidence = normalizeRef(input.request_evidence_ref, "request_evidence_ref");
-    const attemptId = `external_action_attempt_${randomUUID18()}`;
+    const attemptId = `external_action_attempt_${randomUUID19()}`;
     const attemptNumber = receipt.attempt_count + 1;
     const at = this.now();
     transaction4(this.db, "external_action_begin", () => {
@@ -78172,7 +78201,7 @@ var ConnectorStore = class {
       throw new ExternalActionStateError(receipt.external_effect_receipt_id, "only an uncertain effect can be reconciled");
     }
     const evidence = normalizeRef(input.evidence_ref, "evidence_ref");
-    const id = `external_action_reconciliation_${randomUUID18()}`;
+    const id = `external_action_reconciliation_${randomUUID19()}`;
     const at = this.now();
     transaction4(this.db, "external_action_reconcile", () => {
       this.db.prepare(`
@@ -78491,10 +78520,10 @@ var ConnectorStore = class {
         head_change_id, resource_kind, resource_id, owner_kind, owner_id,
         from_revision_id, to_revision_id, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`connector_head_change_${randomUUID18()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
+    `).run(`connector_head_change_${randomUUID19()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
   }
   insertIngressObservation(input) {
-    const id = `connector_ingress_observation_${randomUUID18()}`;
+    const id = `connector_ingress_observation_${randomUUID19()}`;
     this.db.prepare(`
       INSERT INTO connector_ingress_observations (
         connector_ingress_observation_id, connector_ingress_receipt_id,
@@ -78993,7 +79022,7 @@ function rowToActionReconciliation(row) {
 }
 
 // floe-bus/dist/approvals.js
-import { createHash as createHash18, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID20 } from "node:crypto";
 var ApprovalValidationError = class extends Error {
   reason;
   code = "E_APPROVAL_INVALID";
@@ -79217,7 +79246,7 @@ function relaxLegacyApprovalContextColumns(db) {
   if (priorDeferred) {
     throw new Error("Approval schema cannot be rebuilt while unrelated foreign keys are already deferred.");
   }
-  const suffix = randomUUID19().replaceAll("-", "");
+  const suffix = randomUUID20().replaceAll("-", "");
   const savepoint = `approval_context_nullable_${suffix}`;
   const requestReplacement = `approval_requests_nullable_${suffix}`;
   const receiptReplacement = `approval_receipts_nullable_${suffix}`;
@@ -79364,9 +79393,9 @@ var ApprovalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID19()}`);
-    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID19()}`);
-    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID19()}`);
+    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID20()}`);
+    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID20()}`);
+    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID20()}`);
     this.resolveDecisionAuthority = dependencies.resolve_decision_authority ?? (() => ({ authority_grant_ids: [], role_evidence: [] }));
     this.actionIsCurrent = dependencies.action_is_current ?? (() => true);
   }
@@ -80267,7 +80296,7 @@ function inSavepoint3(db, label, action) {
 }
 
 // floe-bus/dist/policies.js
-import { createHash as createHash19, randomUUID as randomUUID20 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID21 } from "node:crypto";
 var PolicyValidationError = class extends Error {
   reason;
   code = "E_POLICY_INVALID";
@@ -80445,7 +80474,7 @@ var PolicyStore = class {
   }
   createPolicy(input) {
     const workspaceId4 = requiredText2(input.workspace_id, "workspace_id");
-    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID20()}`, "policy_id");
+    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID21()}`, "policy_id");
     const principalId = requiredText2(input.created_by_principal_id, "created_by_principal_id");
     validateCategory(input.category);
     const content = normalizePolicyContent(input.content);
@@ -80586,7 +80615,7 @@ var PolicyStore = class {
     if (subject.kind === "workspace" && subject.id !== input.workspace_id) {
       throw new PolicyValidationError("a Workspace binding must name its own Workspace");
     }
-    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID20()}`, "policy_binding_id");
+    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID21()}`, "policy_binding_id");
     const boundAt = this.now();
     try {
       this.db.prepare(`
@@ -80714,7 +80743,7 @@ var PolicyStore = class {
     const evaluatedAt = this.now();
     const factsDigest = createHash19("sha256").update(canonicalJson11(facts)).digest("hex");
     const evaluation = {
-      evaluation_id: `policy_evaluation_${randomUUID20()}`,
+      evaluation_id: `policy_evaluation_${randomUUID21()}`,
       workspace_id: facts.workspace_id,
       authority_boundary: facts.authority_boundary,
       facts,
@@ -80837,7 +80866,7 @@ var PolicyStore = class {
     return rows.map(mapBinding);
   }
   insertRevision(input) {
-    const revisionId = `policy_revision_${randomUUID20()}`;
+    const revisionId = `policy_revision_${randomUUID21()}`;
     this.db.prepare(`
       INSERT INTO policy_revisions (
         policy_revision_id, policy_id, workspace_id, category,
@@ -81231,7 +81260,7 @@ function canonicalJson11(value) {
   return JSON.stringify(value);
 }
 function inSavepoint4(db, label, action) {
-  const name = `${label}_${randomUUID20().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID21().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -81992,7 +82021,7 @@ var POLICY_OPERATION_SCHEMAS = Object.freeze({
 });
 
 // floe-bus/dist/budgets.js
-import { createHash as createHash20, randomUUID as randomUUID21 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID22 } from "node:crypto";
 var BudgetValidationError = class extends Error {
   reason;
   code = "E_BUDGET_INVALID";
@@ -82158,7 +82187,7 @@ var BudgetStore = class {
       return existing;
     }
     const at = this.now();
-    const reservationId = `budget_reservation_${randomUUID21()}`;
+    const reservationId = `budget_reservation_${randomUUID22()}`;
     return inSavepoint5(this.db, "reserve_budget", () => {
       const items = input.evaluation.budget_limits.map((limit) => {
         const estimatedAmount = estimates[limit.metric];
@@ -82187,7 +82216,7 @@ var BudgetStore = class {
           throw new BudgetExceededError(limit.metric, limit.subject, limit.maximum, committed, reserved, estimatedAmount);
         }
         return {
-          reservation_item_id: `budget_reservation_item_${randomUUID21()}`,
+          reservation_item_id: `budget_reservation_item_${randomUUID22()}`,
           reservation_id: reservationId,
           policy_revision_id: limit.policy_revision_id,
           policy_binding_id: limit.policy_binding_id,
@@ -82272,7 +82301,7 @@ var BudgetStore = class {
             actor_id, scope_composition_revision_id, node_placement_id, connector_binding_id, extension_installation_id,
             metric, amount, observed_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(`resource_usage_${randomUUID21()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
+        `).run(`resource_usage_${randomUUID22()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
       }
       this.db.prepare(`
         UPDATE budget_reservations
@@ -82661,7 +82690,7 @@ function canonicalJson12(value) {
   return JSON.stringify(value);
 }
 function inSavepoint5(db, label, action) {
-  const name = `${label}_${randomUUID21().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID22().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -82675,7 +82704,7 @@ function inSavepoint5(db, label, action) {
 }
 
 // floe-bus/dist/audit.js
-import { createHash as createHash21, randomUUID as randomUUID22 } from "node:crypto";
+import { createHash as createHash21, randomUUID as randomUUID23 } from "node:crypto";
 var AuditConflictError = class extends Error {
   invocation_id;
   reason;
@@ -82761,7 +82790,7 @@ var AuditStore = class {
   begin(input) {
     const normalized = normalizeRequest({
       ...input,
-      audit_id: input.audit_id ?? `audit_${randomUUID22()}`,
+      audit_id: input.audit_id ?? `audit_${randomUUID23()}`,
       request_digest: "",
       started_at: input.started_at ?? this.now()
     });
@@ -83518,7 +83547,7 @@ function resolveAuditOperationResource(store, boundary, target) {
 }
 
 // floe-bus/dist/extensions.js
-import { createHash as createHash22, randomUUID as randomUUID23 } from "node:crypto";
+import { createHash as createHash22, randomUUID as randomUUID24 } from "node:crypto";
 var ExtensionValidationError = class extends Error {
   reason;
   code = "E_EXTENSION_INVALID";
@@ -83707,7 +83736,7 @@ var ExtensionStore = class {
   createExtension(input) {
     nonEmpty4("workspace_id", input.workspace_id);
     nonEmpty4("label", input.label);
-    const extensionId = input.extension_id ?? `extension_${randomUUID23()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID24()}`;
     nonEmpty4("extension_id", extensionId);
     const at = this.now();
     this.db.prepare(`
@@ -83723,7 +83752,7 @@ var ExtensionStore = class {
     nonEmpty4("label", input.label);
     nonEmpty4("registered_by_principal_id", input.registered_by_principal_id);
     validatePackageDefinition(input.definition);
-    const extensionId = input.extension_id ?? `extension_${randomUUID23()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID24()}`;
     nonEmpty4("extension_id", extensionId);
     const recordDigest = extensionPackageRecordDigest(input.definition);
     const permissionDigest = extensionPermissionDigest(input.definition.permissions);
@@ -84264,7 +84293,7 @@ var ExtensionStore = class {
         reason, from_package_version_id, to_package_version_id, lifecycle,
         changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extchange_${randomUUID23()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
+    `).run(`extchange_${randomUUID24()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
   }
 };
 function validatePackageDefinition(definition2) {
@@ -84823,12 +84852,12 @@ function inSavepoint6(db, label, action) {
 }
 
 // floe-bus/dist/canonical-extension-runtime.js
-import { randomUUID as randomUUID25 } from "node:crypto";
+import { randomUUID as randomUUID26 } from "node:crypto";
 import { existsSync as existsSync3 } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // floe-bus/dist/isolated-extension-host.js
-import { randomUUID as randomUUID24 } from "node:crypto";
+import { randomUUID as randomUUID25 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
 import { realpathSync as realpathSync3 } from "node:fs";
 var DEFAULT_START_TIMEOUT_MS = 1e4;
@@ -84903,7 +84932,7 @@ var IsolatedExtensionProcessHost = class {
       return null;
     this.active.delete(input.installation.extension_installation_id);
     return {
-      receipt_ref: `extension-host-deactivation:${randomUUID24()}`,
+      receipt_ref: `extension-host-deactivation:${randomUUID25()}`,
       workspace_id: input.installation.workspace_id,
       extension_installation_id: input.installation.extension_installation_id,
       extension_package_version_id: input.package_version.extension_package_version_id,
@@ -85136,7 +85165,7 @@ var IsolatedExtensionProcessHost = class {
       return Promise.reject(new ExtensionSandboxError("extension_host_exited", "The isolated Extension host is not connected."));
     }
     return new Promise((resolveRequest, rejectRequest) => {
-      const requestId = `host_${randomUUID24()}`;
+      const requestId = `host_${randomUUID25()}`;
       const timer = setTimeout(() => {
         record.pending.delete(requestId);
         rejectRequest(new ExtensionSandboxError("extension_host_timeout", "The isolated Extension host exceeded its parent deadline."));
@@ -85315,7 +85344,7 @@ function activationClaim(input, isolationHostId, lifecycle) {
     workspace_id: input.installation.workspace_id,
     supported_isolation_levels: ["process_sandbox"],
     status: "available",
-    receipt_ref: `extension-host-activation:${randomUUID24()}`,
+    receipt_ref: `extension-host-activation:${randomUUID25()}`,
     subject_content_digest: input.package_version.content_digest,
     installation_locator: input.installation.installation_locator,
     result_lifecycle: lifecycle
@@ -85446,7 +85475,7 @@ var SqliteExtensionRuntimeAudit = class {
         operation_invocation_id, execution_attempt_id, extension_package_version_id,
         entry_point_id, call_kind, permission_id, outcome, code, recorded_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extraudit_${randomUUID25()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
+    `).run(`extraudit_${randomUUID26()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
   }
   listForInvocation(operationInvocationId) {
     return this.db.prepare(`
@@ -85920,7 +85949,7 @@ function readUserVersion(db) {
 }
 
 // floe-bus/dist/operation-governance-control-plane.js
-import { randomUUID as randomUUID26 } from "node:crypto";
+import { randomUUID as randomUUID27 } from "node:crypto";
 var APPROVAL_LIFETIME_MS = 24 * 60 * 60 * 1e3;
 var BusOperationGovernanceControlPlane = class {
   bus;
@@ -86670,7 +86699,7 @@ function canonicalJson16(value) {
   return JSON.stringify(value);
 }
 function inSavepoint7(bus, label, work) {
-  const name = `${label}_${randomUUID26().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID27().replaceAll("-", "")}`;
   bus.db.exec(`SAVEPOINT ${name}`);
   try {
     const result = work();
@@ -86852,7 +86881,7 @@ function parseReceipt(value) {
 }
 
 // floe-bus/dist/operation-authority-sessions.js
-import { createHash as createHash25, randomBytes as randomBytes2, randomUUID as randomUUID27 } from "node:crypto";
+import { createHash as createHash25, randomBytes as randomBytes2, randomUUID as randomUUID28 } from "node:crypto";
 function applyOperationAuthoritySessionSchema(db) {
   const existingColumns = db.prepare("PRAGMA table_info(operation_authority_sessions)").all();
   if (existingColumns.length > 0 && !existingColumns.some((column) => column.name === "grant_ids_json")) {
@@ -86904,7 +86933,7 @@ var SqliteOperationAuthoritySessionStore = class {
     this.capabilityGrants = capabilityGrants;
     this.now = dependencies.now ?? isoNow4;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken;
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID27()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID28()}`);
     this.onRevoked = dependencies.on_revoked ?? null;
   }
   issueSession(input) {
@@ -87162,10 +87191,10 @@ function isoNow4() {
 }
 
 // floe-bus/dist/client-identity-store.js
-import { randomBytes as randomBytes3, randomUUID as randomUUID29 } from "node:crypto";
+import { randomBytes as randomBytes3, randomUUID as randomUUID30 } from "node:crypto";
 
 // floe-bus/dist/identity-workspace-authority.js
-import { randomUUID as randomUUID28 } from "node:crypto";
+import { randomUUID as randomUUID29 } from "node:crypto";
 var AuthorityLifetimeRequiredError = class extends Error {
   constructor() {
     super("Choose a lifetime: until_revoked, or expires_at.");
@@ -87312,7 +87341,7 @@ var IdentityWorkspaceAuthorityStore = class {
     return record;
   }
   insert(input) {
-    const authorityId = `identity_authority_${randomUUID28()}`;
+    const authorityId = `identity_authority_${randomUUID29()}`;
     const principalId = identityPrincipalId(input.identity_id);
     const grant = this.dependencies.grants.issueGrant({
       principal_id: principalId,
@@ -87358,7 +87387,7 @@ var IdentityWorkspaceAuthorityStore = class {
     this.dependencies.on_revoked?.(this.get(record.authority_id));
   }
   inTransaction(work) {
-    const name = `identity_authority_${randomUUID28().replaceAll("-", "")}`;
+    const name = `identity_authority_${randomUUID29().replaceAll("-", "")}`;
     this.db.exec(`SAVEPOINT ${name}`);
     try {
       const result = work();
@@ -87445,7 +87474,7 @@ var SqliteClientIdentityStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow5;
     this.challengeFactory = dependencies.challenge_factory ?? (() => randomBytes3(32).toString("hex"));
-    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID29()}`);
+    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID30()}`);
   }
   /**
    * Admit a public key under a display name. Idempotent per key: re-admitting an
@@ -87809,7 +87838,7 @@ function identityWorkspaceAuthorityOperations(deps) {
 }
 
 // floe-bus/dist/browser-pass.js
-import { createHash as createHash26, randomBytes as randomBytes4, randomUUID as randomUUID30 } from "node:crypto";
+import { createHash as createHash26, randomBytes as randomBytes4, randomUUID as randomUUID31 } from "node:crypto";
 var BROWSER_PASS_CREDENTIAL_MS = 30 * 864e5;
 var RENEW_AFTER_MS = 864e5;
 var ROTATION_GRACE_MS = 6e4;
@@ -87868,7 +87897,7 @@ var BrowserPassStore = class {
         evidence: input.evidence
       });
       const authorityExpiry = this.grants.effectiveExpiry(grant.grant_id);
-      const passId = `browserpass_${randomUUID30()}`;
+      const passId = `browserpass_${randomUUID31()}`;
       this.db.prepare(`INSERT INTO browser_passes (pass_id, identity_id, principal_id, workspace_id, exact_origin,
         grant_id, token_hash, status, issued_at, authority_expires_at, credential_expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`).run(passId, input.identity_id, input.principal_id, input.workspace_id, input.exact_origin, grant.grant_id, digest8(token), iso(this.now()), authorityExpiry, this.credentialExpiry(authorityExpiry));
@@ -88241,7 +88270,7 @@ function scopeProjectionLayoutOperations(deps) {
 }
 
 // floe-bus/dist/browser-connections.js
-import { createHash as createHash27, randomBytes as randomBytes5, randomUUID as randomUUID31 } from "node:crypto";
+import { createHash as createHash27, randomBytes as randomBytes5, randomUUID as randomUUID32 } from "node:crypto";
 
 // floe-bus/dist/browser-origin.js
 var LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -88444,7 +88473,7 @@ var BrowserConnections = class {
       code = randomBytes5(4).toString("hex").toUpperCase();
     } while ([...this.pending.values()].some((item) => item.code === code));
     const entry = {
-      connection_id: `browserconn_${randomUUID31()}`,
+      connection_id: `browserconn_${randomUUID32()}`,
       code,
       origin,
       expires_at: new Date(this.now() + 3e5).toISOString()
@@ -88773,7 +88802,7 @@ function browserPassOperations(deps) {
 
 // floe-bus/dist/windows-dpapi-credential-protector.js
 import { spawn as spawn3 } from "node:child_process";
-import { createHash as createHash28, randomUUID as randomUUID32 } from "node:crypto";
+import { createHash as createHash28, randomUUID as randomUUID33 } from "node:crypto";
 import { mkdir, readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { join as join5, resolve as resolve3 } from "node:path";
@@ -88794,7 +88823,7 @@ var WindowsDpapiCredentialProtector = class {
   async writeAtomic(locator, material) {
     requireMaterial(material);
     const target = this.pathForLocator(locator);
-    const temporary = join5(this.vaultDirectory, `.pending-${randomUUID32()}`);
+    const temporary = join5(this.vaultDirectory, `.pending-${randomUUID33()}`);
     const protectedBytes = await this.runDpapi("protect", copy(material));
     try {
       if (protectedBytes.byteLength === 0)
@@ -88969,7 +88998,7 @@ function isMissingFile(error) {
 }
 
 // floe-bus/dist/attachment-ingress.js
-import { createHash as createHash29, randomBytes as randomBytes6, randomUUID as randomUUID33, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
+import { createHash as createHash29, randomBytes as randomBytes6, randomUUID as randomUUID34, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
 var MAX_ATTACHMENT_INGRESS_BYTES = 20 * 1024 * 1024;
 var MAX_ATTACHMENT_INGRESS_ITEMS = 5;
 var DEFAULT_TTL_MS2 = 10 * 6e4;
@@ -88998,7 +89027,7 @@ var AttachmentIngressStore = class {
   constructor(dependencies = {}) {
     this.now = dependencies.now ?? (() => /* @__PURE__ */ new Date());
     this.tokenFactory = dependencies.token_factory ?? (() => randomBytes6(32).toString("base64url"));
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID33()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID34()}`);
     this.maximumPendingSessions = dependencies.maximum_pending_sessions ?? MAX_PENDING_SESSIONS;
     this.maximumPendingBytes = dependencies.maximum_pending_bytes ?? MAX_PENDING_BYTES;
     this.maximumTerminalSessions = dependencies.maximum_terminal_sessions ?? MAX_TERMINAL_SESSIONS;
@@ -89217,7 +89246,7 @@ function requireText6(value, field, maximum) {
 }
 
 // floe-bus/dist/transport-credentials.js
-import { createHash as createHash30, randomBytes as randomBytes7, randomUUID as randomUUID34 } from "node:crypto";
+import { createHash as createHash30, randomBytes as randomBytes7, randomUUID as randomUUID35 } from "node:crypto";
 function applyTransportCredentialSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS transport_credentials (
@@ -89270,7 +89299,7 @@ var SqliteTransportCredentialStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow6;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken2;
-    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID34()}`);
+    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID35()}`);
   }
   issueHostControlCredential(input) {
     return this.issueCredential("host_control", input.host_id, input.expires_at, null);
@@ -89853,7 +89882,7 @@ function tableExists4(db, table) {
 }
 
 // floe-bus/dist/local-operator-principals.js
-import { randomUUID as randomUUID35 } from "node:crypto";
+import { randomUUID as randomUUID36 } from "node:crypto";
 function applyLocalOperatorPrincipalSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS local_operator_principals (
@@ -89870,7 +89899,7 @@ var SqliteLocalOperatorPrincipalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID35()}`);
+    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID36()}`);
     applyLocalOperatorPrincipalSchema(db);
   }
   getCurrent() {
@@ -90530,7 +90559,7 @@ function registerArtefactOperations(registry, store, publishVersion) {
 }
 
 // floe-bus/dist/artefact-export.js
-import { createHash as createHash31, randomUUID as randomUUID36 } from "node:crypto";
+import { createHash as createHash31, randomUUID as randomUUID37 } from "node:crypto";
 import { closeSync, existsSync as existsSync6, fsyncSync, linkSync, lstatSync, mkdirSync as mkdirSync4, openSync, readFileSync as readFileSync4, unlinkSync, writeFileSync as writeFileSync3 } from "node:fs";
 import { dirname as dirname5, join as join6 } from "node:path";
 var EXPORT_ARTEFACT_VERSION_OPERATION_ID = "artefact.version.export";
@@ -90578,7 +90607,7 @@ function exportArtefactVersion(input) {
     return result(false);
   mkdirSync4(dirname5(destination), { recursive: true });
   destination = resolveWithinRoot(input.workspace_locator, path3);
-  const temporary = join6(dirname5(destination), `.floe-export-${randomUUID36()}.tmp`);
+  const temporary = join6(dirname5(destination), `.floe-export-${randomUUID37()}.tmp`);
   let staged = false;
   try {
     const fd = openSync(temporary, "wx", 384);
@@ -90925,7 +90954,10 @@ var rollbackInputSchema3 = {
 };
 var bindingInputProperties = {
   runtime_profile_revision_id: nonEmptyString3,
-  endpoint_id: nullableString3,
+  endpoint_id: {
+    ...nullableString3,
+    description: "Where the Actor receives work. Omit it: the Actor's own ID is its address, and routing resolves the Actor's name there."
+  },
   status: { enum: ["resolved", "unresolved", "disabled"] },
   unresolved_reasons: stringArray
 };
@@ -91420,7 +91452,7 @@ function createActorRuntimeBindingOperation(store) {
     authority_boundary_kinds: ["workspace"],
     category: "runtime-profiles",
     title: "Create Actor Runtime Binding",
-    description: "Bind an unbound Actor to one exact published Runtime Profile revision in this Workspace.",
+    description: "Bind an unbound Actor to one exact published Runtime Profile revision in this Workspace. This is what makes a created Actor reachable: work sent to an unbound Actor waits until it is bound. To run it the way you run, use the runtime_profile_revision_id from your own binding (actor.runtime-binding.inspect on yourself).",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [CREATE_ACTOR_RUNTIME_BINDING_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -91444,7 +91476,7 @@ function createActorRuntimeBindingOperation(store) {
       const binding = store.bindActor({
         actor_id: actor.actor_id,
         runtime_profile_revision_id: input.runtime_profile_revision_id,
-        endpoint_id: input.endpoint_id ?? null,
+        endpoint_id: input.endpoint_id ?? actor.actor_id,
         status: input.status,
         unresolved_reasons: input.unresolved_reasons ?? [],
         expected_current_binding_id: null,
@@ -91497,7 +91529,7 @@ function replaceActorRuntimeBindingOperation(store) {
       const binding = store.bindActor({
         actor_id: previous.actor_id,
         runtime_profile_revision_id: input.runtime_profile_revision_id,
-        endpoint_id: input.endpoint_id ?? null,
+        endpoint_id: input.endpoint_id ?? previous.endpoint_id ?? previous.actor_id,
         status: input.status,
         unresolved_reasons: input.unresolved_reasons ?? [],
         expected_current_binding_id: previous.actor_runtime_binding_id,
@@ -94699,7 +94731,7 @@ import { existsSync as existsSync7, mkdirSync as mkdirSync5 } from "node:fs";
 import { isAbsolute as isAbsolute3, resolve as resolve4 } from "node:path";
 
 // floe-bus/dist/workspace-identities.js
-import { createHash as createHash32, randomUUID as randomUUID37 } from "node:crypto";
+import { createHash as createHash32, randomUUID as randomUUID38 } from "node:crypto";
 import { posix, win32 } from "node:path";
 var WorkspaceIdentityNotFoundError = class extends Error {
   workspace_id;
@@ -94811,7 +94843,7 @@ function getOrCreateLocalHostIdentity(db, dependencies = {}) {
   `).get();
   if (existing)
     return existing;
-  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID37()}`))();
+  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID38()}`))();
   assertNonEmpty4("host_id", hostId);
   const createdAt = (dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   assertTimestamp("created_at", createdAt);
@@ -94953,8 +94985,8 @@ var SqliteWorkspaceIdentityStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID37()}`);
-    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID37()}`);
+    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID38()}`);
+    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID38()}`);
   }
   createWorkspace(input) {
     const workspaceId4 = this.workspaceIdFactory();
@@ -98854,7 +98886,7 @@ var WorkspaceConfigurationImportStore = class {
   }
 };
 function workspaceConfigurationActorId(workspaceId4, sourceActorId) {
-  return `actor:${requiredText5(workspaceId4, "workspace_id")}:${requiredText5(sourceActorId, "source_actor_id")}`;
+  return workspaceActorId(requiredText5(workspaceId4, "workspace_id"), requiredText5(sourceActorId, "source_actor_id"));
 }
 function workspaceConfigurationRuntimeProfileId(actorId) {
   return `runtime-profile:${requiredText5(actorId, "actor_id")}`;
@@ -100296,13 +100328,14 @@ var stopExecutionResultSchema = {
 var executionControlResultSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["execution", "pause_id", "node_execution_ids", "delivery_ids", "active_delivery_ids", "deadline_at"],
+  required: ["execution", "pause_id", "node_execution_ids", "delivery_ids", "active_delivery_ids", "requested_at", "deadline_at"],
   properties: {
     execution: scopeExecutionSchema,
     pause_id: nonEmptyString6,
     node_execution_ids: stringArray3,
     delivery_ids: stringArray3,
     active_delivery_ids: stringArray3,
+    requested_at: nonEmptyString6,
     deadline_at: nonEmptyString6
   }
 };
@@ -104796,11 +104829,14 @@ var BusStore = class {
     for (const deliveryId of result.active_delivery_ids) {
       const attempt = this.scopeExecutionStore.getAttemptForBundle(deliveryId);
       const busOwned = attempt?.runtime.host_kind === "isolated_command_host";
+      const cancelRequestedAt = (/* @__PURE__ */ new Date()).toISOString();
       broadcast("delivery_cancel_requested", {
         workspace_id: input.workspace_id,
         scope_execution_id: input.execution_id,
         pause_id: result.pause_id,
         delivery_id: deliveryId,
+        pause_requested_at: result.requested_at,
+        cancel_requested_at: cancelRequestedAt,
         deadline_at: result.deadline_at,
         runtime_owner: busOwned ? "bus" : "bridge"
       });
@@ -104813,7 +104849,12 @@ var BusStore = class {
           evidence: {
             host_kind: attempt.runtime.host_kind,
             attempt_id: attempt.attempt_id,
-            active_host_cancelled: cancelled
+            active_host_cancelled: cancelled,
+            timeline: {
+              pause_requested_at: result.requested_at,
+              cancel_requested_at: cancelRequestedAt,
+              runtime_quiesced_at: (/* @__PURE__ */ new Date()).toISOString()
+            }
           }
         });
       }
@@ -106322,7 +106363,7 @@ var BusStore = class {
       throw new ScopeGraphNodeNotATriggerError(input.graph_id, input.node_id);
     const legacyCommandEndpoints = new Set(graph.nodes.filter((candidate) => candidate.kind === "command").map((candidate) => candidate.endpoint_id));
     const subscriptions = this.contextStore.getContextSubscriptions(graph.context_id).filter((subscription) => !legacyCommandEndpoints.has(subscription.endpoint_id)).filter((subscription) => subscription.event_types.includes("*") || subscription.event_types.includes(node.event_type));
-    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID38()}`;
+    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID39()}`;
     return subscriptions.map((subscription) => this.emitTriggerEvent({
       type: node.event_type,
       workspace_id: input.workspace_id,
@@ -108032,7 +108073,7 @@ var BusStore = class {
   }
   appendRuntimeTelemetry(input, broadcast) {
     const telemetry = {
-      telemetry_id: `tel_${randomUUID38()}`,
+      telemetry_id: `tel_${randomUUID39()}`,
       workspace_id: input.workspace_id,
       endpoint_id: input.endpoint_id,
       delivery_id: input.delivery_id ?? null,
@@ -108259,7 +108300,7 @@ var BusStore = class {
   }
   createConfig(input, broadcast) {
     const timestamp2 = now();
-    const configId = `cfg_${randomUUID38()}`;
+    const configId = `cfg_${randomUUID39()}`;
     this.db.prepare(`
       INSERT INTO saved_configs (config_id, name, config_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
@@ -108769,7 +108810,7 @@ var BusStore = class {
       assertAttachmentContentMatches(destination, ingress);
       return null;
     }
-    const temporary = `${destination}.upload-${randomUUID38()}.tmp`;
+    const temporary = `${destination}.upload-${randomUUID39()}.tmp`;
     try {
       writeFileSync5(temporary, ingress.bytes, { flag: "wx" });
       renameSync2(temporary, destination);
@@ -108804,7 +108845,7 @@ var BusStore = class {
         throw new Error(`Event ArtefactVersion '${versionId}' is unavailable in this Workspace.`);
       }
     }
-    const eventId = `evt_${randomUUID38()}`;
+    const eventId = `evt_${randomUUID39()}`;
     const metadata = input.type === "request" ? this.requestEventProvenance(input.workspace_id, input.metadata, eventId) : input.metadata;
     const envelope = {
       event_id: eventId,
@@ -108888,7 +108929,7 @@ var BusStore = class {
     return rows.map((row) => row.endpoint_id).filter((endpointId) => !(destination.exclude_source && endpointId === event.source_endpoint_id));
   }
   queueEvent(eventId, workspaceId4, destinationEndpointId, route) {
-    const queueId = `q_${randomUUID38()}`;
+    const queueId = `q_${randomUUID39()}`;
     this.db.prepare(`
       INSERT INTO event_queue (
         queue_id, event_id, workspace_id, destination_endpoint_id, state, created_at,
@@ -108908,7 +108949,7 @@ var BusStore = class {
   }
   createPendingResponse(event) {
     const pending = {
-      pending_id: `pr_${randomUUID38()}`,
+      pending_id: `pr_${randomUUID39()}`,
       workspace_id: event.workspace_id,
       waiting_endpoint_id: event.source_endpoint_id,
       source_event_id: event.event_id,
@@ -108985,7 +109026,7 @@ var BusStore = class {
     if (queuedRows.length === 0)
       return null;
     const deliveredAt = now();
-    const deliveryId = `del_${randomUUID38()}`;
+    const deliveryId = `del_${randomUUID39()}`;
     const leaseExpiresAt = clientExecuted ? null : this.deliveryLeaseExpiresAt();
     const deliveryAttempt = Math.max(...queuedRows.map((row) => Number(row.attempt_count ?? 0) + 1));
     const runtimePins = this.resolveDeliveryRuntimePins(firstQueued, endpointId, endpoint.workspace_id);
@@ -117568,7 +117609,7 @@ async function createBusServer(configPath, config, options = {}) {
         return null;
       }
       return issueWorkspaceOperationSession(host.authority, workspace.workspace_id, {
-        interaction_session_id: `browser:local:${randomUUID39()}`,
+        interaction_session_id: `browser:local:${randomUUID40()}`,
         expires_in_seconds: 3600
       }, "floe-local-browser-session");
     }
@@ -117840,7 +117881,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target,
       expected_resource_revision: null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID39()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID40()}`,
       input
     };
     const response = await store.operationRegistry.invoke({
@@ -117905,7 +117946,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target: input.target ?? null,
       expected_resource_revision: input.expected_revision ?? null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID39()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID40()}`,
       input: input.value
     };
     const response = await store.operationRegistry.invoke({
@@ -118573,7 +118614,7 @@ async function createBusServer(configPath, config, options = {}) {
       grant_ids: grantIds,
       interaction: {
         mode: "interactive",
-        session_id: body.interaction_session_id ?? `interaction_${randomUUID39()}`,
+        session_id: body.interaction_session_id ?? `interaction_${randomUUID40()}`,
         broker_id: brokerId
       },
       provenance: emptyOperationProvenance,
@@ -120126,7 +120167,7 @@ async function createBusServer(configPath, config, options = {}) {
     if (!host.verified || host.authority.audience !== "host_control") {
       return reply.code(503).send({ error: "identity_mint_unavailable" });
     }
-    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID39()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`, { principal_id: workspaceAuthority.principal_id, root_grant_id: workspaceAuthority.root_grant_id });
+    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID40()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`, { principal_id: workspaceAuthority.principal_id, root_grant_id: workspaceAuthority.root_grant_id });
     store.clientIdentityStore.recordSession({
       authority_session_id: session.authority_session_id,
       identity_id: identity.identity_id,

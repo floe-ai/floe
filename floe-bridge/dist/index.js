@@ -10044,13 +10044,15 @@ function directTool(name, description, schema, handle, execute) {
     skipPermission: true,
     async handler(args, invocation) {
       const callId = invocation.toolCallId;
+      const startedAt = (/* @__PURE__ */ new Date()).toISOString();
       const normalizedArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
       handle.recordToolActivity({
         name,
         call_id: callId,
         lifecycle: "started",
         provenance: FLOE_DIRECT_TOOL_CALLBACK_PROVENANCE,
-        arguments: normalizedArgs
+        arguments: normalizedArgs,
+        started_at: startedAt
       });
       try {
         const execution = await execute(schema.parse(args), handle);
@@ -10063,7 +10065,9 @@ function directTool(name, description, schema, handle, execute) {
           is_error: toolResult.resultType === "failure",
           result_type: toolResult.resultType,
           result_value: toolResult.textResultForLlm,
-          result_code: resultCode(execution)
+          result_code: resultCode(execution),
+          started_at: startedAt,
+          ended_at: (/* @__PURE__ */ new Date()).toISOString()
         });
         return toolResult;
       } catch (error) {
@@ -10074,7 +10078,9 @@ function directTool(name, description, schema, handle, execute) {
           provenance: FLOE_DIRECT_TOOL_CALLBACK_PROVENANCE,
           is_error: true,
           result_type: "failure",
-          result_value: error instanceof Error ? error.message : String(error)
+          result_value: error instanceof Error ? error.message : String(error),
+          started_at: startedAt,
+          ended_at: (/* @__PURE__ */ new Date()).toISOString()
         });
         throw error;
       }
@@ -10540,6 +10546,10 @@ function recordToolActivity(turn, entry) {
     existing.result_value = entry.result_value;
   if (entry.result_code !== void 0)
     existing.result_code = entry.result_code;
+  if (entry.started_at !== void 0)
+    existing.started_at = entry.started_at;
+  if (entry.ended_at !== void 0)
+    existing.ended_at = entry.ended_at;
 }
 var FloeRuntimeAdapter = class {
   name = "floe-runtime";
@@ -10582,7 +10592,10 @@ var FloeRuntimeAdapter = class {
   beginCancellation(session, turn) {
     if (!session.sessionId || turn.cancellation)
       return;
-    turn.cancellation = session.runtime.quiesce(session.sessionId).catch((error) => {
+    turn.cancellationRequestedAt ??= (/* @__PURE__ */ new Date()).toISOString();
+    turn.cancellation = session.runtime.quiesce(session.sessionId).then(() => {
+      turn.runtimeQuiescedAt = (/* @__PURE__ */ new Date()).toISOString();
+    }).catch((error) => {
       turn.cancellationFault = error;
     });
   }
@@ -10599,7 +10612,7 @@ var FloeRuntimeAdapter = class {
   }
   async handleBundle(context, bundle, runtimeConfig) {
     const session = this.getOrCreateSession(context, bundle);
-    if (session.activeTurn && !session.activeTurn.finalized) {
+    if (session.activeTurn && (!session.activeTurn.finalized || session.activeTurn.requiresRetirement)) {
       throw new Error(`Runtime turn already active for endpoint '${bundle.endpoint_id}'.`);
     }
     const model = runtimeConfig?.model?.trim() || void 0;
@@ -10717,6 +10730,7 @@ var FloeRuntimeAdapter = class {
         });
       }
       this.writeWorkLog(context, bundle, turn, "completed");
+      turn.settledAt = (/* @__PURE__ */ new Date()).toISOString();
       turn.settle();
     } catch (caught) {
       let error = caught;
@@ -10759,10 +10773,12 @@ var FloeRuntimeAdapter = class {
         });
       }
       turn.finalized = true;
+      turn.requiresRetirement = turn.cancelled && turn.tool_activity.some((activity) => activity.lifecycle === "started");
       this.toolGate.abandonDelivery(turn.delivery_id);
-      if (session.activeTurn === turn)
+      if (session.activeTurn === turn && !turn.requiresRetirement)
         session.activeTurn = void 0;
       this.writeWorkLog(context, bundle, turn, "error");
+      turn.settledAt = (/* @__PURE__ */ new Date()).toISOString();
       turn.settle();
       throw new TurnFailedError(bundle.delivery_id, turn.source_endpoint_id, bundle.workspace_id, turn.context_id, turn.thread_id, model ?? "(default)", this.name, httpStatus, errorMessage);
     }
@@ -10773,6 +10789,7 @@ var FloeRuntimeAdapter = class {
       if (!turn || turn.delivery_id !== deliveryId || turn.finalized)
         continue;
       turn.cancelled = true;
+      turn.cancellationRequestedAt ??= (/* @__PURE__ */ new Date()).toISOString();
       this.toolGate.abandonDelivery(deliveryId);
       this.beginCancellation(session, turn);
       return true;
@@ -10786,15 +10803,24 @@ var FloeRuntimeAdapter = class {
         continue;
       if (turn.cancellation)
         await turn.cancellation;
-      else
-        await turn.settled;
+      await turn.settled;
       if (turn.cancellationFault)
         return null;
+      if (turn.tool_activity.some((activity) => activity.lifecycle === "started")) {
+        turn.requiresRetirement = true;
+        return null;
+      }
       return {
         outcome: "quiesced",
         evidence: {
           runtime_turn_id: turn.runtime_turn_id,
-          session_id: session.sessionId
+          session_id: session.sessionId,
+          timeline: {
+            adapter_cancel_requested_at: turn.cancellationRequestedAt,
+            runtime_quiesced_at: turn.runtimeQuiescedAt,
+            delivery_settled_at: turn.settledAt,
+            tool_activity: turn.tool_activity
+          }
         }
       };
     }
@@ -10803,17 +10829,25 @@ var FloeRuntimeAdapter = class {
   async forceRetireDelivery(deliveryId) {
     for (const [key, session] of this.sessions) {
       const turn = session.activeTurn;
-      if (!turn || turn.delivery_id !== deliveryId || turn.finalized)
+      if (!turn || turn.delivery_id !== deliveryId || turn.finalized && !turn.requiresRetirement)
         continue;
       turn.cancelled = true;
+      turn.cancellationRequestedAt ??= (/* @__PURE__ */ new Date()).toISOString();
       this.toolGate.abandonDelivery(deliveryId);
       await session.runtime.close();
+      await turn.settled;
       this.sessions.delete(key);
       return {
         outcome: "session_retired",
         evidence: {
           runtime_turn_id: turn.runtime_turn_id,
-          session_id: session.sessionId
+          session_id: session.sessionId,
+          timeline: {
+            adapter_cancel_requested_at: turn.cancellationRequestedAt,
+            session_retired_at: (/* @__PURE__ */ new Date()).toISOString(),
+            delivery_settled_at: turn.settledAt,
+            tool_activity: turn.tool_activity
+          }
         }
       };
     }
@@ -10913,14 +10947,16 @@ var FloeRuntimeAdapter = class {
         recordToolActivity(turn, {
           name: event.title || event.kind,
           call_id: event.id,
-          lifecycle: "started"
+          lifecycle: "started",
+          started_at: new Date(event.startedAt ?? Date.now()).toISOString()
         });
       } else {
         recordToolActivity(turn, {
           name: event.title || event.kind,
           call_id: event.id,
           lifecycle: event.status === "failed" ? "failed" : "completed",
-          is_error: event.status === "failed"
+          is_error: event.status === "failed",
+          ended_at: new Date(event.endedAt ?? Date.now()).toISOString()
         });
       }
     });
@@ -10964,8 +11000,12 @@ var FloeRuntimeAdapter = class {
       dependency_requested: false,
       finalized: false,
       cancelled: false,
+      requiresRetirement: false,
       cancellation: null,
       cancellationFault: null,
+      cancellationRequestedAt: null,
+      runtimeQuiescedAt: null,
+      settledAt: null,
       settled,
       settle
     };
@@ -11813,7 +11853,9 @@ var BridgeDaemon = class {
       if (message.payload?.runtime_owner === "bus")
         return;
       const deliveryId = String(message.payload.delivery_id);
+      const bridgeReceivedAt = (/* @__PURE__ */ new Date()).toISOString();
       this.cancelledDeliveries.add(deliveryId);
+      const adapterCancelRequestedAt = (/* @__PURE__ */ new Date()).toISOString();
       const accepted = this.adapter.cancelDelivery?.(deliveryId) ?? false;
       const result2 = accepted ? await this.adapter.waitForDeliveryCancellation?.(deliveryId) : null;
       if (result2 && typeof message.payload?.workspace_id === "string") {
@@ -11821,7 +11863,13 @@ var BridgeDaemon = class {
           workspace_id: message.payload.workspace_id,
           delivery_id: deliveryId,
           outcome: result2.outcome,
-          evidence: result2.evidence
+          evidence: {
+            ...result2.evidence,
+            pause_requested_at: message.payload?.pause_requested_at ?? null,
+            cancel_requested_at: message.payload?.cancel_requested_at ?? null,
+            bridge_received_at: bridgeReceivedAt,
+            adapter_cancel_requested_at: adapterCancelRequestedAt
+          }
         });
       }
     }
