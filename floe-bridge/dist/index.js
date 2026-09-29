@@ -10263,6 +10263,7 @@ function doubleQuoteEnd(text, from) {
 
 // floe-bridge/dist/adapters/engine-tool-gate.js
 var SHELL_OPERATION = "engine.tool.process.execute";
+var READ_OPERATION = "engine.tool.filesystem.read";
 function realpathAllowingMissing(target) {
   const missing = [];
   let current = target;
@@ -10278,22 +10279,18 @@ function realpathAllowingMissing(target) {
     }
   }
 }
-function workspaceRelativePath(workspaceLocator, reported) {
-  if (!workspaceLocator || !reported.trim())
+function resolvedToolPath(workingFolder, reported) {
+  if (!workingFolder || !reported.trim())
     return null;
   try {
-    const root = realpathSync3.native(workspaceLocator);
-    const resolved = realpathAllowingMissing(path2.resolve(root, reported));
-    const relative4 = path2.relative(root, resolved);
-    if (relative4.startsWith("..") || path2.isAbsolute(relative4))
-      return null;
-    return relative4 ? relative4.split(path2.sep).join("/") : ".";
+    return realpathAllowingMissing(path2.resolve(realpathSync3.native(workingFolder), reported));
   } catch {
     return null;
   }
 }
 function toolCallFacts(request, workspaceLocator) {
   const facts = request.facts;
+  const reported = facts.paths.length === 0 && request.operationId === READ_OPERATION ? ["."] : facts.paths;
   const shell = request.operationId === SHELL_OPERATION && typeof facts.fullCommandText === "string" ? powershellEvidence(facts.fullCommandText) : null;
   return {
     operation_id: request.operationId ?? "",
@@ -10301,7 +10298,7 @@ function toolCallFacts(request, workspaceLocator) {
     engine: request.runtime,
     manifest_version: request.manifestVersion,
     native_tools: [...request.nativeToolCandidates],
-    paths: facts.paths.map((reported) => workspaceRelativePath(workspaceLocator, reported)),
+    paths: reported.map((item) => resolvedToolPath(workspaceLocator, item)),
     executables: shell?.executables ?? [],
     urls: [.../* @__PURE__ */ new Set([...facts.urls, ...shell?.urls ?? []])],
     write_redirection: shell?.write_redirection ?? false,

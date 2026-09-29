@@ -98,17 +98,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path) {
-      const ctrl = callVisitor(key, node, visitor, path);
+    function visit_(key, node, visitor, path3) {
+      const ctrl = callVisitor(key, node, visitor, path3);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path, ctrl);
-        return visit_(key, ctrl, visitor, path);
+        replaceNode(key, path3, ctrl);
+        return visit_(key, ctrl, visitor, path3);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path = Object.freeze(path.concat(node));
+          path3 = Object.freeze(path3.concat(node));
           for (let i3 = 0; i3 < node.items.length; ++i3) {
-            const ci = visit_(i3, node.items[i3], visitor, path);
+            const ci = visit_(i3, node.items[i3], visitor, path3);
             if (typeof ci === "number")
               i3 = ci - 1;
             else if (ci === BREAK)
@@ -119,13 +119,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path = Object.freeze(path.concat(node));
-          const ck = visit_("key", node.key, visitor, path);
+          path3 = Object.freeze(path3.concat(node));
+          const ck = visit_("key", node.key, visitor, path3);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path);
+          const cv = visit_("value", node.value, visitor, path3);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -146,17 +146,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path) {
-      const ctrl = await callVisitor(key, node, visitor, path);
+    async function visitAsync_(key, node, visitor, path3) {
+      const ctrl = await callVisitor(key, node, visitor, path3);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path, ctrl);
-        return visitAsync_(key, ctrl, visitor, path);
+        replaceNode(key, path3, ctrl);
+        return visitAsync_(key, ctrl, visitor, path3);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path = Object.freeze(path.concat(node));
+          path3 = Object.freeze(path3.concat(node));
           for (let i3 = 0; i3 < node.items.length; ++i3) {
-            const ci = await visitAsync_(i3, node.items[i3], visitor, path);
+            const ci = await visitAsync_(i3, node.items[i3], visitor, path3);
             if (typeof ci === "number")
               i3 = ci - 1;
             else if (ci === BREAK)
@@ -167,13 +167,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path = Object.freeze(path.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path);
+          path3 = Object.freeze(path3.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path3);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path);
+          const cv = await visitAsync_("value", node.value, visitor, path3);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -200,23 +200,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path) {
+    function callVisitor(key, node, visitor, path3) {
       if (typeof visitor === "function")
-        return visitor(key, node, path);
+        return visitor(key, node, path3);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path);
+        return visitor.Map?.(key, node, path3);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path);
+        return visitor.Seq?.(key, node, path3);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path);
+        return visitor.Pair?.(key, node, path3);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path);
+        return visitor.Scalar?.(key, node, path3);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path);
+        return visitor.Alias?.(key, node, path3);
       return void 0;
     }
-    function replaceNode(key, path, node) {
-      const parent = path[path.length - 1];
+    function replaceNode(key, path3, node) {
+      const parent = path3[path3.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -826,10 +826,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path, value) {
+    function collectionFromPath(schema, path3, value) {
       let v = value;
-      for (let i3 = path.length - 1; i3 >= 0; --i3) {
-        const k = path[i3];
+      for (let i3 = path3.length - 1; i3 >= 0; --i3) {
+        const k = path3[i3];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -848,7 +848,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path) => path == null || typeof path === "object" && !!path[Symbol.iterator]().next().done;
+    var isEmptyPath = (path3) => path3 == null || typeof path3 === "object" && !!path3[Symbol.iterator]().next().done;
     var Collection = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -878,11 +878,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path, value) {
-        if (isEmptyPath(path))
+      addIn(path3, value) {
+        if (isEmptyPath(path3))
           this.add(value);
         else {
-          const [key, ...rest] = path;
+          const [key, ...rest] = path3;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -896,8 +896,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path) {
-        const [key, ...rest] = path;
+      deleteIn(path3) {
+        const [key, ...rest] = path3;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -911,8 +911,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path, keepScalar) {
-        const [key, ...rest] = path;
+      getIn(path3, keepScalar) {
+        const [key, ...rest] = path3;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -930,8 +930,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path) {
-        const [key, ...rest] = path;
+      hasIn(path3) {
+        const [key, ...rest] = path3;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -941,8 +941,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path, value) {
-        const [key, ...rest] = path;
+      setIn(path3, value) {
+        const [key, ...rest] = path3;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -3457,9 +3457,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path, value) {
+      addIn(path3, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path, value);
+          this.contents.addIn(path3, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -3534,14 +3534,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path) {
-        if (Collection.isEmptyPath(path)) {
+      deleteIn(path3) {
+        if (Collection.isEmptyPath(path3)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path3) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -3556,10 +3556,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path, keepScalar) {
-        if (Collection.isEmptyPath(path))
+      getIn(path3, keepScalar) {
+        if (Collection.isEmptyPath(path3))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path3, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -3570,10 +3570,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path) {
-        if (Collection.isEmptyPath(path))
+      hasIn(path3) {
+        if (Collection.isEmptyPath(path3))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path3) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -3590,13 +3590,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path, value) {
-        if (Collection.isEmptyPath(path)) {
+      setIn(path3, value) {
+        if (Collection.isEmptyPath(path3)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, Array.from(path), value);
+          this.contents = Collection.collectionFromPath(this.schema, Array.from(path3), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path, value);
+          this.contents.setIn(path3, value);
         }
       }
       /**
@@ -5556,9 +5556,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path) => {
+    visit.itemAtPath = (cst, path3) => {
       let item = cst;
-      for (const [field, index] of path) {
+      for (const [field, index] of path3) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -5567,23 +5567,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path) => {
-      const parent = visit.itemAtPath(cst, path.slice(0, -1));
-      const field = path[path.length - 1][0];
+    visit.parentCollection = (cst, path3) => {
+      const parent = visit.itemAtPath(cst, path3.slice(0, -1));
+      const field = path3[path3.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path, item, visitor) {
-      let ctrl = visitor(item, path);
+    function _visit(path3, item, visitor) {
+      let ctrl = visitor(item, path3);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i3 = 0; i3 < token.items.length; ++i3) {
-            const ci = _visit(Object.freeze(path.concat([[field, i3]])), token.items[i3], visitor);
+            const ci = _visit(Object.freeze(path3.concat([[field, i3]])), token.items[i3], visitor);
             if (typeof ci === "number")
               i3 = ci - 1;
             else if (ci === BREAK)
@@ -5594,10 +5594,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path);
+            ctrl = ctrl(item, path3);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path3) : ctrl;
     }
     exports.visit = visit;
   }
@@ -11084,8 +11084,8 @@ var require_req = __commonJS({
       if (req.originalUrl) {
         _req.url = req.originalUrl;
       } else {
-        const path = req.path;
-        _req.url = typeof path === "string" ? path : req.url ? req.url.path || req.url : void 0;
+        const path3 = req.path;
+        _req.url = typeof path3 === "string" ? path3 : req.url ? req.url.path || req.url : void 0;
       }
       if (req.query) {
         _req.query = req.query;
@@ -11250,14 +11250,14 @@ var require_redact = __commonJS({
       }
       return obj;
     }
-    function parsePath(path) {
+    function parsePath(path3) {
       const parts = [];
       let current = "";
       let inBrackets = false;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i3 = 0; i3 < path.length; i3++) {
-        const char = path[i3];
+      for (let i3 = 0; i3 < path3.length; i3++) {
+        const char = path3[i3];
         if (!inBrackets && char === ".") {
           if (current) {
             parts.push(current);
@@ -11388,10 +11388,10 @@ var require_redact = __commonJS({
       return current;
     }
     function redactPaths(obj, paths, censor, remove = false) {
-      for (const path of paths) {
-        const parts = parsePath(path);
+      for (const path3 of paths) {
+        const parts = parsePath(path3);
         if (parts.includes("*")) {
-          redactWildcardPath(obj, parts, censor, path, remove);
+          redactWildcardPath(obj, parts, censor, path3, remove);
         } else {
           if (remove) {
             removeKey(obj, parts);
@@ -11476,8 +11476,8 @@ var require_redact = __commonJS({
           }
         } else {
           if (afterWildcard.includes("*")) {
-            const wrappedCensor = typeof censor === "function" ? (value, path) => {
-              const fullPath = [...pathArray.slice(0, pathLength), ...path];
+            const wrappedCensor = typeof censor === "function" ? (value, path3) => {
+              const fullPath = [...pathArray.slice(0, pathLength), ...path3];
               return censor(value, fullPath);
             } : censor;
             redactWildcardPath(current, afterWildcard, wrappedCensor, originalPath, remove);
@@ -11512,8 +11512,8 @@ var require_redact = __commonJS({
         return null;
       }
       const pathStructure = /* @__PURE__ */ new Map();
-      for (const path of pathsToClone) {
-        const parts = parsePath(path);
+      for (const path3 of pathsToClone) {
+        const parts = parsePath(path3);
         let current = pathStructure;
         for (let i3 = 0; i3 < parts.length; i3++) {
           const part = parts[i3];
@@ -11565,24 +11565,24 @@ var require_redact = __commonJS({
       }
       return cloneSelectively(obj, pathStructure);
     }
-    function validatePath(path) {
-      if (typeof path !== "string") {
+    function validatePath(path3) {
+      if (typeof path3 !== "string") {
         throw new Error("Paths must be (non-empty) strings");
       }
-      if (path === "") {
+      if (path3 === "") {
         throw new Error("Invalid redaction path ()");
       }
-      if (path.includes("..")) {
-        throw new Error(`Invalid redaction path (${path})`);
+      if (path3.includes("..")) {
+        throw new Error(`Invalid redaction path (${path3})`);
       }
-      if (path.includes(",")) {
-        throw new Error(`Invalid redaction path (${path})`);
+      if (path3.includes(",")) {
+        throw new Error(`Invalid redaction path (${path3})`);
       }
       let bracketCount = 0;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i3 = 0; i3 < path.length; i3++) {
-        const char = path[i3];
+      for (let i3 = 0; i3 < path3.length; i3++) {
+        const char = path3[i3];
         if ((char === '"' || char === "'") && bracketCount > 0) {
           if (!inQuotes) {
             inQuotes = true;
@@ -11596,20 +11596,20 @@ var require_redact = __commonJS({
         } else if (char === "]" && !inQuotes) {
           bracketCount--;
           if (bracketCount < 0) {
-            throw new Error(`Invalid redaction path (${path})`);
+            throw new Error(`Invalid redaction path (${path3})`);
           }
         }
       }
       if (bracketCount !== 0) {
-        throw new Error(`Invalid redaction path (${path})`);
+        throw new Error(`Invalid redaction path (${path3})`);
       }
     }
     function validatePaths(paths) {
       if (!Array.isArray(paths)) {
         throw new TypeError("paths must be an array");
       }
-      for (const path of paths) {
-        validatePath(path);
+      for (const path3 of paths) {
+        validatePath(path3);
       }
     }
     function slowRedact(options = {}) {
@@ -11777,8 +11777,8 @@ var require_redaction = __commonJS({
         if (shape[k] === null) {
           o[k] = (value) => topCensor(value, [k]);
         } else {
-          const wrappedCensor = typeof censor === "function" ? (value, path) => {
-            return censor(value, [k, ...path]);
+          const wrappedCensor = typeof censor === "function" ? (value, path3) => {
+            return censor(value, [k, ...path3]);
           } : censor;
           o[k] = Redact({
             paths: shape[k],
@@ -11999,7 +11999,7 @@ var require_sonic_boom = __commonJS({
     var fs = __require("fs");
     var EventEmitter = __require("events");
     var inherits = __require("util").inherits;
-    var path = __require("path");
+    var path3 = __require("path");
     var sleep = require_atomic_sleep();
     var assert = __require("assert");
     var BUSY_WRITE_TIMEOUT = 100;
@@ -12053,7 +12053,7 @@ var require_sonic_boom = __commonJS({
       const mode = sonic.mode;
       if (sonic.sync) {
         try {
-          if (sonic.mkdir) fs.mkdirSync(path.dirname(file), { recursive: true });
+          if (sonic.mkdir) fs.mkdirSync(path3.dirname(file), { recursive: true });
           const fd = fs.openSync(file, flags, mode);
           fileOpened(null, fd);
         } catch (err) {
@@ -12061,7 +12061,7 @@ var require_sonic_boom = __commonJS({
           throw err;
         }
       } else if (sonic.mkdir) {
-        fs.mkdir(path.dirname(file), { recursive: true }, (err) => {
+        fs.mkdir(path3.dirname(file), { recursive: true }, (err) => {
           if (err) return fileOpened(err);
           fs.open(file, flags, mode, fileOpened);
         });
@@ -13393,15 +13393,15 @@ var require_transport = __commonJS({
       if (!unquoted) {
         return false;
       }
-      let path = unquoted;
-      if (path.startsWith("file://")) {
+      let path3 = unquoted;
+      if (path3.startsWith("file://")) {
         try {
-          path = fileURLToPath4(path);
+          path3 = fileURLToPath4(path3);
         } catch {
           return false;
         }
       }
-      return isAbsolute5(path) && !existsSync13(path);
+      return isAbsolute5(path3) && !existsSync13(path3);
     }
     function stripQuotes(value) {
       const first = value[0];
@@ -22875,8 +22875,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input = path;
+    function removeDotSegments(path3) {
+      let input = path3;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -23128,8 +23128,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const [path3, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path3 && path3 !== "/" ? path3 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -35864,40 +35864,40 @@ var require_node = __commonJS({
         super();
         this.staticChildren = {};
       }
-      findStaticMatchingChild(path, pathIndex) {
-        const staticChild = this.staticChildren[path.charAt(pathIndex)];
-        if (staticChild === void 0 || !staticChild.matchPrefix(path, pathIndex)) {
+      findStaticMatchingChild(path3, pathIndex) {
+        const staticChild = this.staticChildren[path3.charAt(pathIndex)];
+        if (staticChild === void 0 || !staticChild.matchPrefix(path3, pathIndex)) {
           return null;
         }
         return staticChild;
       }
-      getStaticChild(path, pathIndex = 0) {
-        if (path.length === pathIndex) {
+      getStaticChild(path3, pathIndex = 0) {
+        if (path3.length === pathIndex) {
           return this;
         }
-        const staticChild = this.findStaticMatchingChild(path, pathIndex);
+        const staticChild = this.findStaticMatchingChild(path3, pathIndex);
         if (staticChild) {
-          return staticChild.getStaticChild(path, pathIndex + staticChild.prefix.length);
+          return staticChild.getStaticChild(path3, pathIndex + staticChild.prefix.length);
         }
         return null;
       }
-      createStaticChild(path) {
-        if (path.length === 0) {
+      createStaticChild(path3) {
+        if (path3.length === 0) {
           return this;
         }
-        let staticChild = this.staticChildren[path.charAt(0)];
+        let staticChild = this.staticChildren[path3.charAt(0)];
         if (staticChild) {
           let i3 = 1;
           for (; i3 < staticChild.prefix.length; i3++) {
-            if (path.charCodeAt(i3) !== staticChild.prefix.charCodeAt(i3)) {
+            if (path3.charCodeAt(i3) !== staticChild.prefix.charCodeAt(i3)) {
               staticChild = staticChild.split(this, i3);
               break;
             }
           }
-          return staticChild.createStaticChild(path.slice(i3));
+          return staticChild.createStaticChild(path3.slice(i3));
         }
-        const label = path.charAt(0);
-        this.staticChildren[label] = new StaticNode(path);
+        const label = path3.charAt(0);
+        this.staticChildren[label] = new StaticNode(path3);
         return this.staticChildren[label];
       }
     };
@@ -35957,8 +35957,8 @@ var require_node = __commonJS({
         parentNode.staticChildren[parentPrefix.charAt(0)] = staticNode;
         return staticNode;
       }
-      getNextNode(path, pathIndex, nodeStack, paramsCount) {
-        let node = this.findStaticMatchingChild(path, pathIndex);
+      getNextNode(path3, pathIndex, nodeStack, paramsCount) {
+        let node = this.findStaticMatchingChild(path3, pathIndex);
         let parametricBrotherNodeIndex = 0;
         if (node === null) {
           if (this.parametricChildren.length === 0) {
@@ -36005,8 +36005,8 @@ var require_node = __commonJS({
         this.kind = NODE_TYPES.PARAMETRIC;
         this.nodePaths = /* @__PURE__ */ new Set([nodePath]);
       }
-      getNextNode(path, pathIndex) {
-        return this.findStaticMatchingChild(path, pathIndex);
+      getNextNode(path3, pathIndex) {
+        return this.findStaticMatchingChild(path3, pathIndex);
       }
     };
     var WildcardNode = class extends Node {
@@ -36344,33 +36344,33 @@ var require_url_sanitizer = __commonJS({
       }
       return null;
     }
-    function safeDecodeURI(path, useSemicolonDelimiter) {
+    function safeDecodeURI(path3, useSemicolonDelimiter) {
       let shouldDecode = false;
       let shouldDecodeParam = false;
       let querystring = "";
-      for (let i3 = 1; i3 < path.length; i3++) {
-        const charCode = path.charCodeAt(i3);
+      for (let i3 = 1; i3 < path3.length; i3++) {
+        const charCode = path3.charCodeAt(i3);
         if (charCode === 37) {
-          const highCharCode = path.charCodeAt(i3 + 1);
-          const lowCharCode = path.charCodeAt(i3 + 2);
+          const highCharCode = path3.charCodeAt(i3 + 1);
+          const lowCharCode = path3.charCodeAt(i3 + 2);
           if (decodeComponentChar(highCharCode, lowCharCode) === null) {
             shouldDecode = true;
           } else {
             shouldDecodeParam = true;
             if (highCharCode === 50 && lowCharCode === 53) {
               shouldDecode = true;
-              path = path.slice(0, i3 + 1) + "25" + path.slice(i3 + 1);
+              path3 = path3.slice(0, i3 + 1) + "25" + path3.slice(i3 + 1);
               i3 += 2;
             }
             i3 += 2;
           }
         } else if (charCode === 63 || charCode === 35 || charCode === 59 && useSemicolonDelimiter) {
-          querystring = path.slice(i3 + 1);
-          path = path.slice(0, i3);
+          querystring = path3.slice(i3 + 1);
+          path3 = path3.slice(0, i3);
           break;
         }
       }
-      const decodedPath = shouldDecode ? decodeURI(path) : path;
+      const decodedPath = shouldDecode ? decodeURI(path3) : path3;
       return { path: decodedPath, querystring, shouldDecodeParam };
     }
     function safeDecodeURIComponent(uriComponent) {
@@ -36464,7 +36464,7 @@ var require_find_my_way = __commonJS({
       this.routes = [];
       this.trees = {};
     }
-    Router.prototype.on = function on(method, path, opts, handler, store) {
+    Router.prototype.on = function on(method, path3, opts, handler, store) {
       if (typeof opts === "function") {
         if (handler !== void 0) {
           store = handler;
@@ -36472,34 +36472,34 @@ var require_find_my_way = __commonJS({
         handler = opts;
         opts = {};
       }
-      assert(typeof path === "string", "Path should be a string");
-      assert(path.length > 0, "The path could not be empty");
-      assert(path[0] === "/" || path[0] === "*", "The first character of a path should be `/` or `*`");
+      assert(typeof path3 === "string", "Path should be a string");
+      assert(path3.length > 0, "The path could not be empty");
+      assert(path3[0] === "/" || path3[0] === "*", "The first character of a path should be `/` or `*`");
       assert(typeof handler === "function", "Handler should be a function");
-      const optionalParamMatch = path.match(OPTIONAL_PARAM_REGEXP);
+      const optionalParamMatch = path3.match(OPTIONAL_PARAM_REGEXP);
       if (optionalParamMatch) {
-        assert(path.length === optionalParamMatch.index + optionalParamMatch[0].length, "Optional Parameter needs to be the last parameter of the path");
-        const pathFull = path.replace(OPTIONAL_PARAM_REGEXP, "$1$2");
-        const pathOptional = path.replace(OPTIONAL_PARAM_REGEXP, "$2") || "/";
+        assert(path3.length === optionalParamMatch.index + optionalParamMatch[0].length, "Optional Parameter needs to be the last parameter of the path");
+        const pathFull = path3.replace(OPTIONAL_PARAM_REGEXP, "$1$2");
+        const pathOptional = path3.replace(OPTIONAL_PARAM_REGEXP, "$2") || "/";
         this.on(method, pathFull, opts, handler, store);
         this.on(method, pathOptional, opts, handler, store);
         return;
       }
-      const route = path;
+      const route = path3;
       if (this.ignoreDuplicateSlashes) {
-        path = removeDuplicateSlashes(path);
+        path3 = removeDuplicateSlashes(path3);
       }
       if (this.ignoreTrailingSlash) {
-        path = trimLastSlash(path);
+        path3 = trimLastSlash(path3);
       }
       const methods = Array.isArray(method) ? method : [method];
       for (const method2 of methods) {
         assert(typeof method2 === "string", "Method should be a string");
         assert(httpMethods.includes(method2), `Method '${method2}' is not an http method.`);
-        this._on(method2, path, opts, handler, store, route);
+        this._on(method2, path3, opts, handler, store, route);
       }
     };
-    Router.prototype._on = function _on(method, path, opts, handler, store) {
+    Router.prototype._on = function _on(method, path3, opts, handler, store) {
       let constraints = {};
       if (opts.constraints !== void 0) {
         assert(typeof opts.constraints === "object" && opts.constraints !== null, "Constraints should be an object");
@@ -36512,7 +36512,7 @@ var require_find_my_way = __commonJS({
       if (this.trees[method] === void 0) {
         this.trees[method] = new StaticNode("/");
       }
-      let pattern = path;
+      let pattern = path3;
       if (pattern === "*" && this.trees[method].prefix.length !== 0) {
         const currentRoot = this.trees[method];
         this.trees[method] = new StaticNode("");
@@ -36615,19 +36615,19 @@ var require_find_my_way = __commonJS({
           throw new Error(`Method '${method}' already declared for route '${pattern}' with constraints '${JSON.stringify(constraints)}'`);
         }
       }
-      const route = { method, path, pattern, params, opts, handler, store };
+      const route = { method, path: path3, pattern, params, opts, handler, store };
       this.routes.push(route);
       currentNode.addRoute(route, this.constrainer);
     };
-    Router.prototype.hasRoute = function hasRoute(method, path, constraints) {
-      const route = this.findRoute(method, path, constraints);
+    Router.prototype.hasRoute = function hasRoute(method, path3, constraints) {
+      const route = this.findRoute(method, path3, constraints);
       return route !== null;
     };
-    Router.prototype.findRoute = function findNode(method, path, constraints = {}) {
+    Router.prototype.findRoute = function findNode(method, path3, constraints = {}) {
       if (this.trees[method] === void 0) {
         return null;
       }
-      let pattern = path;
+      let pattern = path3;
       let currentNode = this.trees[method];
       let parentNodePathIndex = currentNode.prefix.length;
       const params = [];
@@ -36745,39 +36745,39 @@ var require_find_my_way = __commonJS({
       this.trees = {};
       this.routes = [];
     };
-    Router.prototype.off = function off(method, path, constraints) {
-      assert(typeof path === "string", "Path should be a string");
-      assert(path.length > 0, "The path could not be empty");
-      assert(path[0] === "/" || path[0] === "*", "The first character of a path should be `/` or `*`");
+    Router.prototype.off = function off(method, path3, constraints) {
+      assert(typeof path3 === "string", "Path should be a string");
+      assert(path3.length > 0, "The path could not be empty");
+      assert(path3[0] === "/" || path3[0] === "*", "The first character of a path should be `/` or `*`");
       assert(
         typeof constraints === "undefined" || typeof constraints === "object" && !Array.isArray(constraints) && constraints !== null,
         "Constraints should be an object or undefined."
       );
-      const optionalParamMatch = path.match(OPTIONAL_PARAM_REGEXP);
+      const optionalParamMatch = path3.match(OPTIONAL_PARAM_REGEXP);
       if (optionalParamMatch) {
-        assert(path.length === optionalParamMatch.index + optionalParamMatch[0].length, "Optional Parameter needs to be the last parameter of the path");
-        const pathFull = path.replace(OPTIONAL_PARAM_REGEXP, "$1$2");
-        const pathOptional = path.replace(OPTIONAL_PARAM_REGEXP, "$2");
+        assert(path3.length === optionalParamMatch.index + optionalParamMatch[0].length, "Optional Parameter needs to be the last parameter of the path");
+        const pathFull = path3.replace(OPTIONAL_PARAM_REGEXP, "$1$2");
+        const pathOptional = path3.replace(OPTIONAL_PARAM_REGEXP, "$2");
         this.off(method, pathFull, constraints);
         this.off(method, pathOptional, constraints);
         return;
       }
       if (this.ignoreDuplicateSlashes) {
-        path = removeDuplicateSlashes(path);
+        path3 = removeDuplicateSlashes(path3);
       }
       if (this.ignoreTrailingSlash) {
-        path = trimLastSlash(path);
+        path3 = trimLastSlash(path3);
       }
       const methods = Array.isArray(method) ? method : [method];
       for (const method2 of methods) {
-        this._off(method2, path, constraints);
+        this._off(method2, path3, constraints);
       }
     };
-    Router.prototype._off = function _off(method, path, constraints) {
+    Router.prototype._off = function _off(method, path3, constraints) {
       assert(typeof method === "string", "Method should be a string");
       assert(httpMethods.includes(method), `Method '${method}' is not an http method.`);
       function matcherWithoutConstraints(route) {
-        return method !== route.method || path !== route.path;
+        return method !== route.method || path3 !== route.path;
       }
       function matcherWithConstraints(route) {
         return matcherWithoutConstraints(route) || !deepEqual(constraints, route.opts.constraints || {});
@@ -36814,37 +36814,37 @@ var require_find_my_way = __commonJS({
       if (handle9 === null) return this._defaultRoute(req, res, ctx);
       return ctx === void 0 ? handle9.handler(req, res, handle9.params, handle9.store, handle9.searchParams) : handle9.handler.call(ctx, req, res, handle9.params, handle9.store, handle9.searchParams);
     };
-    Router.prototype.find = function find(method, path, derivedConstraints) {
+    Router.prototype.find = function find(method, path3, derivedConstraints) {
       let currentNode = this.trees[method];
       if (currentNode === void 0) return null;
-      if (path.charCodeAt(0) !== 47) {
-        path = path.replace(FULL_PATH_REGEXP, "/");
+      if (path3.charCodeAt(0) !== 47) {
+        path3 = path3.replace(FULL_PATH_REGEXP, "/");
       }
       if (this.ignoreDuplicateSlashes) {
-        path = removeDuplicateSlashes(path);
+        path3 = removeDuplicateSlashes(path3);
       }
       let sanitizedUrl;
       let querystring2;
       let shouldDecodeParam;
       try {
-        sanitizedUrl = safeDecodeURI(path, this.useSemicolonDelimiter);
-        path = sanitizedUrl.path;
+        sanitizedUrl = safeDecodeURI(path3, this.useSemicolonDelimiter);
+        path3 = sanitizedUrl.path;
         querystring2 = sanitizedUrl.querystring;
         shouldDecodeParam = sanitizedUrl.shouldDecodeParam;
       } catch (error) {
-        return this._onBadUrl(path);
+        return this._onBadUrl(path3);
       }
       if (this.ignoreTrailingSlash) {
-        path = trimLastSlash(path);
+        path3 = trimLastSlash(path3);
       }
-      const originPath = path;
+      const originPath = path3;
       if (this.caseSensitive === false) {
-        path = path.toLowerCase();
+        path3 = path3.toLowerCase();
       }
       const maxParamLength = this.maxParamLength;
       let pathIndex = currentNode.prefix.length;
       const params = [];
-      const pathLen = path.length;
+      const pathLen = path3.length;
       const brothersNodesStack = [];
       let maxParamLengthExceeded = false;
       while (true) {
@@ -36859,7 +36859,7 @@ var require_find_my_way = __commonJS({
             };
           }
         }
-        let node = currentNode.getNextNode(path, pathIndex, brothersNodesStack, params.length);
+        let node = currentNode.getNextNode(path3, pathIndex, brothersNodesStack, params.length);
         if (node === null) {
           if (brothersNodesStack.length === 0) {
             if (maxParamLengthExceeded && this.onMaxParamLength) {
@@ -36930,8 +36930,8 @@ var require_find_my_way = __commonJS({
     Router.prototype._rebuild = function(routes) {
       this.reset();
       for (const route of routes) {
-        const { method, path, opts, handler, store } = route;
-        this._on(method, path, opts, handler, store);
+        const { method, path: path3, opts, handler, store } = route;
+        this._on(method, path3, opts, handler, store);
       }
     };
     Router.prototype._defaultRoute = function(req, res, ctx) {
@@ -36942,24 +36942,24 @@ var require_find_my_way = __commonJS({
         res.end();
       }
     };
-    Router.prototype._onBadUrl = function(path) {
+    Router.prototype._onBadUrl = function(path3) {
       if (this.onBadUrl === null) {
         return null;
       }
       const onBadUrl = this.onBadUrl;
       return {
-        handler: (req, res, ctx) => onBadUrl(path, req, res),
+        handler: (req, res, ctx) => onBadUrl(path3, req, res),
         params: {},
         store: null
       };
     };
-    Router.prototype._onMaxParamLength = function(path) {
+    Router.prototype._onMaxParamLength = function(path3) {
       if (this.onMaxParamLength === null) {
         return null;
       }
       const onMaxParamLength = this.onMaxParamLength;
       return {
-        handler: (req, res, ctx) => onMaxParamLength(path, req, res),
+        handler: (req, res, ctx) => onMaxParamLength(path3, req, res),
         params: {},
         store: null
       };
@@ -36991,12 +36991,12 @@ var require_find_my_way = __commonJS({
       if (!httpMethods.hasOwnProperty(i3)) continue;
       const m = httpMethods[i3];
       const methodName = m.toLowerCase();
-      Router.prototype[methodName] = function(path, handler, store) {
-        return this.on(m, path, handler, store);
+      Router.prototype[methodName] = function(path3, handler, store) {
+        return this.on(m, path3, handler, store);
       };
     }
-    Router.prototype.all = function(path, handler, store) {
-      this.on(httpMethods, path, handler, store);
+    Router.prototype.all = function(path3, handler, store) {
+      this.on(httpMethods, path3, handler, store);
     };
     Router.sanitizeUrlPath = function sanitizeUrlPath(url, useSemicolonDelimiter) {
       const decoded = safeDecodeURI(url, useSemicolonDelimiter);
@@ -37011,14 +37011,14 @@ var require_find_my_way = __commonJS({
     function escapeRegExp(string) {
       return string.replace(ESCAPE_REGEXP, "\\$&");
     }
-    function removeDuplicateSlashes(path) {
-      return path.indexOf("//") !== -1 ? path.replace(REMOVE_DUPLICATE_SLASHES_REGEXP, "/") : path;
+    function removeDuplicateSlashes(path3) {
+      return path3.indexOf("//") !== -1 ? path3.replace(REMOVE_DUPLICATE_SLASHES_REGEXP, "/") : path3;
     }
-    function trimLastSlash(path) {
-      if (path.length > 1 && path.charCodeAt(path.length - 1) === 47) {
-        return path.slice(0, -1);
+    function trimLastSlash(path3) {
+      if (path3.length > 1 && path3.charCodeAt(path3.length - 1) === 47) {
+        return path3.slice(0, -1);
       }
-      return path;
+      return path3;
     }
     function trimRegExpStartAndEnd(regexString) {
       if (regexString.charCodeAt(1) === 94) {
@@ -37029,22 +37029,22 @@ var require_find_my_way = __commonJS({
       }
       return regexString;
     }
-    function getClosingParenthensePosition(path, idx) {
+    function getClosingParenthensePosition(path3, idx) {
       let parentheses = 1;
-      while (idx < path.length) {
+      while (idx < path3.length) {
         idx++;
-        if (path.charCodeAt(idx) === 92) {
+        if (path3.charCodeAt(idx) === 92) {
           idx++;
           continue;
         }
-        if (path.charCodeAt(idx) === 41) {
+        if (path3.charCodeAt(idx) === 41) {
           parentheses--;
-        } else if (path.charCodeAt(idx) === 40) {
+        } else if (path3.charCodeAt(idx) === 40) {
           parentheses++;
         }
         if (!parentheses) return idx;
       }
-      throw new TypeError('Invalid regexp expression in "' + path + '"');
+      throw new TypeError('Invalid regexp expression in "' + path3 + '"');
     }
     function defaultBuildPrettyMeta(route) {
       if (!route) return {};
@@ -37281,12 +37281,12 @@ var require_route = __commonJS({
       function route({ options: options2, isFastify }) {
         throwIfAlreadyStarted("Cannot add route!");
         const opts = { ...options2 };
-        const path = opts.url || opts.path || "";
+        const path3 = opts.url || opts.path || "";
         if (!opts.handler) {
-          throw new FST_ERR_ROUTE_MISSING_HANDLER(opts.method, path);
+          throw new FST_ERR_ROUTE_MISSING_HANDLER(opts.method, path3);
         }
         if (opts.errorHandler !== void 0 && typeof opts.errorHandler !== "function") {
-          throw new FST_ERR_ROUTE_HANDLER_NOT_FN(opts.method, path);
+          throw new FST_ERR_ROUTE_HANDLER_NOT_FN(opts.method, path3);
         }
         validateBodyLimitOption(opts.bodyLimit);
         validateHandlerTimeoutOption(opts.handlerTimeout);
@@ -37296,22 +37296,22 @@ var require_route = __commonJS({
         if (Array.isArray(opts.method)) {
           for (let i3 = 0; i3 < opts.method.length; ++i3) {
             opts.method[i3] = normalizeAndValidateMethod.call(this, opts.method[i3]);
-            validateSchemaBodyOption.call(this, opts.method[i3], path, opts.schema);
+            validateSchemaBodyOption.call(this, opts.method[i3], path3, opts.schema);
             isGetRoute = opts.method.includes("GET");
             isHeadRoute = opts.method.includes("HEAD");
           }
         } else {
           opts.method = normalizeAndValidateMethod.call(this, opts.method);
-          validateSchemaBodyOption.call(this, opts.method, path, opts.schema);
+          validateSchemaBodyOption.call(this, opts.method, path3, opts.schema);
           isGetRoute = opts.method === "GET";
           isHeadRoute = opts.method === "HEAD";
         }
         const headOpts = shouldExposeHead && isGetRoute ? { ...options2 } : null;
         const prefix = this[kRoutePrefix];
-        if (path === "/" && prefix.length > 0 && opts.method !== "HEAD") {
+        if (path3 === "/" && prefix.length > 0 && opts.method !== "HEAD") {
           switch (opts.prefixTrailingSlash) {
             case "slash":
-              addNewRoute.call(this, { path, isFastify });
+              addNewRoute.call(this, { path: path3, isFastify });
               break;
             case "no-slash":
               addNewRoute.call(this, { path: "", isFastify });
@@ -37320,20 +37320,20 @@ var require_route = __commonJS({
             default:
               addNewRoute.call(this, { path: "", isFastify });
               if (ignoreTrailingSlash !== true && (ignoreDuplicateSlashes !== true || !prefix.endsWith("/"))) {
-                addNewRoute.call(this, { path, prefixing: true, isFastify });
+                addNewRoute.call(this, { path: path3, prefixing: true, isFastify });
               }
           }
-        } else if (path[0] === "/" && prefix.endsWith("/")) {
-          addNewRoute.call(this, { path: path.slice(1), isFastify });
+        } else if (path3[0] === "/" && prefix.endsWith("/")) {
+          addNewRoute.call(this, { path: path3.slice(1), isFastify });
         } else {
-          addNewRoute.call(this, { path, isFastify });
+          addNewRoute.call(this, { path: path3, isFastify });
         }
         return this;
-        function addNewRoute({ path: path2, prefixing = false, isFastify: isFastify2 = false }) {
-          const url = prefix + path2;
+        function addNewRoute({ path: path4, prefixing = false, isFastify: isFastify2 = false }) {
+          const url = prefix + path4;
           opts.url = url;
           opts.path = url;
-          opts.routePath = path2;
+          opts.routePath = path4;
           opts.prefix = prefix;
           opts.logLevel = opts.logLevel || this[kLogLevel];
           if (this[kLogSerializers] || opts.logSerializers) {
@@ -37463,7 +37463,7 @@ var require_route = __commonJS({
           });
           if (shouldExposeHead && isGetRoute && !isHeadRoute && !hasHEADHandler) {
             const onSendHandlers = parseHeadOnSendHandlers(headOpts.onSend);
-            prepareRoute.call(this, { method: "HEAD", url: path2, options: { ...headOpts, onSend: onSendHandlers }, isFastify: true });
+            prepareRoute.call(this, { method: "HEAD", url: path4, options: { ...headOpts, onSend: onSendHandlers }, isFastify: true });
           }
         }
       }
@@ -37587,9 +37587,9 @@ var require_route = __commonJS({
       }
       return method;
     }
-    function validateSchemaBodyOption(method, path, schema) {
+    function validateSchemaBodyOption(method, path3, schema) {
       if (this[kSupportedHTTPMethods].bodyless.has(method) && schema?.body) {
-        throw new FST_ERR_ROUTE_BODY_VALIDATION_SCHEMA_NOT_SUPPORTED(method, path);
+        throw new FST_ERR_ROUTE_BODY_VALIDATION_SCHEMA_NOT_SUPPORTED(method, path3);
       }
     }
     function validateBodyLimitOption(bodyLimit) {
@@ -37688,7 +37688,7 @@ var require_four_oh_four = __commonJS({
         });
       }
       function createOnBadUrl() {
-        return function onBadUrl(path, req, res) {
+        return function onBadUrl(path3, req, res) {
           const fourOhFourContext = this[kFourOhFourLevelInstance][kFourOhFourContext];
           const id = getGenReqId(fourOhFourContext.server, req);
           const childLogger = createChildLogger(fourOhFourContext, logger, req, id);
@@ -39403,7 +39403,7 @@ var require_parse_url = __commonJS({
 var require_form_data = __commonJS({
   "node_modules/light-my-request/lib/form-data.js"(exports, module) {
     "use strict";
-    var { randomUUID: randomUUID36 } = __require("node:crypto");
+    var { randomUUID: randomUUID37 } = __require("node:crypto");
     var { Readable } = __require("node:stream");
     var textEncoder;
     function isFormDataLike(payload) {
@@ -39411,7 +39411,7 @@ var require_form_data = __commonJS({
     }
     function formDataToStream(formdata) {
       textEncoder = textEncoder ?? new TextEncoder();
-      const boundary = `----formdata-${randomUUID36()}`;
+      const boundary = `----formdata-${randomUUID37()}`;
       const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
       const escape2 = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
@@ -41547,7 +41547,7 @@ var require_fastify = __commonJS({
         }
         fourOhFour.router.lookup(req, res);
       }
-      function onBadUrl(path, req, res) {
+      function onBadUrl(path3, req, res) {
         if (options.frameworkErrors) {
           const id = getGenReqId(onBadUrlContext.server, req);
           const childLogger = createChildLogger(onBadUrlContext, options.logger, req, id);
@@ -41557,12 +41557,12 @@ var require_fastify = __commonJS({
           if (resolvedDisableRequestLogging === false) {
             childLogger.info({ req: request }, "incoming request");
           }
-          return options.frameworkErrors(new FST_ERR_BAD_URL(path), request, reply);
+          return options.frameworkErrors(new FST_ERR_BAD_URL(path3), request, reply);
         }
         const body = JSON.stringify({
           error: "Bad Request",
           code: "FST_ERR_BAD_URL",
-          message: `'${path}' is not a valid url component`,
+          message: `'${path3}' is not a valid url component`,
           statusCode: 400
         });
         res.writeHead(400, {
@@ -49507,7 +49507,7 @@ var require_websocket2 = __commonJS({
       delete wssOptions.server;
       const wss = new WebSocket2.Server(wssOptions);
       fastify.decorate("websocketServer", wss);
-      async function injectWS(path = "/", upgradeContext = {}, options = {}) {
+      async function injectWS(path3 = "/", upgradeContext = {}, options = {}) {
         const server2Client = new PassThrough();
         const client2Server = new PassThrough();
         const serverStream = new Duplexify(server2Client, client2Server);
@@ -49547,7 +49547,7 @@ var require_websocket2 = __commonJS({
             "sec-websocket-key": randomBytes9(16).toString("base64")
           },
           httpVersion: "1.1",
-          url: path,
+          url: path3,
           [kWs]: serverStream,
           [kWsHead]: head
         };
@@ -59328,8 +59328,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -59445,11 +59445,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -63034,15 +63034,15 @@ function parseListen(value) {
 var import_fastify = __toESM(require_fastify(), 1);
 var import_cors = __toESM(require_cors(), 1);
 var import_websocket = __toESM(require_websocket2(), 1);
-import { createHash as createHash33, randomUUID as randomUUID35 } from "node:crypto";
-import { mkdirSync as mkdirSync9, readFileSync as readFileSync9, statSync as statSync5, writeFileSync as writeFileSync7 } from "node:fs";
+import { createHash as createHash33, randomUUID as randomUUID36 } from "node:crypto";
+import { mkdirSync as mkdirSync9, readFileSync as readFileSync9, statSync as statSync6, writeFileSync as writeFileSync7 } from "node:fs";
 import { dirname as dirname10, extname as extname2 } from "node:path";
 
 // floe-bus/dist/store.js
 var import_cron_parser = __toESM(require_dist6(), 1);
 import { existsSync as existsSync8, mkdirSync as mkdirSync6, readFileSync as readFileSync5, renameSync as renameSync2, rmSync as rmSync2, writeFileSync as writeFileSync4 } from "node:fs";
 import { dirname as dirname7, join as join7, parse, resolve as resolve6 } from "node:path";
-import { randomUUID as randomUUID34, createHash as createHash31 } from "node:crypto";
+import { randomUUID as randomUUID35, createHash as createHash31 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -67407,6 +67407,27 @@ function resolveActorApprovalPolicy(definition2, policies) {
 
 // floe-bus/dist/capability-grants.js
 import { createHash as createHash6, randomUUID as randomUUID6 } from "node:crypto";
+
+// floe-bus/dist/workspace-paths.js
+import path from "node:path";
+function canonicalAbsolutePath(realPath) {
+  const slashed = realPath.split(path.sep).join("/");
+  return slashed.length > 1 && slashed.endsWith("/") && !/^[A-Za-z]:\/$/.test(slashed) ? slashed.slice(0, -1) : slashed;
+}
+function isAbsoluteCanonicalPath(value) {
+  return value.startsWith("/") || /^[A-Za-z]:\//.test(value);
+}
+function pathUnder(folder, candidate) {
+  const insensitive = /^[A-Za-z]:\//.test(folder);
+  const base = insensitive ? folder.toLowerCase() : folder;
+  const value = insensitive ? candidate.toLowerCase() : candidate;
+  if (value === base)
+    return ".";
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return value.startsWith(prefix) ? candidate.slice(prefix.length) : null;
+}
+
+// floe-bus/dist/capability-grants.js
 var FILESYSTEM_PATH_TARGET_KIND = "filesystem_path";
 var EXECUTABLE_TARGET_KIND = "executable";
 var NETWORK_DOMAIN_TARGET_KIND = "network_domain";
@@ -67688,12 +67709,12 @@ var SqliteCapabilityGrantStore = class {
   getDelegation(grantId) {
     return this.db.prepare(`SELECT source_grant_id, authority_grant_id FROM capability_grant_delegations WHERE grant_id = ?`).get(grantId) ?? null;
   }
-  delegationIsActive(grantId, nowMs, path = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
+  delegationIsActive(grantId, nowMs, path3 = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
     if (memo.has(grantId))
       return memo.get(grantId);
-    if (path.has(grantId))
+    if (path3.has(grantId))
       return false;
-    path.add(grantId);
+    path3.add(grantId);
     const delegation = this.getDelegation(grantId);
     if (!delegation) {
       memo.set(grantId, true);
@@ -67702,7 +67723,7 @@ var SqliteCapabilityGrantStore = class {
     const child = this.requireGrant(grantId);
     const active = [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].every((id) => {
       const parent = this.getGrant(id);
-      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path), memo);
+      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path3), memo);
     });
     memo.set(grantId, active);
     return active;
@@ -68019,7 +68040,9 @@ function targetContains(allowed, child) {
   if (child.id === null)
     return false;
   if (allowed.kind === FILESYSTEM_PATH_TARGET_KIND) {
-    return allowed.id === "." || child.id.startsWith(`${allowed.id}/`);
+    if (allowed.id === ".")
+      return !isAbsoluteCanonicalPath(child.id);
+    return child.id.startsWith(`${allowed.id}/`);
   }
   if (allowed.kind === EXECUTABLE_TARGET_KIND)
     return allowed.id.toLowerCase() === child.id.toLowerCase();
@@ -68169,12 +68192,12 @@ function isEngineToolOperation(operationId) {
   return TOOL_OPERATION_IDS.has(operationId);
 }
 function decideToolAuthority(input) {
-  const { operation_id: operationId, facts, scope_paths: scope } = input;
+  const { operation_id: operationId, facts, scope_paths: scope, workspace } = input;
   if (!isEngineToolOperation(operationId)) {
     return deny("tool_operation_unknown", `'${operationId}' is not a governed engine tool operation.`);
   }
-  if (facts.sandbox_bypass) {
-    return deny("tool_sandbox_bypass", "The engine asked to bypass its sandbox; Floe never allows that.");
+  if (facts.sandbox_bypass && !workspace.system_access) {
+    return deny("tool_sandbox_bypass", "The engine asked to bypass its sandbox, which needs this Workspace's System access to be on.");
   }
   const candidates = input.grants.filter((grant) => grant.operation_ids.includes(operationId));
   if (candidates.length === 0) {
@@ -68182,6 +68205,11 @@ function decideToolAuthority(input) {
   }
   if (operationId === ENGINE_TOOL_OPERATIONS.process_execute)
     return decideShell(candidates, facts, scope, input.grants);
+  if (!workspace.system_access && isFileTool(operationId)) {
+    const refusal2 = workspaceRefusal(facts, workspace.folders);
+    if (refusal2)
+      return refusal2;
+  }
   if (scope !== null && touchesFiles(facts, operationId)) {
     const refusal2 = pathsRefusal(facts, scope.map((id) => ({ kind: FILESYSTEM_PATH_TARGET_KIND, id })), "this Actor's scope", "tool_path_outside_scope");
     if (refusal2)
@@ -68210,7 +68238,7 @@ function shellNetworkRefusal(facts, grants) {
   if (facts.destinations.length === 0 && facts.invalid_url_count === 0)
     return null;
   const fetch2 = grants.filter((grant) => grant.operation_ids.includes(ENGINE_TOOL_OPERATIONS.network_fetch));
-  if (fetch2.some((grant) => grantRefusal(grant, { ...facts, paths: [], unresolved_path_count: 0 }, ENGINE_TOOL_OPERATIONS.network_fetch) === null)) {
+  if (fetch2.some((grant) => grantRefusal(grant, { ...facts, paths: [], unresolved_path_count: 0, outside_path_count: 0 }, ENGINE_TOOL_OPERATIONS.network_fetch) === null)) {
     return null;
   }
   return deny("tool_network_not_granted", "The command reaches a network destination this Actor may not fetch.");
@@ -68254,17 +68282,35 @@ function grantRefusal(grant, facts, operationId) {
   }
   return null;
 }
+function isFileTool(operationId) {
+  return operationId === ENGINE_TOOL_OPERATIONS.filesystem_read || operationId === ENGINE_TOOL_OPERATIONS.filesystem_write;
+}
+function workspaceRefusal(facts, folders) {
+  const outside = facts.outside_path_count > 0 || facts.paths.some((path3) => isAbsoluteCanonicalPath(path3) && !folders.some((folder) => pathUnder(folder, path3) !== null));
+  if (outside) {
+    return deny("tool_path_outside_workspace", "This call reaches outside the Workspace's folders. Add that folder to the Workspace, or turn on System access, to allow it.");
+  }
+  if (facts.unresolved_path_count > 0) {
+    return deny("tool_path_unresolved", "A path could not be resolved, so it cannot be shown to be inside the Workspace's folders.");
+  }
+  if (facts.paths.length === 0) {
+    return deny("tool_path_missing", "The engine did not report which path this call touches, so it cannot be shown to be inside the Workspace's folders.");
+  }
+  return null;
+}
 function touchesFiles(facts, operationId) {
-  return operationId === ENGINE_TOOL_OPERATIONS.filesystem_read || operationId === ENGINE_TOOL_OPERATIONS.filesystem_write || facts.paths.length > 0 || facts.unresolved_path_count > 0;
+  return operationId === ENGINE_TOOL_OPERATIONS.filesystem_read || operationId === ENGINE_TOOL_OPERATIONS.filesystem_write || facts.paths.length > 0 || facts.unresolved_path_count > 0 || facts.outside_path_count > 0;
 }
 function pathsRefusal(facts, folders, label, code) {
+  if (facts.outside_path_count > 0)
+    return deny(code, `This call reaches a path outside ${label}.`);
   if (facts.unresolved_path_count > 0) {
-    return deny("tool_path_unresolved", `A path could not be resolved inside the Workspace, so it cannot be shown to be within ${label}.`);
+    return deny("tool_path_unresolved", `A path could not be resolved, so it cannot be shown to be within ${label}.`);
   }
   if (facts.paths.length === 0) {
     return deny("tool_path_missing", `The engine did not report which path this call touches, so it cannot be shown to be within ${label}.`);
   }
-  const outside = facts.paths.find((path) => !folders.some((folder) => targetContains(folder, { kind: FILESYSTEM_PATH_TARGET_KIND, id: path })));
+  const outside = facts.paths.find((path3) => !folders.some((folder) => targetContains(folder, { kind: FILESYSTEM_PATH_TARGET_KIND, id: path3 })));
   return outside === void 0 ? null : deny(code, `'${outside}' is outside ${label}.`);
 }
 function shellAmbiguity(facts) {
@@ -68353,8 +68399,9 @@ function normalizeToolCallPolicyFacts(facts) {
     engine: text4(facts.engine, "engine"),
     manifest_version: text4(facts.manifest_version, "manifest_version"),
     native_tools: sortedUnique(facts.native_tools.map((name) => text4(name, "native tool"))),
-    paths: sortedUnique(facts.paths.map((path) => text4(path, "path"))),
+    paths: sortedUnique(facts.paths.map((path3) => text4(path3, "path"))),
     unresolved_path_count: count(facts.unresolved_path_count, "unresolved_path_count"),
+    outside_path_count: count(facts.outside_path_count ?? 0, "outside_path_count"),
     executables: sortedUnique(facts.executables.map((name) => text4(name, "executable").toLowerCase())),
     unclassified_segment_count: count(facts.unclassified_segment_count, "unclassified_segment_count"),
     destinations: [...new Map(facts.destinations.map((destination) => {
@@ -68395,8 +68442,194 @@ function sortedUnique(values) {
   return [...new Set(values)].sort();
 }
 
+// floe-bus/dist/workspace-access.js
+import { randomUUID as randomUUID7 } from "node:crypto";
+import { realpathSync, statSync } from "node:fs";
+import path2 from "node:path";
+var HOME_FOLDER_ID = "home";
+var TOOL_ACCESS_NOTICE = "Floe Actors in this workspace can now use tools inside its folders.";
+var WorkspaceFolderError = class extends Error {
+  code;
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "WorkspaceFolderError";
+  }
+};
+var RECORD_LIMIT = 50;
+function applyWorkspaceAccessSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS workspace_folders (
+      folder_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      host_id TEXT NOT NULL,
+      locator TEXT NOT NULL,
+      added_at TEXT NOT NULL,
+      added_by_principal_id TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workspace_folders_workspace ON workspace_folders(workspace_id, host_id);
+    CREATE TABLE IF NOT EXISTS workspace_system_access (
+      workspace_id TEXT NOT NULL,
+      host_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+      changed_at TEXT NOT NULL,
+      changed_by_principal_id TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, host_id)
+    );
+    CREATE TABLE IF NOT EXISTS workspace_access_records (
+      record_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      host_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      path TEXT,
+      summary TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      recorded_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workspace_access_records_workspace
+      ON workspace_access_records(workspace_id, host_id, recorded_at);
+  `);
+}
+function realFolder(locator) {
+  if (!locator)
+    return null;
+  try {
+    const real = realpathSync.native(locator);
+    return statSync(real).isDirectory() ? canonicalAbsolutePath(real) : null;
+  } catch {
+    return null;
+  }
+}
+var WorkspaceAccessStore = class {
+  db;
+  dependencies;
+  constructor(db, dependencies) {
+    this.db = db;
+    this.dependencies = dependencies;
+    applyWorkspaceAccessSchema(db);
+  }
+  now() {
+    return this.dependencies.now?.() ?? (/* @__PURE__ */ new Date()).toISOString();
+  }
+  inspect(workspaceId4) {
+    const home = this.dependencies.home_locator(workspaceId4);
+    const folders = home ? [{ folder_id: HOME_FOLDER_ID, path: home, home: true, available: realFolder(home) !== null, added_at: null }] : [];
+    for (const row of this.folderRows(workspaceId4)) {
+      folders.push({
+        folder_id: row.folder_id,
+        path: row.locator,
+        home: false,
+        available: realFolder(row.locator) !== null,
+        added_at: row.added_at
+      });
+    }
+    const records = this.db.prepare(`SELECT record_id, kind, summary, path, principal_id, recorded_at
+      FROM workspace_access_records WHERE workspace_id = ? AND host_id = ?
+      ORDER BY recorded_at DESC, record_id DESC LIMIT ?`).all(workspaceId4, this.dependencies.host_id, RECORD_LIMIT).map((row) => ({ ...row }));
+    return { workspace_id: workspaceId4, folders, system_access: this.systemAccess(workspaceId4), records };
+  }
+  toolBoundary(workspaceId4) {
+    return {
+      home: realFolder(this.dependencies.home_locator(workspaceId4)),
+      folders: this.folderRows(workspaceId4).map((row) => realFolder(row.locator)).filter((value) => value !== null),
+      system_access: this.systemAccess(workspaceId4)
+    };
+  }
+  addFolder(input) {
+    if (!path2.isAbsolute(input.path)) {
+      throw new WorkspaceFolderError("folder_invalid", "Choose a folder by its full path on this machine.");
+    }
+    const locator = path2.resolve(input.path);
+    const real = realFolder(locator);
+    if (!real)
+      throw new WorkspaceFolderError("folder_invalid", "That folder does not exist on this machine.");
+    const home = realFolder(this.dependencies.home_locator(input.workspace_id));
+    const existing = [home, ...this.folderRows(input.workspace_id).map((row) => realFolder(row.locator))];
+    if (existing.some((folder) => folder !== null && pathUnder(folder, real) !== null)) {
+      throw new WorkspaceFolderError("folder_already_included", "That folder is already inside this Workspace's folders.");
+    }
+    const at = this.now();
+    this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
+      VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID7()}`, input.workspace_id, this.dependencies.host_id, locator, at, input.principal_id);
+    this.record(input.workspace_id, "folder_added", `Added the folder ${locator}.`, locator, input.principal_id, at);
+    return this.inspect(input.workspace_id);
+  }
+  removeFolder(input) {
+    if (input.folder_id === HOME_FOLDER_ID) {
+      throw new WorkspaceFolderError("home_folder_fixed", "The Workspace's own folder cannot be removed. Move the Workspace instead.");
+    }
+    const row = this.folderRows(input.workspace_id).find((item) => item.folder_id === input.folder_id);
+    if (!row)
+      throw new WorkspaceFolderError("folder_not_found", "That folder is not one of this Workspace's folders.");
+    this.db.prepare("DELETE FROM workspace_folders WHERE folder_id = ?").run(row.folder_id);
+    this.record(input.workspace_id, "folder_removed", `Removed the folder ${row.locator}.`, row.locator, input.principal_id, this.now());
+    return this.inspect(input.workspace_id);
+  }
+  /** Returns null when the setting already had this value, so nothing changed. */
+  setSystemAccess(input) {
+    if (this.systemAccess(input.workspace_id) === input.enabled)
+      return null;
+    const at = this.now();
+    this.db.prepare(`INSERT INTO workspace_system_access (workspace_id, host_id, enabled, changed_at, changed_by_principal_id)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(workspace_id, host_id) DO UPDATE SET enabled = excluded.enabled,
+        changed_at = excluded.changed_at, changed_by_principal_id = excluded.changed_by_principal_id`).run(input.workspace_id, this.dependencies.host_id, input.enabled ? 1 : 0, at, input.principal_id);
+    this.record(input.workspace_id, input.enabled ? "system_access_turned_on" : "system_access_turned_off", input.enabled ? "System access turned on: file tools may reach anywhere on this machine." : "System access turned off: file tools are limited to this Workspace's folders.", null, input.principal_id, at);
+    return this.inspect(input.workspace_id);
+  }
+  /** Records the tool access notice once per Workspace; true when it was recorded now. */
+  recordToolAccessNotice(workspaceId4, principalId) {
+    const result = this.db.prepare(`INSERT OR IGNORE INTO workspace_access_records
+      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at)
+      VALUES (?, ?, ?, 'tool_access_given', NULL, ?, ?, ?)`).run(`notice:tool-access:${workspaceId4}`, workspaceId4, this.dependencies.host_id, TOOL_ACCESS_NOTICE, principalId, this.now());
+    return Number(result.changes) > 0;
+  }
+  /** Removes everything held for a deleted Workspace. */
+  forgetWorkspace(workspaceId4) {
+    for (const table of ["workspace_folders", "workspace_system_access", "workspace_access_records"]) {
+      this.db.prepare(`DELETE FROM ${table} WHERE workspace_id = ?`).run(workspaceId4);
+    }
+  }
+  systemAccess(workspaceId4) {
+    const row = this.db.prepare("SELECT enabled FROM workspace_system_access WHERE workspace_id = ? AND host_id = ?").get(workspaceId4, this.dependencies.host_id);
+    return row?.enabled === 1;
+  }
+  folderRows(workspaceId4) {
+    return this.db.prepare(`SELECT folder_id, locator, added_at FROM workspace_folders
+      WHERE workspace_id = ? AND host_id = ? ORDER BY added_at, folder_id`).all(workspaceId4, this.dependencies.host_id);
+  }
+  record(workspaceId4, kind, summary2, recordPath, principalId, at) {
+    this.db.prepare(`INSERT INTO workspace_access_records
+      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID7()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
+  }
+};
+function classifyToolPaths(reported, boundary) {
+  const paths = [];
+  let outside = 0;
+  let unresolved = 0;
+  for (const value of reported) {
+    if (value === null || !path2.isAbsolute(value)) {
+      unresolved += 1;
+      continue;
+    }
+    const candidate = canonicalAbsolutePath(value);
+    const inHome = boundary.home ? pathUnder(boundary.home, candidate) : null;
+    if (inHome !== null) {
+      paths.push(inHome);
+      continue;
+    }
+    if (boundary.folders.some((folder) => pathUnder(folder, candidate) !== null)) {
+      paths.push(candidate);
+      continue;
+    }
+    outside += 1;
+  }
+  return { paths, outside_path_count: outside, unresolved_path_count: unresolved };
+}
+
 // floe-bus/dist/runtime-tool-policy.js
-function toolFactsFromRequest(request, actorDefinitionRevisionId) {
+function toolFactsFromRequest(request, actorDefinitionRevisionId, boundary) {
+  const paths = classifyToolPaths(request.paths, boundary);
   const destinations = [];
   let invalidUrls = 0;
   for (const url of request.urls) {
@@ -68412,8 +68645,9 @@ function toolFactsFromRequest(request, actorDefinitionRevisionId) {
     engine: request.engine,
     manifest_version: request.manifest_version,
     native_tools: request.native_tools,
-    paths: request.paths.filter((path) => path !== null),
-    unresolved_path_count: request.paths.filter((path) => path === null).length,
+    paths: paths.paths,
+    unresolved_path_count: paths.unresolved_path_count,
+    outside_path_count: paths.outside_path_count,
     executables: request.executables.filter((name) => name !== null),
     unclassified_segment_count: request.executables.filter((name) => name === null).length,
     destinations,
@@ -68559,8 +68793,8 @@ var EndpointWatermarkStore = class {
 };
 
 // floe-bus/dist/contexts/resolver.js
-import { randomUUID as randomUUID7 } from "node:crypto";
-var newContextId = () => `ctx_${randomUUID7()}`;
+import { randomUUID as randomUUID8 } from "node:crypto";
+var newContextId = () => `ctx_${randomUUID8()}`;
 var destinationEndpoint = (destination) => destination.kind === "endpoint" ? destination.endpoint_id : null;
 function rejection(context_id, source_endpoint_id, ctxStore) {
   return { error: "E_NOT_CONTEXT_PARTICIPANT", payload: { code: "E_NOT_CONTEXT_PARTICIPANT", message: `E_NOT_CONTEXT_PARTICIPANT: source endpoint ${source_endpoint_id} is not a participant of context ${context_id}.`, context_id, source_endpoint_id, available_contexts: ctxStore.listContextsForParticipant(source_endpoint_id).slice(0, 10).map((c) => ({ context_id: c.context_id, participants: c.participants, topic: c.topic ?? null })), recovery: ["Omit context_id to open a new context with {source, destination}.", "Pass a context_id from available_contexts where the source is already a participant.", "If the destination is in the current delivery context, omit context_id to continue it."] } };
@@ -68580,7 +68814,7 @@ function resolveContext(input, ctxStore) {
 }
 
 // floe-bus/dist/scopes/store.js
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 var RESERVED_DEFAULT_SCOPE_ID = "default";
 var ScopeAlreadyExistsError = class extends Error {
   workspace_id;
@@ -68676,7 +68910,7 @@ var ScopeStore = class {
     return row ? this.rowToScope(row) : null;
   }
   createScope(input) {
-    const scopeId = input.scope_id ?? `scope_${randomUUID8()}`;
+    const scopeId = input.scope_id ?? `scope_${randomUUID9()}`;
     if (scopeId === RESERVED_DEFAULT_SCOPE_ID) {
       throw new ScopeReservedIdError(input.workspace_id, scopeId);
     }
@@ -68737,7 +68971,7 @@ var ScopeStore = class {
 };
 
 // floe-bus/dist/scope-graphs.js
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 var ScopeGraphNotFoundError = class extends Error {
   workspace_id;
   graph_id;
@@ -68864,7 +69098,7 @@ var ScopeGraphStore = class {
   }
   insertScopeGraph(input) {
     validateScopeGraphNodes(input.nodes);
-    const graphId = `graph_${randomUUID9()}`;
+    const graphId = `graph_${randomUUID10()}`;
     const timestamp2 = nowIso3();
     this.db.prepare(`
       INSERT INTO scope_graphs (
@@ -68897,7 +69131,7 @@ var ScopeGraphStore = class {
 };
 
 // floe-bus/dist/scope-compositions.js
-import { createHash as createHash7, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID11 } from "node:crypto";
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -69402,7 +69636,7 @@ var ScopeCompositionStore = class {
   createDraft(input) {
     const routingMode = input.routing_mode ?? "edge";
     validateScopeComposition(input.content, routingMode);
-    const revisionId = input.revision_id ?? `revision_${randomUUID10()}`;
+    const revisionId = input.revision_id ?? `revision_${randomUUID11()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM scope_composition_revisions
@@ -69727,7 +69961,7 @@ var ScopeCompositionStore = class {
 };
 
 // floe-bus/dist/scope-executions.js
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 var ScopeExecutionReferenceError = class extends Error {
   reason;
   code = "E_SCOPE_EXECUTION_REFERENCE_UNAVAILABLE";
@@ -70057,7 +70291,7 @@ var ScopeExecutionStore = class {
       if (existing)
         return this.rowToScopeExecution(existing);
     }
-    const id = `execution_${randomUUID11()}`;
+    const id = `execution_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_executions (
@@ -70218,7 +70452,7 @@ var ScopeExecutionStore = class {
           WHERE scope_execution_id = ? AND state IN ('held', 'queued')
           ORDER BY created_at, queue_id
         `).all(execution.execution_id) : [];
-    const pauseId = `pause_${randomUUID11()}`;
+    const pauseId = `pause_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     this.transaction(() => {
       this.db.prepare(`
@@ -70411,7 +70645,7 @@ var ScopeExecutionStore = class {
     if (placement.kind === "actor" && input.assigned_actor_ids && (input.assigned_actor_ids.length !== 1 || input.assigned_actor_ids[0] !== placement.resource_id)) {
       throw new ScopeExecutionReferenceError(`Actor assignment for node '${input.node_id}' does not match its published placement`);
     }
-    const id = `node_execution_${randomUUID11()}`;
+    const id = `node_execution_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "collecting";
     this.db.prepare(`
@@ -70488,7 +70722,7 @@ var ScopeExecutionStore = class {
       `).run(json2(input.reason ?? { code: "input_replaced" }), input.supersedes_input_id);
     }
     const record = {
-      input_id: `input_${randomUUID11()}`,
+      input_id: `input_${randomUUID12()}`,
       accepted_at: nowIso5()
     };
     this.db.prepare(`
@@ -70536,7 +70770,7 @@ var ScopeExecutionStore = class {
         if (existing)
           continue;
         const timestamp2 = nowIso5();
-        insert.run(`expectation_${randomUUID11()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
+        insert.run(`expectation_${randomUUID12()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
       }
     }
   }
@@ -70570,7 +70804,7 @@ var ScopeExecutionStore = class {
       keys.add(member.member_key);
     }
     const timestamp2 = nowIso5();
-    const membershipId = `membership_${randomUUID11()}`;
+    const membershipId = `membership_${randomUUID12()}`;
     this.db.prepare(`
       INSERT INTO node_execution_expected_memberships (
         membership_id, node_execution_id, collection_port_id, member_port_id,
@@ -70586,7 +70820,7 @@ var ScopeExecutionStore = class {
       ) VALUES (?, ?, ?, 'collection_member', ?, ?, ?, ?, ?, 'expected', '{}', ?, ?)
     `);
     for (const member of [...input.members].sort((left, right) => left.member_key.localeCompare(right.member_key))) {
-      insert.run(`expectation_${randomUUID11()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
+      insert.run(`expectation_${randomUUID12()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
     }
     return this.rowToExpectedMembership(this.db.prepare(`SELECT * FROM node_execution_expected_memberships WHERE membership_id = ?`).get(membershipId));
   }
@@ -70695,7 +70929,7 @@ var ScopeExecutionStore = class {
     const ordinal = Number(this.db.prepare(`
       SELECT COALESCE(MAX(ordinal), 0) + 1 AS next FROM execution_attempts WHERE node_execution_id = ?
     `).get(input.node_execution_id).next);
-    const id = `attempt_${randomUUID11()}`;
+    const id = `attempt_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "running";
     this.db.prepare(`
@@ -70801,7 +71035,7 @@ var ScopeExecutionStore = class {
     const existing = this.getPublicationByIdempotencyKey(input.idempotency_key);
     if (existing)
       return existing;
-    const id = `publication_${randomUUID11()}`;
+    const id = `publication_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_output_publications (
@@ -70823,7 +71057,7 @@ var ScopeExecutionStore = class {
       INSERT OR IGNORE INTO scope_edge_traversals (
         traversal_id, publication_id, edge_id, delivery_id, target_node_execution_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`traversal_${randomUUID11()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
+    `).run(`traversal_${randomUUID12()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
   }
   rowToScopeExecution(row) {
     return {
@@ -71450,7 +71684,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
 }
 
 // floe-bus/dist/artefacts.js
-import { createHash as createHash9, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID13 } from "node:crypto";
 var SHA256_RE = /^[a-fA-F0-9]{64}$/;
 var EXTENSION_NAMESPACE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 var EXTENSION_LINEAGE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -71592,11 +71826,11 @@ function normalizeContentMetadata(value) {
   return normalized;
 }
 function normalizeWorkspaceRelativePath(value) {
-  const path = requireText3(value, "workspace-relative path", 4096);
-  if (WINDOWS_DRIVE_RE.test(path) || UNC_RE.test(path) || path.startsWith("/") || /^file:/i.test(path)) {
+  const path3 = requireText3(value, "workspace-relative path", 4096);
+  if (WINDOWS_DRIVE_RE.test(path3) || UNC_RE.test(path3) || path3.startsWith("/") || /^file:/i.test(path3)) {
     throw new ArtefactValidationError("workspace-relative path cannot be absolute");
   }
-  const segments = path.replace(/\\/g, "/").split("/");
+  const segments = path3.replace(/\\/g, "/").split("/");
   if (segments.some((segment) => segment === "..")) {
     throw new ArtefactValidationError("workspace-relative path cannot leave the workspace");
   }
@@ -71858,7 +72092,7 @@ var ArtefactStore = class {
         }
         return this.rowToArtefact(existing);
       }
-      const artefactId = requestedId ?? `artefact_${randomUUID12()}`;
+      const artefactId = requestedId ?? `artefact_${randomUUID13()}`;
       const conflictingId = this.getArtefact(artefactId);
       if (conflictingId)
         throw new ArtefactValidationError(`artefact_id '${artefactId}' already exists`);
@@ -71920,7 +72154,7 @@ var ArtefactStore = class {
         const version = this.requireVersion(member.member_version_id);
         this.requireSameWorkspace(artefact.workspace_id, version, `collection member '${version.artefact_version_id}'`);
       }
-      const versionId = requestedVersionId ?? `artefact_version_${randomUUID12()}`;
+      const versionId = requestedVersionId ?? `artefact_version_${randomUUID13()}`;
       if (this.getVersion(versionId))
         throw new ArtefactValidationError(`artefact_version_id '${versionId}' already exists`);
       if (lineage.some((relation2) => relation2.object_version_id === versionId)) {
@@ -71946,7 +72180,7 @@ var ArtefactStore = class {
         ) VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const relation2 of lineage) {
-        insertLineage.run(`lineage_${randomUUID12()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
+        insertLineage.run(`lineage_${randomUUID13()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
       }
       const insertMember = this.db.prepare(`
         INSERT INTO artefact_collection_members (
@@ -72048,7 +72282,7 @@ var ArtefactStore = class {
           throw new ArtefactWorkspaceMismatchError("legacy import target is not the requested workspace and Artefact");
         }
       }
-      const id = `legacy_import_${randomUUID12()}`;
+      const id = `legacy_import_${randomUUID13()}`;
       const timestamp2 = nowIso6();
       this.db.prepare(`
         INSERT INTO legacy_artefact_import_evidence (
@@ -72298,7 +72532,7 @@ var ArtefactStore = class {
     `).get(input.artefact_version_id, input.target_kind, input.target_id, input.role);
     if (existingFact)
       return this.rowToAssociation(existingFact);
-    const id = `artefact_association_${randomUUID12()}`;
+    const id = `artefact_association_${randomUUID13()}`;
     this.db.prepare(`
       INSERT INTO artefact_associations (
         association_id, artefact_version_id, target_kind, target_id, role,
@@ -72326,7 +72560,7 @@ var ArtefactStore = class {
       }
       return this.rowToAnnotation(existing);
     }
-    const id = `artefact_annotation_${randomUUID12()}`;
+    const id = `artefact_annotation_${randomUUID13()}`;
     this.db.prepare(`
       INSERT INTO artefact_annotations (
         annotation_id, artefact_version_id, namespace, annotation_key,
@@ -72424,7 +72658,7 @@ var ArtefactStore = class {
     };
   }
   transaction(fn) {
-    const savepoint = `artefact_${randomUUID12().replace(/-/g, "")}`;
+    const savepoint = `artefact_${randomUUID13().replace(/-/g, "")}`;
     this.db.exec(`SAVEPOINT ${savepoint}`);
     try {
       const result = fn();
@@ -72440,11 +72674,11 @@ var ArtefactStore = class {
 
 // floe-bus/dist/artefact-content-resolver.js
 import { createHash as createHash10 } from "node:crypto";
-import { readFileSync as readFileSync2, statSync } from "node:fs";
+import { readFileSync as readFileSync2, statSync as statSync2 } from "node:fs";
 import { extname } from "node:path";
 
 // floe-bus/dist/fs/resolveWithinRoot.js
-import { existsSync as existsSync2, realpathSync } from "node:fs";
+import { existsSync as existsSync2, realpathSync as realpathSync2 } from "node:fs";
 import { dirname as dirname2, isAbsolute as isAbsolute2, join as join2, resolve as resolve2, sep } from "node:path";
 var PathEscapesRootError = class extends Error {
   relPath;
@@ -72483,9 +72717,9 @@ function resolveWithinRoot(workspaceRoot, relPath) {
     throw new PathEscapesRootError(relPath);
   }
   const joined = join2(workspaceRoot, relPath);
-  const canonicalRoot = realpathSync(workspaceRoot);
+  const canonicalRoot = realpathSync2(workspaceRoot);
   if (existsSync2(joined)) {
-    const canonicalTarget = realpathSync(joined);
+    const canonicalTarget = realpathSync2(joined);
     if (!isContained(canonicalTarget, canonicalRoot)) {
       throw new PathEscapesRootError(relPath);
     }
@@ -72506,7 +72740,7 @@ function resolveWithinRoot(workspaceRoot, relPath) {
   if (nearestExisting === null) {
     throw new PathEscapesRootError(relPath);
   }
-  const canonicalAncestor = realpathSync(nearestExisting);
+  const canonicalAncestor = realpathSync2(nearestExisting);
   if (!isContained(canonicalAncestor, canonicalRoot)) {
     throw new PathEscapesRootError(relPath);
   }
@@ -72581,7 +72815,7 @@ function resolveWorkspaceArtefactContent(input) {
   const maximumBytes = input.maximum_bytes ?? MAX_ARTEFACT_CONTENT_BYTES;
   let fileSize;
   try {
-    const stat = statSync(resolved);
+    const stat = statSync2(resolved);
     if (!stat.isFile())
       throw new ArtefactContentNotFoundError();
     fileSize = stat.size;
@@ -72651,7 +72885,7 @@ var MEDIA_TYPE_BY_EXTENSION = /* @__PURE__ */ new Map([
 ]);
 
 // floe-bus/dist/actor-definitions.js
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
 function canonicalActorScopePath(value) {
   const segments = [];
   const text12 = value.trim().replace(/\\/g, "/");
@@ -72753,9 +72987,9 @@ function validateActorDefinition(content) {
     if (!content.scope || !Array.isArray(content.scope.paths) || content.scope.paths.length === 0) {
       throw new ActorDefinitionValidationError("scope.paths must list at least one workspace-relative folder");
     }
-    for (const path of content.scope.paths) {
-      if (typeof path !== "string" || canonicalActorScopePath(path) !== path) {
-        throw new ActorDefinitionValidationError(`scope path '${String(path)}' must be canonical and stay within the Workspace (for example '.' or 'src/app')`);
+    for (const path3 of content.scope.paths) {
+      if (typeof path3 !== "string" || canonicalActorScopePath(path3) !== path3) {
+        throw new ActorDefinitionValidationError(`scope path '${String(path3)}' must be canonical and stay within the Workspace (for example '.' or 'src/app')`);
       }
     }
     unique(content.scope.paths, "scope path");
@@ -72832,7 +73066,7 @@ var ActorDefinitionStore = class {
     nonEmpty("workspace_id", input.workspace_id);
     nonEmpty("created_by_principal_id", input.created_by_principal_id);
     validateActorDefinition(input.definition);
-    const actorId = input.actor_id ?? `actor_${randomUUID13()}`;
+    const actorId = input.actor_id ?? `actor_${randomUUID14()}`;
     nonEmpty("actor_id", actorId);
     const at = this.now();
     let draft;
@@ -72989,7 +73223,7 @@ var ActorDefinitionStore = class {
   insertDraft(input) {
     nonEmpty("created_by_principal_id", input.created_by_principal_id);
     validateActorDefinition(input.definition);
-    const revisionId = `actor_definition_${randomUUID13()}`;
+    const revisionId = `actor_definition_${randomUUID14()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM actor_definition_revisions WHERE actor_id = ?
@@ -73035,7 +73269,7 @@ var ActorDefinitionStore = class {
         head_change_id, actor_id, workspace_id, from_revision_id, to_revision_id,
         reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`actor_head_change_${randomUUID13()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+    `).run(`actor_head_change_${randomUUID14()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
 };
 function rowToActor(row) {
@@ -73108,7 +73342,7 @@ function transaction(db, action) {
 }
 
 // floe-bus/dist/command-definitions.js
-import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
 var CommandDefinitionValidationError = class extends Error {
   reason;
   code = "E_COMMAND_DEFINITION_INVALID";
@@ -73274,7 +73508,7 @@ var CommandDefinitionStore = class {
     validateOwner(input.owner);
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const commandId = input.command_id ?? `command_${randomUUID14()}`;
+    const commandId = input.command_id ?? `command_${randomUUID15()}`;
     nonEmpty2("command_id", commandId);
     const at = this.now();
     let draft;
@@ -73437,7 +73671,7 @@ var CommandDefinitionStore = class {
   insertDraft(input) {
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const revisionId = `command_definition_${randomUUID14()}`;
+    const revisionId = `command_definition_${randomUUID15()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM command_definition_revisions WHERE command_id = ?
@@ -73482,7 +73716,7 @@ var CommandDefinitionStore = class {
         head_change_id, command_id, owner_kind, owner_id, from_revision_id,
         to_revision_id, reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`command_head_change_${randomUUID14()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+    `).run(`command_head_change_${randomUUID15()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
 };
 function rowToCommand(row) {
@@ -73575,7 +73809,7 @@ function canonicalJson6(value) {
   return JSON.stringify(value);
 }
 function transaction2(db, action) {
-  const savepoint = `command_definition_change_${randomUUID14().replaceAll("-", "")}`;
+  const savepoint = `command_definition_change_${randomUUID15().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${savepoint}`);
   try {
     const result = action();
@@ -74503,7 +74737,7 @@ function sha256(value) {
 }
 
 // floe-bus/dist/isolated-command-host.js
-import { randomUUID as randomUUID15 } from "node:crypto";
+import { randomUUID as randomUUID16 } from "node:crypto";
 import { spawn } from "node:child_process";
 import { dirname as dirname3 } from "node:path";
 var CommandRuntimeHostError = class extends Error {
@@ -74528,7 +74762,7 @@ var IsolatedCoreCommandProcessHost = class {
     if (ref.kind !== "core_command_implementation" || !ref.revision) {
       return Promise.reject(new CommandRuntimeHostError("command_implementation_unavailable", "The Command does not reference an exact core implementation."));
     }
-    const requestId = `command_host_request_${randomUUID15()}`;
+    const requestId = `command_host_request_${randomUUID16()}`;
     const child = spawn(process.execPath, [
       "--permission",
       `--allow-fs-read=${dirname3(this.scriptPath)}`,
@@ -75172,7 +75406,7 @@ function resolveActorRoleAuthorityResource(store, workspaceId4, target) {
 }
 
 // floe-bus/dist/runtime-profiles.js
-import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID17 } from "node:crypto";
 var CLIENT_ADAPTER_ID = "client";
 var RuntimeProfileValidationError = class extends Error {
   reason;
@@ -75337,7 +75571,7 @@ var RuntimeProfileStore = class {
     validateOwner2(input.owner);
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID16()}`;
+    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID17()}`;
     nonEmpty3("runtime_profile_id", profileId);
     const at = this.now();
     let draft;
@@ -75479,7 +75713,7 @@ var RuntimeProfileStore = class {
     }
     const profile = this.requireProfile(revision.runtime_profile_id);
     const at = this.now();
-    const bindingId = `actor_runtime_binding_${randomUUID16()}`;
+    const bindingId = `actor_runtime_binding_${randomUUID17()}`;
     transaction3(this.db, () => {
       if (current) {
         this.db.prepare(`
@@ -75566,7 +75800,7 @@ var RuntimeProfileStore = class {
   insertDraft(input) {
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const revisionId = `runtime_profile_revision_${randomUUID16()}`;
+    const revisionId = `runtime_profile_revision_${randomUUID17()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM runtime_profile_revisions WHERE runtime_profile_id = ?
@@ -75587,13 +75821,13 @@ var RuntimeProfileStore = class {
     }
     return revision;
   }
-  recordHeadChange(change) {
+  recordHeadChange(change2) {
     this.db.prepare(`
       INSERT INTO runtime_profile_head_changes (
         head_change_id, runtime_profile_id, from_revision_id, to_revision_id,
         reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(`runtime_profile_head_change_${randomUUID16()}`, change.runtime_profile_id, change.from_revision_id, change.to_revision_id, change.reason, change.changed_by_principal_id, change.changed_at);
+    `).run(`runtime_profile_head_change_${randomUUID17()}`, change2.runtime_profile_id, change2.from_revision_id, change2.to_revision_id, change2.reason, change2.changed_by_principal_id, change2.changed_at);
   }
 };
 function rowToProfile(row) {
@@ -75654,36 +75888,36 @@ function normalizedReasons(status, reasons) {
   }
   return normalized;
 }
-function rejectSecretMaterial(value, path) {
+function rejectSecretMaterial(value, path3) {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => rejectSecretMaterial(item, `${path}[${index}]`));
+    value.forEach((item, index) => rejectSecretMaterial(item, `${path3}[${index}]`));
     return;
   }
   if (!value || typeof value !== "object")
     return;
   for (const [key, item] of Object.entries(value)) {
     if (/^(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|credential)$/i.test(key)) {
-      throw new RuntimeProfileValidationError(`${path}.${key} must be represented by a SecretRef`);
+      throw new RuntimeProfileValidationError(`${path3}.${key} must be represented by a SecretRef`);
     }
-    rejectSecretMaterial(item, `${path}.${key}`);
+    rejectSecretMaterial(item, `${path3}.${key}`);
   }
 }
-function assertJsonData(value, path) {
+function assertJsonData(value, path3) {
   if (value === null || ["string", "number", "boolean"].includes(typeof value))
     return;
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertJsonData(item, `${path}[${index}]`));
+    value.forEach((item, index) => assertJsonData(item, `${path3}[${index}]`));
     return;
   }
   if (typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
       if (item === void 0)
-        throw new RuntimeProfileValidationError(`${path}.${key} is undefined`);
-      assertJsonData(item, `${path}.${key}`);
+        throw new RuntimeProfileValidationError(`${path3}.${key} is undefined`);
+      assertJsonData(item, `${path3}.${key}`);
     }
     return;
   }
-  throw new RuntimeProfileValidationError(`${path} must contain JSON data only`);
+  throw new RuntimeProfileValidationError(`${path3} must contain JSON data only`);
 }
 function unique3(values, label) {
   const seen = /* @__PURE__ */ new Set();
@@ -75721,7 +75955,7 @@ function transaction3(db, action) {
 }
 
 // floe-bus/dist/connectors.js
-import { createHash as createHash15, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash15, randomUUID as randomUUID18 } from "node:crypto";
 var ConnectorValidationError = class extends Error {
   reason;
   code = "E_CONNECTOR_INVALID";
@@ -75997,9 +76231,9 @@ var ConnectorStore = class {
   createDefinition(input) {
     const owner = normalizeOwner(input.owner);
     validateConnectorDefinition(input.content);
-    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID17()}`, "connector_definition_id");
+    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID18()}`, "connector_definition_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID17()}`;
+    const revisionId = `connector_definition_revision_${randomUUID18()}`;
     const at = this.now();
     const digest9 = connectorDefinitionDigest(input.content);
     transaction4(this.db, "connector_definition_create", () => {
@@ -76033,7 +76267,7 @@ var ConnectorStore = class {
     }
     validateConnectorDefinition(input.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID17()}`;
+    const revisionId = `connector_definition_revision_${randomUUID18()}`;
     const nextOrdinal = this.nextOrdinal("connector_definition_revisions", "connector_definition_id", definition2.connector_definition_id);
     const at = this.now();
     transaction4(this.db, "connector_definition_revise", () => {
@@ -76076,9 +76310,9 @@ var ConnectorStore = class {
     if (definition2.status !== "active")
       throw new ConnectorValidationError("a retired ConnectorDefinition cannot receive a new binding");
     validateConnectorBinding(input.content, definitionRevision.content);
-    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID17()}`, "connector_binding_id");
+    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID18()}`, "connector_binding_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID17()}`;
+    const revisionId = `connector_binding_revision_${randomUUID18()}`;
     const at = this.now();
     transaction4(this.db, "connector_binding_create", () => {
       this.db.prepare(`
@@ -76117,7 +76351,7 @@ var ConnectorStore = class {
     }
     validateConnectorBinding(input.content, definitionRevision.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID17()}`;
+    const revisionId = `connector_binding_revision_${randomUUID18()}`;
     const nextOrdinal = this.nextOrdinal("connector_binding_revisions", "connector_binding_id", binding.connector_binding_id);
     const at = this.now();
     transaction4(this.db, "connector_binding_revise", () => {
@@ -76188,7 +76422,7 @@ var ConnectorStore = class {
       throw new ConnectorRevisionConflictError(binding.connector_binding_id, input.connector_binding_revision_id, binding.current_revision_id);
     }
     const evidenceRefs = normalizeRefs(input.evidence_refs ?? [], "evidence_refs");
-    const id = `connector_health_${randomUUID17()}`;
+    const id = `connector_health_${randomUUID18()}`;
     const recordedAt = this.now();
     this.db.prepare(`
       INSERT INTO connector_health_observations (
@@ -76365,7 +76599,7 @@ var ConnectorStore = class {
       }
     }
     const evidence = normalizeRef(input.request_evidence_ref, "request_evidence_ref");
-    const attemptId = `external_action_attempt_${randomUUID17()}`;
+    const attemptId = `external_action_attempt_${randomUUID18()}`;
     const attemptNumber = receipt.attempt_count + 1;
     const at = this.now();
     transaction4(this.db, "external_action_begin", () => {
@@ -76425,7 +76659,7 @@ var ConnectorStore = class {
       throw new ExternalActionStateError(receipt.external_effect_receipt_id, "only an uncertain effect can be reconciled");
     }
     const evidence = normalizeRef(input.evidence_ref, "evidence_ref");
-    const id = `external_action_reconciliation_${randomUUID17()}`;
+    const id = `external_action_reconciliation_${randomUUID18()}`;
     const at = this.now();
     transaction4(this.db, "external_action_reconcile", () => {
       this.db.prepare(`
@@ -76744,10 +76978,10 @@ var ConnectorStore = class {
         head_change_id, resource_kind, resource_id, owner_kind, owner_id,
         from_revision_id, to_revision_id, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`connector_head_change_${randomUUID17()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
+    `).run(`connector_head_change_${randomUUID18()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
   }
   insertIngressObservation(input) {
-    const id = `connector_ingress_observation_${randomUUID17()}`;
+    const id = `connector_ingress_observation_${randomUUID18()}`;
     this.db.prepare(`
       INSERT INTO connector_ingress_observations (
         connector_ingress_observation_id, connector_ingress_receipt_id,
@@ -76954,18 +77188,18 @@ function normalizeRef(value, label) {
     revision: value.revision == null ? null : requireText4(value.revision, `${label}.revision`)
   };
 }
-function rejectSecretMaterial2(value, path) {
+function rejectSecretMaterial2(value, path3) {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => rejectSecretMaterial2(item, `${path}[${index}]`));
+    value.forEach((item, index) => rejectSecretMaterial2(item, `${path3}[${index}]`));
     return;
   }
   if (!value || typeof value !== "object")
     return;
   for (const [key, item] of Object.entries(value)) {
     if (/^(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|credential|authorization)$/i.test(key)) {
-      throw new ConnectorValidationError(`${path}.${key} must be represented by a SecretRef`);
+      throw new ConnectorValidationError(`${path3}.${key} must be represented by a SecretRef`);
     }
-    rejectSecretMaterial2(item, `${path}.${key}`);
+    rejectSecretMaterial2(item, `${path3}.${key}`);
   }
 }
 function requireText4(value, label, maximum = 2048) {
@@ -77246,7 +77480,7 @@ function rowToActionReconciliation(row) {
 }
 
 // floe-bus/dist/approvals.js
-import { createHash as createHash16, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID19 } from "node:crypto";
 var ApprovalValidationError = class extends Error {
   reason;
   code = "E_APPROVAL_INVALID";
@@ -77470,7 +77704,7 @@ function relaxLegacyApprovalContextColumns(db) {
   if (priorDeferred) {
     throw new Error("Approval schema cannot be rebuilt while unrelated foreign keys are already deferred.");
   }
-  const suffix = randomUUID18().replaceAll("-", "");
+  const suffix = randomUUID19().replaceAll("-", "");
   const savepoint = `approval_context_nullable_${suffix}`;
   const requestReplacement = `approval_requests_nullable_${suffix}`;
   const receiptReplacement = `approval_receipts_nullable_${suffix}`;
@@ -77617,9 +77851,9 @@ var ApprovalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID18()}`);
-    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID18()}`);
-    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID18()}`);
+    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID19()}`);
+    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID19()}`);
+    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID19()}`);
     this.resolveDecisionAuthority = dependencies.resolve_decision_authority ?? (() => ({ authority_grant_ids: [], role_evidence: [] }));
     this.actionIsCurrent = dependencies.action_is_current ?? (() => true);
   }
@@ -78513,7 +78747,7 @@ function inSavepoint3(db, label, action) {
 }
 
 // floe-bus/dist/policies.js
-import { createHash as createHash17, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID20 } from "node:crypto";
 var PolicyValidationError = class extends Error {
   reason;
   code = "E_POLICY_INVALID";
@@ -78691,7 +78925,7 @@ var PolicyStore = class {
   }
   createPolicy(input) {
     const workspaceId4 = requiredText2(input.workspace_id, "workspace_id");
-    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID19()}`, "policy_id");
+    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID20()}`, "policy_id");
     const principalId = requiredText2(input.created_by_principal_id, "created_by_principal_id");
     validateCategory(input.category);
     const content = normalizePolicyContent(input.content);
@@ -78832,7 +79066,7 @@ var PolicyStore = class {
     if (subject.kind === "workspace" && subject.id !== input.workspace_id) {
       throw new PolicyValidationError("a Workspace binding must name its own Workspace");
     }
-    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID19()}`, "policy_binding_id");
+    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID20()}`, "policy_binding_id");
     const boundAt = this.now();
     try {
       this.db.prepare(`
@@ -78960,7 +79194,7 @@ var PolicyStore = class {
     const evaluatedAt = this.now();
     const factsDigest = createHash17("sha256").update(canonicalJson11(facts)).digest("hex");
     const evaluation = {
-      evaluation_id: `policy_evaluation_${randomUUID19()}`,
+      evaluation_id: `policy_evaluation_${randomUUID20()}`,
       workspace_id: facts.workspace_id,
       authority_boundary: facts.authority_boundary,
       facts,
@@ -79083,7 +79317,7 @@ var PolicyStore = class {
     return rows.map(mapBinding);
   }
   insertRevision(input) {
-    const revisionId = `policy_revision_${randomUUID19()}`;
+    const revisionId = `policy_revision_${randomUUID20()}`;
     this.db.prepare(`
       INSERT INTO policy_revisions (
         policy_revision_id, policy_id, workspace_id, category,
@@ -79477,7 +79711,7 @@ function canonicalJson11(value) {
   return JSON.stringify(value);
 }
 function inSavepoint4(db, label, action) {
-  const name = `${label}_${randomUUID19().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID20().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -80238,7 +80472,7 @@ var POLICY_OPERATION_SCHEMAS = Object.freeze({
 });
 
 // floe-bus/dist/budgets.js
-import { createHash as createHash18, randomUUID as randomUUID20 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID21 } from "node:crypto";
 var BudgetValidationError = class extends Error {
   reason;
   code = "E_BUDGET_INVALID";
@@ -80404,7 +80638,7 @@ var BudgetStore = class {
       return existing;
     }
     const at = this.now();
-    const reservationId = `budget_reservation_${randomUUID20()}`;
+    const reservationId = `budget_reservation_${randomUUID21()}`;
     return inSavepoint5(this.db, "reserve_budget", () => {
       const items = input.evaluation.budget_limits.map((limit) => {
         const estimatedAmount = estimates[limit.metric];
@@ -80433,7 +80667,7 @@ var BudgetStore = class {
           throw new BudgetExceededError(limit.metric, limit.subject, limit.maximum, committed, reserved, estimatedAmount);
         }
         return {
-          reservation_item_id: `budget_reservation_item_${randomUUID20()}`,
+          reservation_item_id: `budget_reservation_item_${randomUUID21()}`,
           reservation_id: reservationId,
           policy_revision_id: limit.policy_revision_id,
           policy_binding_id: limit.policy_binding_id,
@@ -80518,7 +80752,7 @@ var BudgetStore = class {
             actor_id, scope_composition_revision_id, node_placement_id, connector_binding_id, extension_installation_id,
             metric, amount, observed_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(`resource_usage_${randomUUID20()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
+        `).run(`resource_usage_${randomUUID21()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
       }
       this.db.prepare(`
         UPDATE budget_reservations
@@ -80907,7 +81141,7 @@ function canonicalJson12(value) {
   return JSON.stringify(value);
 }
 function inSavepoint5(db, label, action) {
-  const name = `${label}_${randomUUID20().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID21().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -80921,7 +81155,7 @@ function inSavepoint5(db, label, action) {
 }
 
 // floe-bus/dist/audit.js
-import { createHash as createHash19, randomUUID as randomUUID21 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID22 } from "node:crypto";
 var AuditConflictError = class extends Error {
   invocation_id;
   reason;
@@ -81007,7 +81241,7 @@ var AuditStore = class {
   begin(input) {
     const normalized = normalizeRequest({
       ...input,
-      audit_id: input.audit_id ?? `audit_${randomUUID21()}`,
+      audit_id: input.audit_id ?? `audit_${randomUUID22()}`,
       request_digest: "",
       started_at: input.started_at ?? this.now()
     });
@@ -81764,7 +81998,7 @@ function resolveAuditOperationResource(store, boundary, target) {
 }
 
 // floe-bus/dist/extensions.js
-import { createHash as createHash20, randomUUID as randomUUID22 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID23 } from "node:crypto";
 var ExtensionValidationError = class extends Error {
   reason;
   code = "E_EXTENSION_INVALID";
@@ -81953,7 +82187,7 @@ var ExtensionStore = class {
   createExtension(input) {
     nonEmpty4("workspace_id", input.workspace_id);
     nonEmpty4("label", input.label);
-    const extensionId = input.extension_id ?? `extension_${randomUUID22()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID23()}`;
     nonEmpty4("extension_id", extensionId);
     const at = this.now();
     this.db.prepare(`
@@ -81969,7 +82203,7 @@ var ExtensionStore = class {
     nonEmpty4("label", input.label);
     nonEmpty4("registered_by_principal_id", input.registered_by_principal_id);
     validatePackageDefinition(input.definition);
-    const extensionId = input.extension_id ?? `extension_${randomUUID22()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID23()}`;
     nonEmpty4("extension_id", extensionId);
     const recordDigest = extensionPackageRecordDigest(input.definition);
     const permissionDigest = extensionPermissionDigest(input.definition.permissions);
@@ -82510,7 +82744,7 @@ var ExtensionStore = class {
         reason, from_package_version_id, to_package_version_id, lifecycle,
         changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extchange_${randomUUID22()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
+    `).run(`extchange_${randomUUID23()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
   }
 };
 function validatePackageDefinition(definition2) {
@@ -83069,14 +83303,14 @@ function inSavepoint6(db, label, action) {
 }
 
 // floe-bus/dist/canonical-extension-runtime.js
-import { randomUUID as randomUUID24 } from "node:crypto";
+import { randomUUID as randomUUID25 } from "node:crypto";
 import { existsSync as existsSync3 } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // floe-bus/dist/isolated-extension-host.js
-import { randomUUID as randomUUID23 } from "node:crypto";
+import { randomUUID as randomUUID24 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { realpathSync as realpathSync2 } from "node:fs";
+import { realpathSync as realpathSync3 } from "node:fs";
 var DEFAULT_START_TIMEOUT_MS = 1e4;
 var DEFAULT_STOP_TIMEOUT_MS = 5e3;
 var DEFAULT_INVOCATION_TIMEOUT_MS = 2e4;
@@ -83149,7 +83383,7 @@ var IsolatedExtensionProcessHost = class {
       return null;
     this.active.delete(input.installation.extension_installation_id);
     return {
-      receipt_ref: `extension-host-deactivation:${randomUUID23()}`,
+      receipt_ref: `extension-host-deactivation:${randomUUID24()}`,
       workspace_id: input.installation.workspace_id,
       extension_installation_id: input.installation.extension_installation_id,
       extension_package_version_id: input.package_version.extension_package_version_id,
@@ -83227,12 +83461,12 @@ var IsolatedExtensionProcessHost = class {
   }
   async startCandidate(input, verified) {
     const allowRead = [.../* @__PURE__ */ new Set([
-      realpathSync2(this.launcher.script_path),
-      ...this.launcher.allow_fs_read.map((path) => realpathSync2(path))
+      realpathSync3(this.launcher.script_path),
+      ...this.launcher.allow_fs_read.map((path3) => realpathSync3(path3))
     ])];
     const args = [
       "--permission",
-      ...allowRead.map((path) => `--allow-fs-read=${path}`),
+      ...allowRead.map((path3) => `--allow-fs-read=${path3}`),
       this.launcher.script_path,
       ...this.launcher.script_arguments ?? []
     ];
@@ -83382,7 +83616,7 @@ var IsolatedExtensionProcessHost = class {
       return Promise.reject(new ExtensionSandboxError("extension_host_exited", "The isolated Extension host is not connected."));
     }
     return new Promise((resolveRequest, rejectRequest) => {
-      const requestId = `host_${randomUUID23()}`;
+      const requestId = `host_${randomUUID24()}`;
       const timer = setTimeout(() => {
         record.pending.delete(requestId);
         rejectRequest(new ExtensionSandboxError("extension_host_timeout", "The isolated Extension host exceeded its parent deadline."));
@@ -83561,7 +83795,7 @@ function activationClaim(input, isolationHostId, lifecycle) {
     workspace_id: input.installation.workspace_id,
     supported_isolation_levels: ["process_sandbox"],
     status: "available",
-    receipt_ref: `extension-host-activation:${randomUUID23()}`,
+    receipt_ref: `extension-host-activation:${randomUUID24()}`,
     subject_content_digest: input.package_version.content_digest,
     installation_locator: input.installation.installation_locator,
     result_lifecycle: lifecycle
@@ -83621,7 +83855,7 @@ var CanonicalExtensionRuntime = class {
         fileURLToPath(new URL("../../node_modules/", import.meta.url))
         // Source builds load npm dependencies; desktop bundles contain them.
         // Absent source-tree paths are not prerequisites for an installed host.
-      ].filter((path) => existsSync3(path))
+      ].filter((path3) => existsSync3(path3))
     }, input.broker, audit, {
       onUnexpectedExit: (event) => input.quarantine({
         ...event,
@@ -83692,7 +83926,7 @@ var SqliteExtensionRuntimeAudit = class {
         operation_invocation_id, execution_attempt_id, extension_package_version_id,
         entry_point_id, call_kind, permission_id, outcome, code, recorded_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extraudit_${randomUUID24()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
+    `).run(`extraudit_${randomUUID25()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
   }
   listForInvocation(operationInvocationId) {
     return this.db.prepare(`
@@ -84143,7 +84377,7 @@ function readUserVersion(db) {
 }
 
 // floe-bus/dist/operation-governance-control-plane.js
-import { randomUUID as randomUUID25 } from "node:crypto";
+import { randomUUID as randomUUID26 } from "node:crypto";
 var APPROVAL_LIFETIME_MS = 24 * 60 * 60 * 1e3;
 var BusOperationGovernanceControlPlane = class {
   bus;
@@ -84176,18 +84410,18 @@ var BusOperationGovernanceControlPlane = class {
         policy_evaluation_id: evaluation.evaluation_id,
         policy_revision_ids: evaluation.evaluated_policy_revision_ids
       });
-      const auditRef15 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
-      this.completeAudit(input, canonical, auditRef15, "refused", null, denied2, [], input.target);
-      return { state: "refused", refusal: denied2, evidence: emptyEvidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
+      const auditRef16 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
+      this.completeAudit(input, canonical, auditRef16, "refused", null, denied2, [], input.target);
+      return { state: "refused", refusal: denied2, evidence: emptyEvidence, audit_ref: auditRef16, canonical_provenance: canonical.facts.provenance };
     }
     if (input.pre_effect_refusal) {
-      const auditRef15 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
-      this.completeAudit(input, canonical, auditRef15, "refused", null, input.pre_effect_refusal, [], input.target);
+      const auditRef16 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
+      this.completeAudit(input, canonical, auditRef16, "refused", null, input.pre_effect_refusal, [], input.target);
       return {
         state: "refused",
         refusal: input.pre_effect_refusal,
         evidence: emptyEvidence,
-        audit_ref: auditRef15,
+        audit_ref: auditRef16,
         canonical_provenance: canonical.facts.provenance
       };
     }
@@ -84196,13 +84430,13 @@ var BusOperationGovernanceControlPlane = class {
         workspace_id: canonical.facts.workspace_id,
         policy_evaluation_id: evaluation.evaluation_id
       });
-      const auditRef15 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
-      this.completeAudit(input, canonical, auditRef15, "refused", null, held, [], input.target);
+      const auditRef16 = this.beginAudit(input, canonical, emptyEvidence, evaluation, null);
+      this.completeAudit(input, canonical, auditRef16, "refused", null, held, [], input.target);
       return {
         state: "refused",
         refusal: held,
         evidence: emptyEvidence,
-        audit_ref: auditRef15,
+        audit_ref: auditRef16,
         canonical_provenance: canonical.facts.provenance
       };
     }
@@ -84230,9 +84464,9 @@ var BusOperationGovernanceControlPlane = class {
         requested: error.requested
       }) : governanceRefusal("operation_budget_estimate_unavailable", error, "The operation must declare a Bus-owned estimate for every constrained metric before it can run.");
       const evidence = { ...emptyEvidence, budget_reservation_id: reservationId };
-      const auditRef15 = this.beginAudit(input, canonical, evidence, evaluation, reservationId);
-      this.completeAudit(input, canonical, auditRef15, "refused", null, budgetRefusal, [], input.target);
-      return { state: "refused", refusal: budgetRefusal, evidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
+      const auditRef16 = this.beginAudit(input, canonical, evidence, evaluation, reservationId);
+      this.completeAudit(input, canonical, auditRef16, "refused", null, budgetRefusal, [], input.target);
+      return { state: "refused", refusal: budgetRefusal, evidence, audit_ref: auditRef16, canonical_provenance: canonical.facts.provenance };
     }
     const baseEvidence = {
       ...emptyEvidence,
@@ -84242,14 +84476,14 @@ var BusOperationGovernanceControlPlane = class {
       if (canonical.facts.workspace_id === null) {
         const denied2 = refusal("operation_host_approval_unsupported", "This host operation requires approval, but ApprovalRequests belong to a Workspace authority boundary.", false, requiredAction("revise_policy", "Review the Policy", "Use an authority boundary with canonical approval support."));
         this.releaseReservation(canonical.facts.workspace_id, reservationId);
-        const auditRef15 = this.beginAudit(input, canonical, baseEvidence, evaluation, reservationId);
-        this.completeAudit(input, canonical, auditRef15, "refused", null, denied2, [], input.target);
-        return { state: "refused", refusal: denied2, evidence: baseEvidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
+        const auditRef16 = this.beginAudit(input, canonical, baseEvidence, evaluation, reservationId);
+        this.completeAudit(input, canonical, auditRef16, "refused", null, denied2, [], input.target);
+        return { state: "refused", refusal: denied2, evidence: baseEvidence, audit_ref: auditRef16, canonical_provenance: canonical.facts.provenance };
       }
       return this.prepareApprovals(input, canonical, evaluation, baseEvidence);
     }
-    const auditRef14 = this.beginAudit(input, canonical, baseEvidence, evaluation, reservationId);
-    return { state: "authorized", evidence: baseEvidence, audit_ref: auditRef14, canonical_provenance: canonical.facts.provenance };
+    const auditRef15 = this.beginAudit(input, canonical, baseEvidence, evaluation, reservationId);
+    return { state: "authorized", evidence: baseEvidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
   }
   async settle(input) {
     const canonical = this.resolveCanonicalInvocation(input);
@@ -84326,16 +84560,16 @@ var BusOperationGovernanceControlPlane = class {
     } catch (error) {
       this.releaseReservation(workspaceId4, baseEvidence.budget_reservation_id);
       const denied2 = governanceRefusal("operation_approval_request_failed", error, "Inspect the exact Policy requirement and approval attention item.");
-      const auditRef15 = this.beginAudit(input, canonical, baseEvidence, evaluation, baseEvidence.budget_reservation_id);
-      this.completeAudit(input, canonical, auditRef15, "refused", null, denied2, [], input.target);
-      return { state: "refused", refusal: denied2, evidence: baseEvidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
+      const auditRef16 = this.beginAudit(input, canonical, baseEvidence, evaluation, baseEvidence.budget_reservation_id);
+      this.completeAudit(input, canonical, auditRef16, "refused", null, denied2, [], input.target);
+      return { state: "refused", refusal: denied2, evidence: baseEvidence, audit_ref: auditRef16, canonical_provenance: canonical.facts.provenance };
     }
     const requestIds = requests.map((request) => request.approval_request_id).sort();
     const evidence = {
       ...baseEvidence,
       approval_request_ids: requestIds
     };
-    const auditRef14 = this.beginAudit(input, canonical, evidence, evaluation, evidence.budget_reservation_id);
+    const auditRef15 = this.beginAudit(input, canonical, evidence, evaluation, evidence.budget_reservation_id);
     const refreshedRequests = requests.map((request) => this.bus.approvalStore.refreshRequestValidity({
       workspace_id: workspaceId4,
       approval_request_id: request.approval_request_id,
@@ -84349,7 +84583,7 @@ var BusOperationGovernanceControlPlane = class {
           approval_request_ids: requestIds
         }),
         evidence,
-        audit_ref: auditRef14,
+        audit_ref: auditRef15,
         canonical_provenance: canonical.facts.provenance
       };
     }
@@ -84357,8 +84591,8 @@ var BusOperationGovernanceControlPlane = class {
     if (notApproved) {
       this.releaseReservation(workspaceId4, evidence.budget_reservation_id);
       const denied2 = refusal("operation_approval_not_granted", `ApprovalRequest '${notApproved.approval_request_id}' is '${notApproved.status}'.`, false, requiredAction("inspect_approval", "Inspect approval", "Inspect the retained decision before creating a new operation intent."), { approval_request_id: notApproved.approval_request_id, status: notApproved.status });
-      this.completeAudit(input, canonical, auditRef14, "refused", null, denied2, [], input.target);
-      return { state: "refused", refusal: denied2, evidence, audit_ref: auditRef14, canonical_provenance: canonical.facts.provenance };
+      this.completeAudit(input, canonical, auditRef15, "refused", null, denied2, [], input.target);
+      return { state: "refused", refusal: denied2, evidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
     }
     try {
       const action = this.approvalAction(input, canonical, evaluation);
@@ -84388,7 +84622,7 @@ var BusOperationGovernanceControlPlane = class {
       return {
         state: "authorized",
         evidence: { ...evidence, approval_receipt_ids: receipts.sort() },
-        audit_ref: auditRef14,
+        audit_ref: auditRef15,
         canonical_provenance: canonical.facts.provenance
       };
     } catch (error) {
@@ -84396,8 +84630,8 @@ var BusOperationGovernanceControlPlane = class {
       const denied2 = refusal("operation_approval_receipt_invalid", error instanceof Error ? error.message : "The canonical approval receipt is invalid.", false, requiredAction("inspect_approval", "Inspect approval", "The approved action is no longer exact or current."), {
         denial_code: error instanceof ApprovalDeniedError ? error.denial_code : "approval_receipt_invalid"
       });
-      this.completeAudit(input, canonical, auditRef14, "refused", null, denied2, [], input.target);
-      return { state: "refused", refusal: denied2, evidence, audit_ref: auditRef14, canonical_provenance: canonical.facts.provenance };
+      this.completeAudit(input, canonical, auditRef15, "refused", null, denied2, [], input.target);
+      return { state: "refused", refusal: denied2, evidence, audit_ref: auditRef15, canonical_provenance: canonical.facts.provenance };
     }
   }
   resolveCanonicalInvocation(input) {
@@ -84750,15 +84984,15 @@ var BusOperationGovernanceControlPlane = class {
     });
     return { kind: "audit", id: record.audit_id, revision: record.request_digest };
   }
-  completeAudit(input, canonical, auditRef14, state, result, operationRefusal4, changedRefs, targetAfter) {
-    if (!auditRef14)
+  completeAudit(input, canonical, auditRef15, state, result, operationRefusal4, changedRefs, targetAfter) {
+    if (!auditRef15)
       return;
-    const existing = this.bus.auditStore.get(auditRef14.id);
+    const existing = this.bus.auditStore.get(auditRef15.id);
     if (existing?.outcome)
       return;
     const changedArtefacts = changedRefs.filter((ref) => ref.kind === "artefact_version").map((ref) => ref.id);
     this.bus.auditStore.complete({
-      audit_id: auditRef14.id,
+      audit_id: auditRef15.id,
       state,
       result_schema_version: input.definition.result.version,
       result_digest: result === null ? null : auditValueDigest(result),
@@ -84893,7 +85127,7 @@ function canonicalJson16(value) {
   return JSON.stringify(value);
 }
 function inSavepoint7(bus, label, work) {
-  const name = `${label}_${randomUUID25().replaceAll("-", "")}`;
+  const name = `${label}_${randomUUID26().replaceAll("-", "")}`;
   bus.db.exec(`SAVEPOINT ${name}`);
   try {
     const result = work();
@@ -85075,7 +85309,7 @@ function parseReceipt(value) {
 }
 
 // floe-bus/dist/operation-authority-sessions.js
-import { createHash as createHash23, randomBytes as randomBytes2, randomUUID as randomUUID26 } from "node:crypto";
+import { createHash as createHash23, randomBytes as randomBytes2, randomUUID as randomUUID27 } from "node:crypto";
 function applyOperationAuthoritySessionSchema(db) {
   const existingColumns = db.prepare("PRAGMA table_info(operation_authority_sessions)").all();
   if (existingColumns.length > 0 && !existingColumns.some((column) => column.name === "grant_ids_json")) {
@@ -85126,7 +85360,7 @@ var SqliteOperationAuthoritySessionStore = class {
     this.capabilityGrants = capabilityGrants;
     this.now = dependencies.now ?? isoNow4;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken;
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID26()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID27()}`);
   }
   issueSession(input) {
     assertNonEmpty2("principal_id", input.principal_id);
@@ -85369,7 +85603,7 @@ function isoNow4() {
 }
 
 // floe-bus/dist/client-identity-store.js
-import { randomBytes as randomBytes3, randomUUID as randomUUID27 } from "node:crypto";
+import { randomBytes as randomBytes3, randomUUID as randomUUID28 } from "node:crypto";
 function applyClientIdentitySchema(db) {
   const challengeColumns = db.prepare("PRAGMA table_info(client_identity_challenges)").all();
   if (challengeColumns.some((column) => column.name === "workspace_id")) {
@@ -85430,7 +85664,7 @@ var SqliteClientIdentityStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow5;
     this.challengeFactory = dependencies.challenge_factory ?? (() => randomBytes3(32).toString("hex"));
-    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID27()}`);
+    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID28()}`);
   }
   /**
    * Admit a public key under a display name. Idempotent per key: re-admitting an
@@ -85588,7 +85822,7 @@ function isoNow5() {
 
 // floe-bus/dist/windows-dpapi-credential-protector.js
 import { spawn as spawn3 } from "node:child_process";
-import { createHash as createHash24, randomUUID as randomUUID28 } from "node:crypto";
+import { createHash as createHash24, randomUUID as randomUUID29 } from "node:crypto";
 import { mkdir, readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { join as join4, resolve as resolve3 } from "node:path";
@@ -85609,7 +85843,7 @@ var WindowsDpapiCredentialProtector = class {
   async writeAtomic(locator, material) {
     requireMaterial(material);
     const target = this.pathForLocator(locator);
-    const temporary = join4(this.vaultDirectory, `.pending-${randomUUID28()}`);
+    const temporary = join4(this.vaultDirectory, `.pending-${randomUUID29()}`);
     const protectedBytes = await this.runDpapi("protect", copy(material));
     try {
       if (protectedBytes.byteLength === 0)
@@ -85784,7 +86018,7 @@ function isMissingFile(error) {
 }
 
 // floe-bus/dist/attachment-ingress.js
-import { createHash as createHash25, randomBytes as randomBytes4, randomUUID as randomUUID29, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
+import { createHash as createHash25, randomBytes as randomBytes4, randomUUID as randomUUID30, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
 var MAX_ATTACHMENT_INGRESS_BYTES = 20 * 1024 * 1024;
 var MAX_ATTACHMENT_INGRESS_ITEMS = 5;
 var DEFAULT_TTL_MS2 = 10 * 6e4;
@@ -85813,7 +86047,7 @@ var AttachmentIngressStore = class {
   constructor(dependencies = {}) {
     this.now = dependencies.now ?? (() => /* @__PURE__ */ new Date());
     this.tokenFactory = dependencies.token_factory ?? (() => randomBytes4(32).toString("base64url"));
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID29()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID30()}`);
     this.maximumPendingSessions = dependencies.maximum_pending_sessions ?? MAX_PENDING_SESSIONS;
     this.maximumPendingBytes = dependencies.maximum_pending_bytes ?? MAX_PENDING_BYTES;
     this.maximumTerminalSessions = dependencies.maximum_terminal_sessions ?? MAX_TERMINAL_SESSIONS;
@@ -86032,7 +86266,7 @@ function requireText6(value, field, maximum) {
 }
 
 // floe-bus/dist/transport-credentials.js
-import { createHash as createHash26, randomBytes as randomBytes5, randomUUID as randomUUID30 } from "node:crypto";
+import { createHash as createHash26, randomBytes as randomBytes5, randomUUID as randomUUID31 } from "node:crypto";
 function applyTransportCredentialSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS transport_credentials (
@@ -86085,7 +86319,7 @@ var SqliteTransportCredentialStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow6;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken2;
-    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID30()}`);
+    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID31()}`);
   }
   issueHostControlCredential(input) {
     return this.issueCredential("host_control", input.host_id, input.expires_at, null);
@@ -86569,7 +86803,7 @@ function rowToEntry(row) {
 }
 
 // floe-bus/dist/local-operator-principals.js
-import { randomUUID as randomUUID31 } from "node:crypto";
+import { randomUUID as randomUUID32 } from "node:crypto";
 function applyLocalOperatorPrincipalSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS local_operator_principals (
@@ -86586,7 +86820,7 @@ var SqliteLocalOperatorPrincipalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID31()}`);
+    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID32()}`);
     applyLocalOperatorPrincipalSchema(db);
   }
   getCurrent() {
@@ -87246,7 +87480,7 @@ function registerArtefactOperations(registry, store, publishVersion) {
 }
 
 // floe-bus/dist/artefact-export.js
-import { createHash as createHash27, randomUUID as randomUUID32 } from "node:crypto";
+import { createHash as createHash27, randomUUID as randomUUID33 } from "node:crypto";
 import { closeSync, existsSync as existsSync5, fsyncSync, linkSync, lstatSync, mkdirSync as mkdirSync3, openSync, readFileSync as readFileSync3, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname5, join as join5 } from "node:path";
 var EXPORT_ARTEFACT_VERSION_OPERATION_ID = "artefact.version.export";
@@ -87258,20 +87492,20 @@ var ArtefactExportError = class extends Error {
   }
 };
 function exportArtefactVersion(input) {
-  const path = input.destination_path.replace(/\\/g, "/");
-  if (path.split("/").some((part) => !part || part === "." || part === ".." || /[\x00-\x1f:<>"|?*]/.test(part) || /[. ]$/.test(part) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part))) {
+  const path3 = input.destination_path.replace(/\\/g, "/");
+  if (path3.split("/").some((part) => !part || part === "." || part === ".." || /[\x00-\x1f:<>"|?*]/.test(part) || /[. ]$/.test(part) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part))) {
     throw new ArtefactExportError("artefact_export_path_invalid", "Choose an unambiguous relative file path inside this Workspace.");
   }
   const content = resolveArtefactVersionContent(input);
   let destination;
   try {
-    destination = resolveWithinRoot(input.workspace_locator, path);
+    destination = resolveWithinRoot(input.workspace_locator, path3);
   } catch {
     throw new ArtefactExportError("artefact_export_path_invalid", "The export destination must remain inside this Workspace.");
   }
   const result = (created) => ({
     artefact_version_id: content.artefact_version_id,
-    destination_path: path,
+    destination_path: path3,
     digest: content.digest,
     size_bytes: content.size_bytes,
     created
@@ -87279,7 +87513,7 @@ function exportArtefactVersion(input) {
   function existingMatches() {
     let stat;
     try {
-      stat = lstatSync(join5(input.workspace_locator, path));
+      stat = lstatSync(join5(input.workspace_locator, path3));
     } catch (error) {
       if (error.code === "ENOENT")
         return false;
@@ -87293,8 +87527,8 @@ function exportArtefactVersion(input) {
   if (existingMatches())
     return result(false);
   mkdirSync3(dirname5(destination), { recursive: true });
-  destination = resolveWithinRoot(input.workspace_locator, path);
-  const temporary = join5(dirname5(destination), `.floe-export-${randomUUID32()}.tmp`);
+  destination = resolveWithinRoot(input.workspace_locator, path3);
+  const temporary = join5(dirname5(destination), `.floe-export-${randomUUID33()}.tmp`);
   let staged = false;
   try {
     const fd = openSync(temporary, "wx", 384);
@@ -92174,7 +92408,7 @@ import { existsSync as existsSync6, mkdirSync as mkdirSync4 } from "node:fs";
 import { isAbsolute as isAbsolute3, resolve as resolve4 } from "node:path";
 
 // floe-bus/dist/workspace-identities.js
-import { createHash as createHash28, randomUUID as randomUUID33 } from "node:crypto";
+import { createHash as createHash28, randomUUID as randomUUID34 } from "node:crypto";
 import { posix, win32 } from "node:path";
 var WorkspaceIdentityNotFoundError = class extends Error {
   workspace_id;
@@ -92286,7 +92520,7 @@ function getOrCreateLocalHostIdentity(db, dependencies = {}) {
   `).get();
   if (existing)
     return existing;
-  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID33()}`))();
+  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID34()}`))();
   assertNonEmpty4("host_id", hostId);
   const createdAt = (dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   assertTimestamp("created_at", createdAt);
@@ -92428,8 +92662,8 @@ var SqliteWorkspaceIdentityStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID33()}`);
-    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID33()}`);
+    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID34()}`);
+    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID34()}`);
   }
   createWorkspace(input) {
     const workspaceId4 = this.workspaceIdFactory();
@@ -92886,8 +93120,8 @@ function assertNonEmpty4(field, value) {
     throw new Error(`${field} must not be empty.`);
 }
 function trimNonRootTrailingSeparators(value, platform) {
-  const path = platform === "windows" ? win32 : posix;
-  const root = path.parse(value).root;
+  const path3 = platform === "windows" ? win32 : posix;
+  const root = path3.parse(value).root;
   let result = value;
   while (result.length > root.length && /[\\/]$/.test(result))
     result = result.slice(0, -1);
@@ -93231,6 +93465,168 @@ var BusWorkspaceOperationBackend = class {
   }
 };
 
+// floe-bus/dist/workspace-access-operations.js
+var INSPECT_WORKSPACE_ACCESS_OPERATION_ID = "workspace.access.inspect";
+var ADD_WORKSPACE_FOLDER_OPERATION_ID = "workspace.folder.add";
+var REMOVE_WORKSPACE_FOLDER_OPERATION_ID = "workspace.folder.remove";
+var SET_WORKSPACE_SYSTEM_ACCESS_OPERATION_ID = "workspace.system_access.set";
+var nonEmptyString5 = { type: "string", minLength: 1 };
+var nullableString5 = { oneOf: [nonEmptyString5, { type: "null" }] };
+var accessSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["workspace_id", "folders", "system_access", "records"],
+  properties: {
+    workspace_id: nonEmptyString5,
+    folders: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["folder_id", "path", "home", "available", "added_at"],
+        properties: {
+          folder_id: nonEmptyString5,
+          path: nonEmptyString5,
+          home: { type: "boolean" },
+          available: { type: "boolean" },
+          added_at: nullableString5
+        }
+      }
+    },
+    system_access: { type: "boolean" },
+    records: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["record_id", "kind", "summary", "path", "principal_id", "recorded_at"],
+        properties: {
+          record_id: nonEmptyString5,
+          kind: nonEmptyString5,
+          summary: nonEmptyString5,
+          path: nullableString5,
+          principal_id: nonEmptyString5,
+          recorded_at: nonEmptyString5
+        }
+      }
+    }
+  }
+};
+function auditRef12(context) {
+  return { kind: "operation_invocation", id: context.invocation_id, revision: null };
+}
+function accessRef(workspaceId4) {
+  return { kind: "workspace_access", id: workspaceId4, revision: null };
+}
+function change(dependencies, context, work) {
+  try {
+    const access = work();
+    if (access)
+      dependencies.changed(access);
+    const result = access ?? dependencies.access.inspect(requireWorkspaceAuthorityId(context.authority));
+    return {
+      state: "completed",
+      result,
+      changed_refs: access ? [accessRef(access.workspace_id)] : [],
+      audit_ref: auditRef12(context)
+    };
+  } catch (error) {
+    if (error instanceof WorkspaceFolderError) {
+      return { state: "refused", refusal: refusal(error.code, error.message, false, null) };
+    }
+    throw error;
+  }
+}
+var writeEffects3 = { mode: "write", reversibility: "reversible", external: false, secret_access: "none" };
+var interactiveOnly = { allowed_modes: ["interactive"] };
+var noTarget = { resource_kinds: [], expected_revision: "not_applicable" };
+function workspaceAccessOperationDefinitions(dependencies) {
+  return [
+    {
+      operation_id: INSPECT_WORKSPACE_ACCESS_OPERATION_ID,
+      operation_version: "1",
+      authority_boundary_kinds: ["workspace"],
+      category: "workspace",
+      title: "Show Workspace folders and System access",
+      description: "List the folders Floe Actors' file tools may use in this Workspace, whether System access is on, and recent changes.",
+      effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+      required_grants: [INSPECT_WORKSPACE_ACCESS_OPERATION_ID],
+      interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+      target: noTarget,
+      input: { version: "1", schema: { type: "object", additionalProperties: false } },
+      result: { version: "1", schema: accessSchema },
+      handler: (context) => ({
+        state: "completed",
+        result: dependencies.access.inspect(requireWorkspaceAuthorityId(context.authority)),
+        changed_refs: [],
+        audit_ref: auditRef12(context)
+      })
+    },
+    {
+      operation_id: ADD_WORKSPACE_FOLDER_OPERATION_ID,
+      operation_version: "1",
+      authority_boundary_kinds: ["workspace"],
+      category: "workspace",
+      title: "Add a folder to the Workspace",
+      description: "Let Floe Actors' file tools use another folder on this machine, by its full path.",
+      effects: writeEffects3,
+      required_grants: [ADD_WORKSPACE_FOLDER_OPERATION_ID],
+      interaction_constraints: interactiveOnly,
+      target: noTarget,
+      input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["path"], properties: { path: nonEmptyString5 } } },
+      result: { version: "1", schema: accessSchema },
+      handler: (context, input) => change(dependencies, context, () => dependencies.access.addFolder({
+        workspace_id: requireWorkspaceAuthorityId(context.authority),
+        path: input.path,
+        principal_id: context.authority.principal_id
+      }))
+    },
+    {
+      operation_id: REMOVE_WORKSPACE_FOLDER_OPERATION_ID,
+      operation_version: "1",
+      authority_boundary_kinds: ["workspace"],
+      category: "workspace",
+      title: "Remove a folder from the Workspace",
+      description: "Stop Floe Actors' file tools using a folder that was added to this Workspace. The Workspace's own folder stays.",
+      effects: writeEffects3,
+      required_grants: [REMOVE_WORKSPACE_FOLDER_OPERATION_ID],
+      interaction_constraints: interactiveOnly,
+      target: noTarget,
+      input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["folder_id"], properties: { folder_id: nonEmptyString5 } } },
+      result: { version: "1", schema: accessSchema },
+      handler: (context, input) => change(dependencies, context, () => dependencies.access.removeFolder({
+        workspace_id: requireWorkspaceAuthorityId(context.authority),
+        folder_id: input.folder_id,
+        principal_id: context.authority.principal_id
+      }))
+    },
+    {
+      operation_id: SET_WORKSPACE_SYSTEM_ACCESS_OPERATION_ID,
+      operation_version: "1",
+      authority_boundary_kinds: ["workspace"],
+      category: "workspace",
+      title: "Turn System access on or off",
+      description: "When on, Floe Actors' file tools may reach anywhere on this machine, and an engine may be allowed to bypass its sandbox. Off by default.",
+      effects: writeEffects3,
+      required_grants: [SET_WORKSPACE_SYSTEM_ACCESS_OPERATION_ID],
+      interaction_constraints: interactiveOnly,
+      target: noTarget,
+      input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["enabled"], properties: { enabled: { type: "boolean" } } } },
+      result: { version: "1", schema: accessSchema },
+      handler: (context, input) => change(dependencies, context, () => dependencies.access.setSystemAccess({
+        workspace_id: requireWorkspaceAuthorityId(context.authority),
+        enabled: input.enabled,
+        principal_id: context.authority.principal_id
+      }))
+    }
+  ];
+}
+function registerWorkspaceAccessOperations(registry, dependencies) {
+  for (const definition2 of workspaceAccessOperationDefinitions(dependencies))
+    registry.register(definition2);
+  return registry;
+}
+
 // floe-bus/dist/local-operator-actor.js
 var OPERATOR_ACTOR_SLUG = "operator";
 var OPERATOR_ACTOR_LABEL = "Operator";
@@ -93311,7 +93707,7 @@ function requireEventIngress(capability) {
 
 // floe-bus/dist/workspace-portability.js
 import { createHash as createHash29 } from "node:crypto";
-import { existsSync as existsSync7, lstatSync as lstatSync2, mkdirSync as mkdirSync5, mkdtempSync, readFileSync as readFileSync4, readdirSync, renameSync, rmSync, statSync as statSync2, writeFileSync as writeFileSync3 } from "node:fs";
+import { existsSync as existsSync7, lstatSync as lstatSync2, mkdirSync as mkdirSync5, mkdtempSync, readFileSync as readFileSync4, readdirSync, renameSync, rmSync, statSync as statSync3, writeFileSync as writeFileSync3 } from "node:fs";
 import { basename as basename2, dirname as dirname6, isAbsolute as isAbsolute4, join as join6, resolve as resolve5, sep as sep2 } from "node:path";
 var WORKSPACE_BUNDLE_FORMAT = "floe.workspace.directory-bundle";
 var WORKSPACE_BUNDLE_FORMAT_VERSION = 1;
@@ -93476,11 +93872,16 @@ var NON_PORTABLE_HOST_TABLES = /* @__PURE__ */ new Set([
   "transport_credentials",
   "transport_push_checkpoints",
   "transport_push_entries",
+  // Folders and System access name paths on this machine; a restored or copied
+  // Workspace starts with only its own folder and System access off.
+  "workspace_access_records",
+  "workspace_folders",
   "workspace_locator_bindings",
   "workspace_portability_imported_operation_receipts",
   "workspace_portability_dependencies",
   "workspace_portability_restores",
-  "workspace_restore_holds"
+  "workspace_restore_holds",
+  "workspace_system_access"
 ]);
 var DIRECT_SCOPE_EXCEPTIONS = /* @__PURE__ */ new Set([
   "runtime_profiles",
@@ -93629,10 +94030,10 @@ var WorkspacePortabilityService = class {
         rows.sort((left, right) => compareRows(left, right, pk));
         const portableRows = rows.map((row) => sanitizePortableRecord(row, sourcePathTokens));
         selected.redactionCount += portableRows.reduce((total, item) => total + item.transforms.length, 0);
-        const path = `records/${table}.jsonl`;
+        const path3 = `records/${table}.jsonl`;
         const bytes = Buffer.from(portableRows.map((item) => `${canonicalJson18(item)}
 `).join(""), "utf8");
-        writeFileSync3(join6(staging, ...path.split("/")), bytes);
+        writeFileSync3(join6(staging, ...path3.split("/")), bytes);
         const columns = tableColumns2(this.dependencies.db, table).map((column) => column.name);
         recordInventory.push({
           table,
@@ -93641,7 +94042,7 @@ var WorkspacePortabilityService = class {
           schema_digest: sha2566(canonicalJson18(tableColumns2(this.dependencies.db, table))),
           record_count: portableRows.length,
           records_digest: sha2566(bytes),
-          path
+          path: path3
         });
         selected.records.set(table, portableRows.map((item) => item.row));
       }
@@ -93693,7 +94094,7 @@ var WorkspacePortabilityService = class {
   }
   validateBundle(bundleDirectory) {
     const bundleRoot = resolve5(bundleDirectory);
-    if (!existsSync7(bundleRoot) || !statSync2(bundleRoot).isDirectory()) {
+    if (!existsSync7(bundleRoot) || !statSync3(bundleRoot).isDirectory()) {
       throw new WorkspacePortabilityError("bundle_not_found", "The Workspace package directory does not exist.");
     }
     assertNoSymlinks(bundleRoot);
@@ -93719,8 +94120,8 @@ var WorkspacePortabilityService = class {
       if (!PORTABLE_WORKSPACE_TABLES.has(inventory.table)) {
         throw new WorkspacePortabilityError("bundle_table_unsupported", `Workspace package table '${inventory.table}' is not supported.`);
       }
-      const path = resolvePackagePath(bundleRoot, inventory.path);
-      const bytes = readFileSync4(path);
+      const path3 = resolvePackagePath(bundleRoot, inventory.path);
+      const bytes = readFileSync4(path3);
       if (sha2566(bytes) !== inventory.records_digest) {
         throw new WorkspacePortabilityError("bundle_records_digest_mismatch", `Workspace package records for '${inventory.table}' changed.`);
       }
@@ -94177,11 +94578,11 @@ var WorkspacePortabilityService = class {
         return null;
       const contentRef = parseJsonObject(version.content_ref_json, "restored content reference");
       const digest9 = contentDigest(contentRef);
-      const path = typeof contentRef.path === "string" ? contentRef.path : null;
+      const path3 = typeof contentRef.path === "string" ? contentRef.path : null;
       const workspaceRoot = this.dependencies.workspace_locator(hold.workspace_id);
-      if (contentRef.kind !== "workspace-relative" || !digest9 || !path || !workspaceRoot)
+      if (contentRef.kind !== "workspace-relative" || !digest9 || !path3 || !workspaceRoot)
         return null;
-      const destination = resolveWithinRoot(workspaceRoot, path);
+      const destination = resolveWithinRoot(workspaceRoot, path3);
       if (!existsSync7(destination) || !lstatSync2(destination).isFile() || sha2566(readFileSync4(destination)) !== digest9)
         return null;
       return this.completedContentSupplyReceipt(hold, item.dependency_id, item.resource_id, digest9)?.receipt_id ?? null;
@@ -94302,7 +94703,7 @@ var WorkspacePortabilityService = class {
         const portablePath = typeof contentRef.path === "string" ? contentRef.path : "";
         try {
           const source = resolveWithinRoot(workspaceLocator, portablePath);
-          const stat = statSync2(source);
+          const stat = statSync3(source);
           if (!stat.isFile())
             throw new Error("not a file");
           const bytes = readFileSync4(source);
@@ -94428,10 +94829,10 @@ var WorkspacePortabilityService = class {
           const versionId = String(row.artefact_version_id);
           const content = contentByVersion.get(versionId);
           if (content?.mode === "included" && content.digest) {
-            const path = `.floe/portable-content/sha256/${content.digest}`;
+            const path3 = `.floe/portable-content/sha256/${content.digest}`;
             row.content_ref_json = canonicalJson18({
               kind: "workspace-relative",
-              path,
+              path: path3,
               digest: { algorithm: "sha256", value: content.digest },
               ...content.media_type ? { media_type: content.media_type } : {},
               ...content.size_bytes !== null ? { size_bytes: content.size_bytes } : {}
@@ -94609,12 +95010,12 @@ function sanitizePortableRecord(row, sourcePaths) {
     row: portable
   };
 }
-function sanitizeJsonValue(value, sourcePaths, path) {
+function sanitizeJsonValue(value, sourcePaths, path3) {
   if (Array.isArray(value)) {
     const values = [];
     const transforms = [];
     value.forEach((item, index) => {
-      const result = sanitizeJsonValue(item, sourcePaths, [...path, String(index)]);
+      const result = sanitizeJsonValue(item, sourcePaths, [...path3, String(index)]);
       values.push(result.value);
       transforms.push(...result.transforms);
     });
@@ -94627,9 +95028,9 @@ function sanitizeJsonValue(value, sourcePaths, path) {
       if (SECRET_KEY.test(key)) {
         record[key] = child == null ? child : `[credential-redacted:${sha2566(canonicalJson18(child)).slice(0, 16)}]`;
         if (child != null)
-          transforms.push(`${[...path, key].join(".")}:credential-redacted`);
+          transforms.push(`${[...path3, key].join(".")}:credential-redacted`);
       } else {
-        const result = sanitizeJsonValue(child, sourcePaths, [...path, key]);
+        const result = sanitizeJsonValue(child, sourcePaths, [...path3, key]);
         record[key] = result.value;
         transforms.push(...result.transforms);
       }
@@ -94640,7 +95041,7 @@ function sanitizeJsonValue(value, sourcePaths, path) {
     const result = sanitizeString(value, sourcePaths);
     return {
       value: result.value,
-      transforms: result.changed ? [`${path.join(".")}:redacted`] : []
+      transforms: result.changed ? [`${path3.join(".")}:redacted`] : []
     };
   }
   return { value, transforms: [] };
@@ -94652,11 +95053,11 @@ function sanitizeString(value, sourcePaths) {
       continue;
     result = replaceCaseInsensitive(result, source, `[workspace-locator:${sha2566(source.toLowerCase()).slice(0, 16)}]`);
   }
-  result = result.replace(WINDOWS_ABSOLUTE_PATH, (path) => `[host-path:${sha2566(path.toLowerCase()).slice(0, 16)}]`);
-  result = result.replace(UNC_ABSOLUTE_PATH, (path) => `[host-path:${sha2566(path.toLowerCase()).slice(0, 16)}]`);
+  result = result.replace(WINDOWS_ABSOLUTE_PATH, (path3) => `[host-path:${sha2566(path3.toLowerCase()).slice(0, 16)}]`);
+  result = result.replace(UNC_ABSOLUTE_PATH, (path3) => `[host-path:${sha2566(path3.toLowerCase()).slice(0, 16)}]`);
   result = result.replace(POSIX_ABSOLUTE_PATH, (_match, prefix, tail) => {
-    const path = `/${tail}`;
-    return `${prefix}[host-path:${sha2566(path).slice(0, 16)}]`;
+    const path3 = `/${tail}`;
+    return `${prefix}[host-path:${sha2566(path3).slice(0, 16)}]`;
   });
   for (const pattern of SECRET_VALUE_PATTERNS) {
     pattern.lastIndex = 0;
@@ -94932,13 +95333,13 @@ function resolvePackagePath(root, portablePath) {
 function assertNoSymlinks(root) {
   const visit = (directory) => {
     for (const entry of readdirSync(directory)) {
-      const path = join6(directory, entry);
-      const stat = lstatSync2(path);
+      const path3 = join6(directory, entry);
+      const stat = lstatSync2(path3);
       if (stat.isSymbolicLink()) {
         throw new WorkspacePortabilityError("bundle_symlink_refused", "Workspace packages cannot contain symbolic links.");
       }
       if (stat.isDirectory())
-        visit(path);
+        visit(path3);
     }
   };
   visit(root);
@@ -96196,11 +96597,11 @@ function normalizeIssue(value, index) {
   };
 }
 function normalizeActor(value, index) {
-  const path = `actors[${index}]`;
-  const actor = exactObject(value, ["source_actor_id", "source", "definition", "runtime"], path);
-  const source = exactObject(actor.source, ["kind", "path", "source_fingerprint"], `${path}.source`);
+  const path3 = `actors[${index}]`;
+  const actor = exactObject(value, ["source_actor_id", "source", "definition", "runtime"], path3);
+  const source = exactObject(actor.source, ["kind", "path", "source_fingerprint"], `${path3}.source`);
   if (source.kind !== "workspace_actor_file") {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.source.kind is invalid`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.source.kind is invalid`);
   }
   const definition2 = exactObject(actor.definition, [
     "label",
@@ -96211,7 +96612,7 @@ function normalizeActor(value, index) {
     "policy_refs",
     "escalation_rules",
     "scope"
-  ], `${path}.definition`);
+  ], `${path3}.definition`);
   const runtime = exactObject(actor.runtime, [
     "label",
     "backing_kind",
@@ -96222,55 +96623,55 @@ function normalizeActor(value, index) {
     "resource_policy",
     "credential_requirement",
     "required_configuration_keys"
-  ], `${path}.runtime`);
-  const policyRefs = exactObject(definition2.policy_refs, ["budget", "trust", "approval"], `${path}.definition.policy_refs`);
+  ], `${path3}.runtime`);
+  const policyRefs = exactObject(definition2.policy_refs, ["budget", "trust", "approval"], `${path3}.definition.policy_refs`);
   if (!Array.isArray(definition2.responsibilities) || !Array.isArray(definition2.knowledge_refs) || !Array.isArray(definition2.escalation_rules)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.definition lists are malformed`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.definition lists are malformed`);
   }
   if (!Array.isArray(runtime.required_capability_ids) || !Array.isArray(runtime.required_configuration_keys)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime requirement lists are malformed`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.runtime requirement lists are malformed`);
   }
-  const checkpoint = exactObject(runtime.checkpoint_policy, ["mode", "schema_ref"], `${path}.runtime.checkpoint_policy`);
+  const checkpoint = exactObject(runtime.checkpoint_policy, ["mode", "schema_ref"], `${path3}.runtime.checkpoint_policy`);
   if (!["none", "provider_neutral", "required"].includes(checkpoint.mode)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.checkpoint_policy.mode is invalid`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.runtime.checkpoint_policy.mode is invalid`);
   }
   if (!["model", "service", "team"].includes(runtime.backing_kind)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.backing_kind is invalid`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.runtime.backing_kind is invalid`);
   }
   if (runtime.credential_requirement !== "none" && runtime.credential_requirement !== "required") {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path}.runtime.credential_requirement is invalid`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3}.runtime.credential_requirement is invalid`);
   }
-  const configuration = safeJsonObject2(runtime.configuration, `${path}.runtime.configuration`);
-  const resourcePolicy = safeJsonObject2(runtime.resource_policy, `${path}.runtime.resource_policy`);
+  const configuration = safeJsonObject2(runtime.configuration, `${path3}.runtime.configuration`);
+  const resourcePolicy = safeJsonObject2(runtime.resource_policy, `${path3}.runtime.resource_policy`);
   const normalized = {
-    source_actor_id: requiredText5(actor.source_actor_id, `${path}.source_actor_id`),
+    source_actor_id: requiredText5(actor.source_actor_id, `${path3}.source_actor_id`),
     source: {
       kind: "workspace_actor_file",
-      path: safeRelativePath(source.path, `${path}.source.path`),
-      source_fingerprint: digestText(source.source_fingerprint, `${path}.source.source_fingerprint`)
+      path: safeRelativePath(source.path, `${path3}.source.path`),
+      source_fingerprint: digestText(source.source_fingerprint, `${path3}.source.source_fingerprint`)
     },
     definition: {
-      label: requiredText5(definition2.label, `${path}.definition.label`),
-      charter: requiredText5(definition2.charter, `${path}.definition.charter`),
+      label: requiredText5(definition2.label, `${path3}.definition.label`),
+      charter: requiredText5(definition2.charter, `${path3}.definition.charter`),
       responsibilities: definition2.responsibilities.map((item, itemIndex) => {
-        const responsibility = exactObject(item, ["responsibility_id", "title", "description"], `${path}.definition.responsibilities[${itemIndex}]`);
+        const responsibility = exactObject(item, ["responsibility_id", "title", "description"], `${path3}.definition.responsibilities[${itemIndex}]`);
         return {
           responsibility_id: requiredText5(responsibility.responsibility_id, "responsibility_id"),
           title: requiredText5(responsibility.title, "responsibility title"),
           description: requiredText5(responsibility.description, "responsibility description")
         };
       }),
-      instructions: requiredText5(definition2.instructions, `${path}.definition.instructions`),
-      knowledge_refs: definition2.knowledge_refs.map((item, itemIndex) => normalizeRef3(item, `${path}.definition.knowledge_refs[${itemIndex}]`)),
+      instructions: requiredText5(definition2.instructions, `${path3}.definition.instructions`),
+      knowledge_refs: definition2.knowledge_refs.map((item, itemIndex) => normalizeRef3(item, `${path3}.definition.knowledge_refs[${itemIndex}]`)),
       policy_refs: {
-        budget: policyRefs.budget == null ? null : normalizeRef3(policyRefs.budget, `${path}.definition.policy_refs.budget`),
-        trust: policyRefs.trust == null ? null : normalizeRef3(policyRefs.trust, `${path}.definition.policy_refs.trust`),
-        approval: policyRefs.approval == null ? null : normalizeRef3(policyRefs.approval, `${path}.definition.policy_refs.approval`)
+        budget: policyRefs.budget == null ? null : normalizeRef3(policyRefs.budget, `${path3}.definition.policy_refs.budget`),
+        trust: policyRefs.trust == null ? null : normalizeRef3(policyRefs.trust, `${path3}.definition.policy_refs.trust`),
+        approval: policyRefs.approval == null ? null : normalizeRef3(policyRefs.approval, `${path3}.definition.policy_refs.approval`)
       },
       escalation_rules: definition2.escalation_rules.map((item, itemIndex) => {
-        const rule = exactObject(item, ["rule_id", "when", "action", "target_actor_id"], `${path}.definition.escalation_rules[${itemIndex}]`);
+        const rule = exactObject(item, ["rule_id", "when", "action", "target_actor_id"], `${path3}.definition.escalation_rules[${itemIndex}]`);
         if (!["decline", "delegate", "escalate", "signal_unowned"].includes(rule.action)) {
-          throw new WorkspaceConfigurationInventoryValidationError(`${path}.definition.escalation_rules[${itemIndex}].action is invalid`);
+          throw new WorkspaceConfigurationInventoryValidationError(`${path3}.definition.escalation_rules[${itemIndex}].action is invalid`);
         }
         return {
           rule_id: requiredText5(rule.rule_id, "escalation rule_id"),
@@ -96279,12 +96680,12 @@ function normalizeActor(value, index) {
           ...rule.target_actor_id == null ? {} : { target_actor_id: requiredText5(rule.target_actor_id, "target_actor_id") }
         };
       }),
-      ...definition2.scope == null ? {} : { scope: normalizeActorScope(definition2.scope, `${path}.definition.scope`) }
+      ...definition2.scope == null ? {} : { scope: normalizeActorScope(definition2.scope, `${path3}.definition.scope`) }
     },
     runtime: {
-      label: requiredText5(runtime.label, `${path}.runtime.label`),
+      label: requiredText5(runtime.label, `${path3}.runtime.label`),
       backing_kind: runtime.backing_kind,
-      adapter_id: requiredText5(runtime.adapter_id, `${path}.runtime.adapter_id`),
+      adapter_id: requiredText5(runtime.adapter_id, `${path3}.runtime.adapter_id`),
       configuration,
       required_capability_ids: normalizeUnknownTextSet(runtime.required_capability_ids, "required capability id"),
       checkpoint_policy: {
@@ -96298,67 +96699,67 @@ function normalizeActor(value, index) {
   };
   return normalized;
 }
-function normalizeRef3(value, path) {
-  const ref = exactObject(value, ["kind", "id", "revision"], path);
+function normalizeRef3(value, path3) {
+  const ref = exactObject(value, ["kind", "id", "revision"], path3);
   return {
-    kind: requiredText5(ref.kind, `${path}.kind`),
-    id: requiredText5(ref.id, `${path}.id`),
-    revision: ref.revision == null ? null : requiredText5(ref.revision, `${path}.revision`)
+    kind: requiredText5(ref.kind, `${path3}.kind`),
+    id: requiredText5(ref.id, `${path3}.id`),
+    revision: ref.revision == null ? null : requiredText5(ref.revision, `${path3}.revision`)
   };
 }
-function exactObject(value, keys, path) {
+function exactObject(value, keys, path3) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path} must be an object`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3} must be an object`);
   }
   const object = value;
   const allowed = new Set(keys);
   const unexpected = Object.keys(object).filter((key) => !allowed.has(key));
   if (unexpected.length > 0) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path} contains unsupported field '${unexpected[0]}'`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3} contains unsupported field '${unexpected[0]}'`);
   }
   return object;
 }
-function safeJsonObject2(value, path) {
-  const object = exactJsonObject(value, path);
-  rejectSecretMaterial3(object, path);
+function safeJsonObject2(value, path3) {
+  const object = exactJsonObject(value, path3);
+  rejectSecretMaterial3(object, path3);
   return object;
 }
-function exactJsonObject(value, path) {
+function exactJsonObject(value, path3) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new WorkspaceConfigurationInventoryValidationError(`${path} must be a JSON object`);
+    throw new WorkspaceConfigurationInventoryValidationError(`${path3} must be a JSON object`);
   }
-  assertJson(value, path);
+  assertJson(value, path3);
   return value;
 }
-function assertJson(value, path) {
+function assertJson(value, path3) {
   if (value === null || ["string", "number", "boolean"].includes(typeof value))
     return;
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertJson(item, `${path}[${index}]`));
+    value.forEach((item, index) => assertJson(item, `${path3}[${index}]`));
     return;
   }
   if (typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
       if (item === void 0)
-        throw new WorkspaceConfigurationInventoryValidationError(`${path}.${key} is undefined`);
-      assertJson(item, `${path}.${key}`);
+        throw new WorkspaceConfigurationInventoryValidationError(`${path3}.${key} is undefined`);
+      assertJson(item, `${path3}.${key}`);
     }
     return;
   }
-  throw new WorkspaceConfigurationInventoryValidationError(`${path} must contain JSON data only`);
+  throw new WorkspaceConfigurationInventoryValidationError(`${path3} must contain JSON data only`);
 }
-function rejectSecretMaterial3(value, path) {
+function rejectSecretMaterial3(value, path3) {
   if (Array.isArray(value)) {
-    value.forEach((item, index) => rejectSecretMaterial3(item, `${path}[${index}]`));
+    value.forEach((item, index) => rejectSecretMaterial3(item, `${path3}[${index}]`));
     return;
   }
   if (!value || typeof value !== "object")
     return;
   for (const [key, item] of Object.entries(value)) {
     if (/(?:api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|authorization|client[_-]?secret|private[_-]?key|password|secret|credential)/i.test(key)) {
-      throw new WorkspaceConfigurationInventoryValidationError(`${path}.${key} must be represented by a SecretRef`);
+      throw new WorkspaceConfigurationInventoryValidationError(`${path3}.${key} must be represented by a SecretRef`);
     }
-    rejectSecretMaterial3(item, `${path}.${key}`);
+    rejectSecretMaterial3(item, `${path3}.${key}`);
   }
 }
 function normalizeUnknownTextSet(values, label) {
@@ -96384,8 +96785,8 @@ function normalizeActorScope(value, label) {
   if (!Array.isArray(scope.paths) || scope.paths.length === 0) {
     throw new WorkspaceConfigurationInventoryValidationError(`${label}.paths must list at least one folder`);
   }
-  const paths = scope.paths.map((path, index) => {
-    const canonical = typeof path === "string" ? canonicalActorScopePath(path) : null;
+  const paths = scope.paths.map((path3, index) => {
+    const canonical = typeof path3 === "string" ? canonicalActorScopePath(path3) : null;
     if (!canonical) {
       throw new WorkspaceConfigurationInventoryValidationError(`${label}.paths[${index}] must stay within the Workspace`);
     }
@@ -96394,11 +96795,11 @@ function normalizeActorScope(value, label) {
   return { paths: [...new Set(paths)].sort((left, right) => left.localeCompare(right)) };
 }
 function safeRelativePath(value, label) {
-  const path = requiredText5(value, label).replace(/\\/g, "/").replace(/^\.\//, "");
-  if (path.startsWith("/") || /^[a-z]:\//i.test(path) || path.split("/").includes("..")) {
+  const path3 = requiredText5(value, label).replace(/\\/g, "/").replace(/^\.\//, "");
+  if (path3.startsWith("/") || /^[a-z]:\//i.test(path3) || path3.split("/").includes("..")) {
     throw new WorkspaceConfigurationInventoryValidationError(`${label} must stay within the Workspace`);
   }
-  return path;
+  return path3;
 }
 function digestText(value, label) {
   const text12 = requiredText5(value, label).toLowerCase();
@@ -96530,9 +96931,9 @@ var ScopeOperationRefusalError = class extends Error {
     this.name = "ScopeOperationRefusalError";
   }
 };
-var nonEmptyString5 = { type: "string", minLength: 1 };
-var nullableString5 = { oneOf: [nonEmptyString5, { type: "null" }] };
-var stringArray3 = { type: "array", items: nonEmptyString5 };
+var nonEmptyString6 = { type: "string", minLength: 1 };
+var nullableString6 = { oneOf: [nonEmptyString6, { type: "null" }] };
+var stringArray3 = { type: "array", items: nonEmptyString6 };
 var recordSchema = { type: "object" };
 var stoppableScopeExecutionStatuses = /* @__PURE__ */ new Set([
   "queued",
@@ -96547,7 +96948,7 @@ var eventContentSelectorSchema = {
   required: ["source", "path"],
   properties: {
     source: { const: "event_content" },
-    path: nonEmptyString5
+    path: nonEmptyString6
   }
 };
 var memberKeySelectorSchema = {
@@ -96567,8 +96968,8 @@ var expectedMembershipPolicySchema = {
   required: ["mode", "collection_port_id", "member_port_id", "member_key", "match"],
   properties: {
     mode: { const: "from_collection" },
-    collection_port_id: nonEmptyString5,
-    member_port_id: nonEmptyString5,
+    collection_port_id: nonEmptyString6,
+    member_port_id: nonEmptyString6,
     member_key: memberKeySelectorSchema,
     match: { enum: ["member_key", "member_key_and_version"] }
   }
@@ -96603,7 +97004,7 @@ var activationPolicySchema = {
       required: ["mode", "graph_id"],
       properties: {
         mode: { const: "legacy_subscription" },
-        graph_id: nonEmptyString5
+        graph_id: nonEmptyString6
       }
     }
   ]
@@ -96622,7 +97023,7 @@ var contextPolicySchema = {
       required: ["mode", "key_template"],
       properties: {
         mode: { const: "reuse_by_key" },
-        key_template: nonEmptyString5
+        key_template: nonEmptyString6
       }
     },
     {
@@ -96631,7 +97032,7 @@ var contextPolicySchema = {
       required: ["mode", "context_id"],
       properties: {
         mode: { const: "fixed" },
-        context_id: { ...nonEmptyString5, description: "An active Context with available content in this same Workspace and Scope. An outside conversation cannot be the execution Context; communicate the result to that conversation separately." }
+        context_id: { ...nonEmptyString6, description: "An active Context with available content in this same Workspace and Scope. An outside conversation cannot be the execution Context; communicate the result to that conversation separately." }
       }
     }
   ]
@@ -96641,10 +97042,10 @@ var nodeSchema = {
   additionalProperties: false,
   required: ["node_id", "kind"],
   properties: {
-    node_id: nonEmptyString5,
+    node_id: nonEmptyString6,
     kind: { enum: ["event", "actor", "command", "context", "scope", "capability", "connector"] },
-    label: nonEmptyString5,
-    resource_id: nullableString5,
+    label: nonEmptyString6,
+    resource_id: nullableString6,
     config: {
       ...recordSchema,
       description: "Kind-owned configuration. Actor placement instructions belong in bindings; config.instructions is not injected into runtime instructions."
@@ -96672,13 +97073,13 @@ var portSchema = {
   additionalProperties: false,
   required: ["port_id", "node_id", "name", "direction"],
   properties: {
-    port_id: nonEmptyString5,
-    node_id: nonEmptyString5,
-    name: nonEmptyString5,
+    port_id: nonEmptyString6,
+    node_id: nonEmptyString6,
+    name: nonEmptyString6,
     direction: { enum: ["input", "output"] },
     event_types: stringArray3,
     artefact_types: stringArray3,
-    schema_ref: nullableString5,
+    schema_ref: nullableString6,
     min_count: { type: "integer", minimum: 0 },
     max_count: { oneOf: [{ type: "integer", minimum: 0 }, { type: "null" }] }
   }
@@ -96688,9 +97089,9 @@ var edgeSchema = {
   additionalProperties: false,
   required: ["edge_id", "source_port_id", "target_port_id"],
   properties: {
-    edge_id: nonEmptyString5,
-    source_port_id: nonEmptyString5,
-    target_port_id: nonEmptyString5,
+    edge_id: nonEmptyString6,
+    source_port_id: nonEmptyString6,
+    target_port_id: nonEmptyString6,
     enabled: { type: "boolean" },
     priority: { type: "integer" },
     policy: recordSchema
@@ -96726,17 +97127,17 @@ var compositionRevisionSchema = {
     "edges"
   ],
   properties: {
-    revision_id: nonEmptyString5,
-    workspace_id: nonEmptyString5,
-    scope_id: nonEmptyString5,
+    revision_id: nonEmptyString6,
+    workspace_id: nonEmptyString6,
+    scope_id: nonEmptyString6,
     revision_number: { type: "integer", minimum: 1 },
     routing_mode: { enum: ["edge", "legacy_subscription"] },
-    based_on_revision_id: nullableString5,
-    semantic_digest: nonEmptyString5,
-    created_by_endpoint_id: nullableString5,
-    created_at: nonEmptyString5,
-    published_at: nullableString5,
-    withdrawn_at: nullableString5,
+    based_on_revision_id: nullableString6,
+    semantic_digest: nonEmptyString6,
+    created_by_endpoint_id: nullableString6,
+    created_at: nonEmptyString6,
+    published_at: nullableString6,
+    withdrawn_at: nullableString6,
     nodes: { type: "array", minItems: 1, items: nodeSchema },
     ports: { type: "array", items: portSchema },
     edges: { type: "array", items: edgeSchema }
@@ -96748,7 +97149,7 @@ var validationSchema = {
   required: ["valid", "semantic_digest", "diagnostics"],
   properties: {
     valid: { type: "boolean" },
-    semantic_digest: nullableString5,
+    semantic_digest: nullableString6,
     diagnostics: {
       type: "array",
       items: {
@@ -96757,8 +97158,8 @@ var validationSchema = {
         required: ["severity", "code", "message", "resource_ids"],
         properties: {
           severity: { enum: ["error", "warning"] },
-          code: nonEmptyString5,
-          message: nonEmptyString5,
+          code: nonEmptyString6,
+          message: nonEmptyString6,
           resource_ids: stringArray3
         }
       }
@@ -96784,10 +97185,10 @@ var compositionChangeSetSchema = {
     "edges"
   ],
   properties: {
-    from_revision_id: nullableString5,
-    to_revision_id: nonEmptyString5,
-    from_semantic_digest: nullableString5,
-    to_semantic_digest: nonEmptyString5,
+    from_revision_id: nullableString6,
+    to_revision_id: nonEmptyString6,
+    from_semantic_digest: nullableString6,
+    to_semantic_digest: nonEmptyString6,
     nodes: idChangeSetSchema,
     ports: idChangeSetSchema,
     edges: idChangeSetSchema
@@ -96803,7 +97204,7 @@ var compositionImpactSchema = {
   ],
   properties: {
     ...compositionChangeSetSchema.properties,
-    impact_digest: nonEmptyString5,
+    impact_digest: nonEmptyString6,
     active_execution_ids_pinned_to_current: stringArray3,
     active_execution_ids_pinned_to_target: stringArray3
   }
@@ -96820,14 +97221,14 @@ var portableCompositionSchema = {
       additionalProperties: false,
       required: ["workspace_id", "scope_id", "revision_id", "revision_number"],
       properties: {
-        workspace_id: nonEmptyString5,
-        scope_id: nonEmptyString5,
-        revision_id: nonEmptyString5,
+        workspace_id: nonEmptyString6,
+        scope_id: nonEmptyString6,
+        revision_id: nonEmptyString6,
         revision_number: { type: "integer", minimum: 1 }
       }
     },
     routing_mode: { enum: ["edge", "legacy_subscription"] },
-    semantic_digest: nonEmptyString5,
+    semantic_digest: nonEmptyString6,
     content: SCOPE_COMPOSITION_CONTENT_SCHEMA
   }
 };
@@ -96858,18 +97259,18 @@ var scopeExecutionSchema = {
     "cancelled_at"
   ],
   properties: {
-    execution_id: nonEmptyString5,
-    workspace_id: nonEmptyString5,
-    scope_id: nonEmptyString5,
-    revision_id: nonEmptyString5,
-    cause_event_id: nullableString5,
-    root_event_id: nullableString5,
-    ingress_node_id: nonEmptyString5,
-    ingress_port_id: nonEmptyString5,
-    initiator_endpoint_id: nullableString5,
-    idempotency_key: nullableString5,
-    parent_execution_id: nullableString5,
-    redo_of_node_execution_id: nullableString5,
+    execution_id: nonEmptyString6,
+    workspace_id: nonEmptyString6,
+    scope_id: nonEmptyString6,
+    revision_id: nonEmptyString6,
+    cause_event_id: nullableString6,
+    root_event_id: nullableString6,
+    ingress_node_id: nonEmptyString6,
+    ingress_port_id: nonEmptyString6,
+    initiator_endpoint_id: nullableString6,
+    idempotency_key: nullableString6,
+    parent_execution_id: nullableString6,
+    redo_of_node_execution_id: nullableString6,
     state_revision: { type: "integer", minimum: 1 },
     status: {
       enum: [
@@ -96887,10 +97288,10 @@ var scopeExecutionSchema = {
     environment: recordSchema,
     budget: recordSchema,
     terminal: recordSchema,
-    created_at: nonEmptyString5,
-    started_at: nullableString5,
-    completed_at: nullableString5,
-    cancelled_at: nullableString5
+    created_at: nonEmptyString6,
+    started_at: nullableString6,
+    completed_at: nullableString6,
+    cancelled_at: nullableString6
   }
 };
 var nodeExecutionSchema = {
@@ -96919,18 +97320,18 @@ var nodeExecutionSchema = {
     "cancelled_at"
   ],
   properties: {
-    node_execution_id: nonEmptyString5,
-    execution_id: nonEmptyString5,
-    revision_id: nonEmptyString5,
-    node_id: nonEmptyString5,
-    activation_key: nonEmptyString5,
-    join_key: nullableString5,
-    context_id: nonEmptyString5,
-    actor_definition_revision_id: nullableString5,
-    runtime_profile_revision_id: nullableString5,
-    actor_runtime_binding_id: nullableString5,
-    command_definition_revision_id: nullableString5,
-    command_worker_binding_id: nullableString5,
+    node_execution_id: nonEmptyString6,
+    execution_id: nonEmptyString6,
+    revision_id: nonEmptyString6,
+    node_id: nonEmptyString6,
+    activation_key: nonEmptyString6,
+    join_key: nullableString6,
+    context_id: nonEmptyString6,
+    actor_definition_revision_id: nullableString6,
+    runtime_profile_revision_id: nullableString6,
+    actor_runtime_binding_id: nullableString6,
+    command_definition_revision_id: nullableString6,
+    command_worker_binding_id: nullableString6,
     state_revision: { type: "integer", minimum: 1 },
     status: {
       enum: [
@@ -96949,10 +97350,10 @@ var nodeExecutionSchema = {
     },
     assigned_actor_ids: stringArray3,
     failure: recordSchema,
-    created_at: nonEmptyString5,
-    activated_at: nullableString5,
-    completed_at: nullableString5,
-    cancelled_at: nullableString5
+    created_at: nonEmptyString6,
+    activated_at: nullableString6,
+    completed_at: nullableString6,
+    cancelled_at: nullableString6
   }
 };
 var nodeExecutionInputSchema = {
@@ -96973,18 +97374,18 @@ var nodeExecutionInputSchema = {
     "accepted_at"
   ],
   properties: {
-    input_id: nonEmptyString5,
-    node_execution_id: nonEmptyString5,
-    port_id: nonEmptyString5,
-    delivery_id: nonEmptyString5,
-    event_id: nonEmptyString5,
-    artefact_version_id: nullableString5,
+    input_id: nonEmptyString6,
+    node_execution_id: nonEmptyString6,
+    port_id: nonEmptyString6,
+    delivery_id: nonEmptyString6,
+    event_id: nonEmptyString6,
+    artefact_version_id: nullableString6,
     member_key: { type: "string" },
-    input_identity: nonEmptyString5,
+    input_identity: nonEmptyString6,
     state: { enum: ["received", "late", "superseded"] },
-    supersedes_input_id: nullableString5,
+    supersedes_input_id: nullableString6,
     reason: recordSchema,
-    accepted_at: nonEmptyString5
+    accepted_at: nonEmptyString6
   }
 };
 var nodeExecutionExpectationSchema = {
@@ -97006,19 +97407,19 @@ var nodeExecutionExpectationSchema = {
     "updated_at"
   ],
   properties: {
-    expectation_id: nonEmptyString5,
-    node_execution_id: nonEmptyString5,
-    port_id: nonEmptyString5,
+    expectation_id: nonEmptyString6,
+    node_execution_id: nonEmptyString6,
+    port_id: nonEmptyString6,
     expectation_kind: { enum: ["required_port", "collection_member"] },
-    expectation_key: nonEmptyString5,
-    member_key: nullableString5,
-    expected_artefact_version_id: nullableString5,
-    source_artefact_version_id: nullableString5,
+    expectation_key: nonEmptyString6,
+    member_key: nullableString6,
+    expected_artefact_version_id: nullableString6,
+    source_artefact_version_id: nullableString6,
     match_policy: { enum: ["cardinality", "member_key", "member_key_and_version"] },
     state: { enum: ["expected", "failed", "superseded"] },
     reason: recordSchema,
-    created_at: nonEmptyString5,
-    updated_at: nonEmptyString5
+    created_at: nonEmptyString6,
+    updated_at: nonEmptyString6
   }
 };
 var nodeExecutionMembershipSchema = {
@@ -97036,15 +97437,15 @@ var nodeExecutionMembershipSchema = {
     "superseded_at"
   ],
   properties: {
-    membership_id: nonEmptyString5,
-    node_execution_id: nonEmptyString5,
-    collection_port_id: nonEmptyString5,
-    member_port_id: nonEmptyString5,
-    collection_artefact_version_id: nonEmptyString5,
+    membership_id: nonEmptyString6,
+    node_execution_id: nonEmptyString6,
+    collection_port_id: nonEmptyString6,
+    member_port_id: nonEmptyString6,
+    collection_artefact_version_id: nonEmptyString6,
     match_policy: { enum: ["member_key", "member_key_and_version"] },
     state: { enum: ["active", "superseded"] },
-    created_at: nonEmptyString5,
-    superseded_at: nullableString5
+    created_at: nonEmptyString6,
+    superseded_at: nullableString6
   }
 };
 var nodeExecutionJoinStateSchema = {
@@ -97099,10 +97500,10 @@ var simulationResultSchema = {
     "diagnostics"
   ],
   properties: {
-    revision_id: nonEmptyString5,
-    semantic_digest: nonEmptyString5,
-    ingress_node_id: nonEmptyString5,
-    output_port_id: nonEmptyString5,
+    revision_id: nonEmptyString6,
+    semantic_digest: nonEmptyString6,
+    ingress_node_id: nonEmptyString6,
+    output_port_id: nonEmptyString6,
     reachable_node_ids: stringArray3,
     reachable_edge_ids: stringArray3,
     unreachable_node_ids: stringArray3,
@@ -97124,11 +97525,11 @@ var simulationResultSchema = {
         ],
         properties: {
           depth: { type: "integer", minimum: 1 },
-          edge_id: nonEmptyString5,
-          source_node_id: nonEmptyString5,
-          source_port_id: nonEmptyString5,
-          target_node_id: nonEmptyString5,
-          target_port_id: nonEmptyString5,
+          edge_id: nonEmptyString6,
+          source_node_id: nonEmptyString6,
+          source_port_id: nonEmptyString6,
+          target_node_id: nonEmptyString6,
+          target_port_id: nonEmptyString6,
           activation: { oneOf: [activationPolicySchema, { type: "null" }] },
           context_policy: { oneOf: [contextPolicySchema, { type: "null" }] }
         }
@@ -97142,8 +97543,8 @@ var simulationResultSchema = {
         required: ["severity", "code", "message", "resource_ids"],
         properties: {
           severity: { const: "warning" },
-          code: nonEmptyString5,
-          message: nonEmptyString5,
+          code: nonEmptyString6,
+          message: nonEmptyString6,
           resource_ids: stringArray3
         }
       }
@@ -97155,7 +97556,7 @@ var CREATE_SCOPE_DRAFT_INPUT_SCHEMA = {
   additionalProperties: false,
   required: ["content"],
   properties: {
-    based_on_revision_id: nullableString5,
+    based_on_revision_id: nullableString6,
     content: SCOPE_COMPOSITION_CONTENT_SCHEMA
   }
 };
@@ -97170,8 +97571,8 @@ var PUBLISH_SCOPE_REVISION_INPUT_SCHEMA = {
   additionalProperties: false,
   required: ["expected_current_published_revision_id", "expected_impact_digest"],
   properties: {
-    expected_current_published_revision_id: nullableString5,
-    expected_impact_digest: nonEmptyString5
+    expected_current_published_revision_id: nullableString6,
+    expected_impact_digest: nonEmptyString6
   }
 };
 var VALIDATE_SCOPE_REVISION_INPUT_SCHEMA = {
@@ -97183,13 +97584,13 @@ var SIMULATE_SCOPE_REVISION_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["ingress_node_id", "output_port_id"],
-  properties: { ingress_node_id: nonEmptyString5, output_port_id: nonEmptyString5 }
+  properties: { ingress_node_id: nonEmptyString6, output_port_id: nonEmptyString6 }
 };
 var COMPARE_SCOPE_REVISIONS_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["from_revision_id"],
-  properties: { from_revision_id: nonEmptyString5 }
+  properties: { from_revision_id: nonEmptyString6 }
 };
 var INSPECT_SCOPE_REVISION_IMPACT_INPUT_SCHEMA = {
   type: "object",
@@ -97201,15 +97602,15 @@ var ROLLBACK_SCOPE_REVISION_INPUT_SCHEMA = {
   additionalProperties: false,
   required: ["expected_current_published_revision_id", "expected_impact_digest"],
   properties: {
-    expected_current_published_revision_id: nonEmptyString5,
-    expected_impact_digest: nonEmptyString5
+    expected_current_published_revision_id: nonEmptyString6,
+    expected_impact_digest: nonEmptyString6
   }
 };
 var CLONE_SCOPE_REVISION_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["target_scope_id"],
-  properties: { target_scope_id: nonEmptyString5 }
+  properties: { target_scope_id: nonEmptyString6 }
 };
 var EXPORT_SCOPE_REVISION_INPUT_SCHEMA = {
   type: "object",
@@ -97226,7 +97627,7 @@ var INSPECT_SCOPE_PLAN_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    selected_revision_id: nonEmptyString5,
+    selected_revision_id: nonEmptyString6,
     include_history: { type: "boolean" }
   }
 };
@@ -97235,11 +97636,11 @@ var START_SCOPE_EXECUTION_INPUT_SCHEMA = {
   additionalProperties: false,
   required: ["ingress_node_id", "output_port_id", "content"],
   properties: {
-    ingress_node_id: nonEmptyString5,
-    output_port_id: nonEmptyString5,
+    ingress_node_id: nonEmptyString6,
+    output_port_id: nonEmptyString6,
     content: recordSchema,
     artefact_version_ids: stringArray3,
-    correlation_id: nullableString5
+    correlation_id: nullableString6
   }
 };
 var INSPECT_SCOPE_EXECUTION_INPUT_SCHEMA = {
@@ -97257,8 +97658,8 @@ var PUBLISH_SCOPE_OUTPUT_INPUT_SCHEMA = {
   additionalProperties: false,
   required: ["port_id", "content", "lifecycle_outcome"],
   properties: {
-    port_id: nonEmptyString5,
-    event_type: nonEmptyString5,
+    port_id: nonEmptyString6,
+    event_type: nonEmptyString6,
     content: recordSchema,
     lifecycle_outcome: {
       enum: ["completed", "waiting", "failed"],
@@ -97270,7 +97671,7 @@ var PUBLISH_SCOPE_OUTPUT_INPUT_SCHEMA = {
 var STOP_SCOPE_EXECUTION_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  properties: { reason: nonEmptyString5 }
+  properties: { reason: nonEmptyString6 }
 };
 var PAUSE_SCOPE_EXECUTION_INPUT_SCHEMA = STOP_SCOPE_EXECUTION_INPUT_SCHEMA;
 var RESUME_SCOPE_EXECUTION_INPUT_SCHEMA = STOP_SCOPE_EXECUTION_INPUT_SCHEMA;
@@ -97285,11 +97686,11 @@ var REDO_SCOPE_EXECUTION_INPUT_SCHEMA = {
   required: ["revision_selection", "ingress_node_id", "output_port_id", "content"],
   properties: {
     revision_selection: { enum: ["pinned", "current_published"] },
-    ingress_node_id: nonEmptyString5,
-    output_port_id: nonEmptyString5,
+    ingress_node_id: nonEmptyString6,
+    output_port_id: nonEmptyString6,
     content: recordSchema,
     artefact_version_ids: stringArray3,
-    correlation_id: nullableString5
+    correlation_id: nullableString6
   }
 };
 var startedExecutionResultSchema = {
@@ -97298,8 +97699,8 @@ var startedExecutionResultSchema = {
   required: ["execution", "root_event_id", "publication_id", "delivery_ids"],
   properties: {
     execution: scopeExecutionSchema,
-    root_event_id: nonEmptyString5,
-    publication_id: nonEmptyString5,
+    root_event_id: nonEmptyString6,
+    publication_id: nonEmptyString6,
     delivery_ids: stringArray3
   }
 };
@@ -97310,8 +97711,8 @@ var publishedOutputResultSchema = {
   properties: {
     execution: scopeExecutionSchema,
     node_execution: nodeExecutionSchema,
-    event_id: nonEmptyString5,
-    publication_id: nonEmptyString5,
+    event_id: nonEmptyString6,
+    publication_id: nonEmptyString6,
     delivery_ids: stringArray3
   }
 };
@@ -97327,9 +97728,9 @@ var planInspectionResultSchema = {
     "revisions"
   ],
   properties: {
-    scope_id: nonEmptyString5,
-    current_published_revision_id: nullableString5,
-    selected_revision_id: nonEmptyString5,
+    scope_id: nonEmptyString6,
+    current_published_revision_id: nullableString6,
+    selected_revision_id: nonEmptyString6,
     selected_role: { enum: ["draft", "current_published", "historical_published", "withdrawn_draft"] },
     history_complete: { type: "boolean" },
     revisions: {
@@ -97363,7 +97764,7 @@ var nodeInspectionSchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "revision"],
-      properties: { kind: { const: "node_execution" }, id: nonEmptyString5, revision: nonEmptyString5 }
+      properties: { kind: { const: "node_execution" }, id: nonEmptyString6, revision: nonEmptyString6 }
     },
     join_state: nodeExecutionJoinStateSchema,
     input_delivery_ids: stringArray3,
@@ -97385,7 +97786,7 @@ var executionInspectionResultSchema = {
   properties: {
     execution: scopeExecutionSchema,
     pinned_revision: compositionRevisionSchema,
-    current_published_revision_id: nullableString5,
+    current_published_revision_id: nullableString6,
     pinned_revision_role: { enum: ["current_published", "historical_published"] },
     node_executions: { type: "array", items: nodeInspectionSchema },
     output_publications: {
@@ -97395,10 +97796,10 @@ var executionInspectionResultSchema = {
         additionalProperties: false,
         required: ["publication_id", "node_execution_id", "port_id", "event_id", "event"],
         properties: {
-          publication_id: nonEmptyString5,
-          node_execution_id: nonEmptyString5,
-          port_id: nonEmptyString5,
-          event_id: nonEmptyString5,
+          publication_id: nonEmptyString6,
+          node_execution_id: nonEmptyString6,
+          port_id: nonEmptyString6,
+          event_id: nonEmptyString6,
           event: {
             description: "The exact retained Event; null when its content is unavailable. Ordinary Context messages and outputs from other executions are excluded.",
             oneOf: [
@@ -97408,9 +97809,9 @@ var executionInspectionResultSchema = {
                 additionalProperties: true,
                 required: ["event_id", "workspace_id", "type", "content", "artefact_version_ids"],
                 properties: {
-                  event_id: nonEmptyString5,
-                  workspace_id: nonEmptyString5,
-                  type: nonEmptyString5,
+                  event_id: nonEmptyString6,
+                  workspace_id: nonEmptyString6,
+                  type: nonEmptyString6,
                   content: { type: "object", additionalProperties: true },
                   artefact_version_ids: stringArray3
                 }
@@ -97427,10 +97828,10 @@ var executionInspectionResultSchema = {
         additionalProperties: false,
         required: ["publication_id", "edge_id", "delivery_id", "target_node_execution_id"],
         properties: {
-          publication_id: nonEmptyString5,
-          edge_id: nonEmptyString5,
-          delivery_id: nonEmptyString5,
-          target_node_execution_id: nonEmptyString5
+          publication_id: nonEmptyString6,
+          edge_id: nonEmptyString6,
+          delivery_id: nonEmptyString6,
+          target_node_execution_id: nonEmptyString6
         }
       }
     }
@@ -97468,7 +97869,7 @@ var stopExecutionResultSchema = {
         type: "object",
         additionalProperties: false,
         required: ["kind", "id", "detail"],
-        properties: { kind: nonEmptyString5, id: nonEmptyString5, detail: nonEmptyString5 }
+        properties: { kind: nonEmptyString6, id: nonEmptyString6, detail: nonEmptyString6 }
       }
     }
   }
@@ -97479,7 +97880,7 @@ var executionControlResultSchema = {
   required: ["execution", "pause_id", "node_execution_ids", "delivery_ids"],
   properties: {
     execution: scopeExecutionSchema,
-    pause_id: nonEmptyString5,
+    pause_id: nonEmptyString6,
     node_execution_ids: stringArray3,
     delivery_ids: stringArray3
   }
@@ -97509,25 +97910,25 @@ var executionAttemptSchema = {
     "completed_at"
   ],
   properties: {
-    attempt_id: nonEmptyString5,
-    node_execution_id: nonEmptyString5,
+    attempt_id: nonEmptyString6,
+    node_execution_id: nonEmptyString6,
     ordinal: { type: "integer", minimum: 1 },
     delivery_ids: stringArray3,
-    delivery_id: nullableString5,
-    delivery_bundle_id: nullableString5,
-    actor_definition_revision_id: nullableString5,
-    runtime_profile_revision_id: nullableString5,
-    actor_runtime_binding_id: nullableString5,
-    command_definition_revision_id: nullableString5,
-    command_worker_binding_id: nullableString5,
+    delivery_id: nullableString6,
+    delivery_bundle_id: nullableString6,
+    actor_definition_revision_id: nullableString6,
+    runtime_profile_revision_id: nullableString6,
+    actor_runtime_binding_id: nullableString6,
+    command_definition_revision_id: nullableString6,
+    command_worker_binding_id: nullableString6,
     status: { enum: ["pending", "running", "completed", "failed", "cancelled", "outcome_unknown"] },
     runtime: recordSchema,
     resource_use: recordSchema,
     result: recordSchema,
     error: recordSchema,
-    created_at: nonEmptyString5,
-    started_at: nullableString5,
-    completed_at: nullableString5
+    created_at: nonEmptyString6,
+    started_at: nullableString6,
+    completed_at: nullableString6
   }
 };
 var retryNodeResultSchema = {
@@ -97553,7 +97954,7 @@ function operationCall(context) {
     expected_resource_revision: context.expected_resource_revision
   };
 }
-function auditRef12(context) {
+function auditRef13(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
 function scopeRef(scopeId, revisionId) {
@@ -97675,7 +98076,7 @@ function createScopeOperation(backend) {
     result: { version: "1", schema: { type: "object", additionalProperties: false, required: ["scope"], properties: { scope: scopeRecordSchema } } },
     handler: (context, input) => handle7(() => {
       const scope = backend.createScope({ ...input, workspace_id: authorityWorkspaceId4(context), call: operationCall(context) });
-      return { state: "completed", result: { scope }, changed_refs: [{ kind: "scope", id: scope.scope_id }], audit_ref: auditRef12(context) };
+      return { state: "completed", result: { scope }, changed_refs: [{ kind: "scope", id: scope.scope_id }], audit_ref: auditRef13(context) };
     })
   };
 }
@@ -97693,7 +98094,7 @@ function listScopesOperation(backend) {
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     input: { version: "1", schema: { type: "object", additionalProperties: false } },
     result: { version: "1", schema: { type: "object", additionalProperties: false, required: ["scopes"], properties: { scopes: { type: "array", items: scopeRecordSchema } } } },
-    handler: (context) => handle7(() => ({ state: "completed", result: { scopes: backend.listScopes(authorityWorkspaceId4(context)) }, audit_ref: auditRef12(context) }))
+    handler: (context) => handle7(() => ({ state: "completed", result: { scopes: backend.listScopes(authorityWorkspaceId4(context)) }, audit_ref: auditRef13(context) }))
   };
 }
 function createScopeDraftOperation(backend) {
@@ -97723,7 +98124,7 @@ function createScopeDraftOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [scopeRef(revision.scope_id, context.expected_resource_revision), draftRef(revision)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -97754,7 +98155,7 @@ function replaceScopeDraftOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [draftRef(revision)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -97780,7 +98181,7 @@ function validateScopeRevisionOperation(backend) {
         revision_id: context.target.ref.id,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -97807,7 +98208,7 @@ function simulateScopeRevisionOperation(backend) {
         output_port_id: input.output_port_id,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -97833,7 +98234,7 @@ function compareScopeRevisionsOperation(backend) {
         to_revision_id: context.target.ref.id,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -97858,7 +98259,7 @@ function inspectScopeRevisionImpactOperation(backend) {
         revision_id: context.target.ref.id,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -97889,7 +98290,7 @@ function publishScopeRevisionOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [scopeRef(revision.scope_id, revision.revision_id), draftRef(revision)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -97921,7 +98322,7 @@ function rollbackScopeRevisionOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [scopeRef(revision.scope_id, revision.revision_id)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -97951,7 +98352,7 @@ function cloneScopeRevisionOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [draftRef(revision)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -97974,7 +98375,7 @@ function exportScopeRevisionOperation(backend) {
     handler: (context) => handle7(() => ({
       state: "completed",
       result: backend.exportRevision({ revision_id: context.target.ref.id, call: operationCall(context) }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -98004,7 +98405,7 @@ function importScopeRevisionOperation(backend) {
         state: "completed",
         result: { revision },
         changed_refs: [draftRef(revision)],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98033,7 +98434,7 @@ function inspectScopePlanOperation(backend) {
         include_history: input.include_history === true,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -98093,7 +98494,7 @@ function startScopeExecutionOperation(backend) {
           operation_version: "1",
           target: { kind: "scope_execution", id: result.execution.execution_id }
         } : null,
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98121,7 +98522,7 @@ function inspectScopeExecutionOperation(backend) {
         include_outputs: input.include_outputs,
         call: operationCall(context)
       }),
-      audit_ref: auditRef12(context)
+      audit_ref: auditRef13(context)
     }))
   };
 }
@@ -98166,7 +98567,7 @@ function publishScopeOutputOperation(backend) {
           operation_version: "1",
           target: { kind: "scope_execution", id: result.execution.execution_id }
         } : null,
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98210,7 +98611,7 @@ function pauseScopeExecutionOperation(backend) {
           id: result.execution.execution_id,
           revision: scopeExecutionStateRevision(result.execution)
         }],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98264,7 +98665,7 @@ function resumeScopeExecutionOperation(backend) {
           operation_version: "1",
           target: { kind: "scope_execution", id: result.execution.execution_id }
         },
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98319,7 +98720,7 @@ function retryNodeExecutionOperation(backend) {
           id: result.execution.execution_id,
           revision: scopeExecutionStateRevision(result.execution)
         },
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98373,7 +98774,7 @@ function redoScopeExecutionOperation(backend) {
           operation_version: "1",
           target: { kind: "scope_execution", id: result.execution.execution_id }
         } : null,
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98418,7 +98819,7 @@ function stopScopeExecutionOperation(backend) {
         changed_refs: [
           { kind: "scope_execution", id: result.execution.execution_id, revision: scopeExecutionStateRevision(result.execution) }
         ],
-        audit_ref: auditRef12(context)
+        audit_ref: auditRef13(context)
       };
     })
   };
@@ -98860,25 +99261,25 @@ var SET_CONTEXT_PARTICIPANT_ACCESS_OPERATION_ID = "context.participant.set_acces
 var REMOVE_CONTEXT_PARTICIPANT_OPERATION_ID = "context.participant.remove";
 var EMIT_CONTEXT_COMMUNICATION_OPERATION_ID = "context.communication.emit";
 var DESTROY_CONTEXT_PERMANENTLY_OPERATION_ID = "context.destroy_permanently";
-var nonEmptyString6 = { type: "string", minLength: 1 };
-var nullableString6 = { oneOf: [nonEmptyString6, { type: "null" }] };
+var nonEmptyString7 = { type: "string", minLength: 1 };
+var nullableString7 = { oneOf: [nonEmptyString7, { type: "null" }] };
 var emptyInput9 = { type: "object", additionalProperties: false };
-var accessSchema = { enum: ["read", "contribute", "manage"] };
+var accessSchema2 = { enum: ["read", "contribute", "manage"] };
 var resourceRefSchema7 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: nonEmptyString6, id: nonEmptyString6, revision: nullableString6 }
+  properties: { kind: nonEmptyString7, id: nonEmptyString7, revision: nullableString7 }
 };
 var retainedReferenceSchema = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision", "relationship"],
   properties: {
-    kind: nonEmptyString6,
-    id: nonEmptyString6,
-    revision: nullableString6,
-    relationship: nonEmptyString6
+    kind: nonEmptyString7,
+    id: nonEmptyString7,
+    revision: nullableString7,
+    relationship: nonEmptyString7
   }
 };
 var contextSchema = {
@@ -98910,29 +99311,29 @@ var contextSchema = {
     "tombstone_reason"
   ],
   properties: {
-    context_id: nonEmptyString6,
-    workspace_id: nonEmptyString6,
-    scope_id: nullableString6,
-    parent_context_id: nullableString6,
-    created_by_endpoint_id: nullableString6,
-    created_by_principal_id: nullableString6,
-    created_at: nonEmptyString6,
-    updated_at: nonEmptyString6,
-    title: nullableString6,
+    context_id: nonEmptyString7,
+    workspace_id: nonEmptyString7,
+    scope_id: nullableString7,
+    parent_context_id: nullableString7,
+    created_by_endpoint_id: nullableString7,
+    created_by_principal_id: nullableString7,
+    created_at: nonEmptyString7,
+    updated_at: nonEmptyString7,
+    title: nullableString7,
     state_revision: { type: "integer", minimum: 1 },
     lifecycle_state: { enum: ["active", "archived", "tombstoned"] },
-    archived_at: nullableString6,
-    archived_by_principal_id: nullableString6,
-    archive_reason: nullableString6,
-    restored_at: nullableString6,
-    restored_by_principal_id: nullableString6,
+    archived_at: nullableString7,
+    archived_by_principal_id: nullableString7,
+    archive_reason: nullableString7,
+    restored_at: nullableString7,
+    restored_by_principal_id: nullableString7,
     content_state: { enum: ["available", "redacted", "destroyed"] },
-    redacted_at: nullableString6,
-    redacted_by_principal_id: nullableString6,
-    redaction_reason: nullableString6,
-    tombstoned_at: nullableString6,
-    tombstoned_by_principal_id: nullableString6,
-    tombstone_reason: nullableString6
+    redacted_at: nullableString7,
+    redacted_by_principal_id: nullableString7,
+    redaction_reason: nullableString7,
+    tombstoned_at: nullableString7,
+    tombstoned_by_principal_id: nullableString7,
+    tombstone_reason: nullableString7
   }
 };
 var participantSchema = {
@@ -98947,12 +99348,12 @@ var participantSchema = {
     "updated_at"
   ],
   properties: {
-    participant_id: nonEmptyString6,
-    role: nonEmptyString6,
-    access: accessSchema,
-    actor_role_assignment_id: nullableString6,
-    joined_at: nonEmptyString6,
-    updated_at: nonEmptyString6
+    participant_id: nonEmptyString7,
+    role: nonEmptyString7,
+    access: accessSchema2,
+    actor_role_assignment_id: nullableString7,
+    joined_at: nonEmptyString7,
+    updated_at: nonEmptyString7
   }
 };
 var contextListRowSchema = {
@@ -98966,10 +99367,10 @@ var contextListRowSchema = {
   ],
   properties: {
     ...contextSchema.properties,
-    participants: { type: "array", items: nonEmptyString6, uniqueItems: true },
-    last_event_at: nullableString6,
-    activity_at: nonEmptyString6,
-    topic: nullableString6
+    participants: { type: "array", items: nonEmptyString7, uniqueItems: true },
+    last_event_at: nullableString7,
+    activity_at: nonEmptyString7,
+    topic: nullableString7
   }
 };
 var contextOnlyResultSchema = {
@@ -98982,8 +99383,8 @@ var listInputSchema5 = {
   type: "object",
   additionalProperties: false,
   properties: {
-    participant_id: nonEmptyString6,
-    scope_id: nonEmptyString6,
+    participant_id: nonEmptyString7,
+    scope_id: nonEmptyString7,
     include_archived: { type: "boolean" },
     include_tombstoned: { type: "boolean" },
     limit: { type: "integer", minimum: 1, maximum: 500 }
@@ -99010,48 +99411,48 @@ var participantInputSchema = {
   additionalProperties: false,
   required: ["participant_id"],
   properties: {
-    participant_id: nonEmptyString6,
-    role: nonEmptyString6,
-    access: accessSchema
+    participant_id: nonEmptyString7,
+    role: nonEmptyString7,
+    access: accessSchema2
   }
 };
 var createInputSchema3 = {
   type: "object",
   additionalProperties: false,
   properties: {
-    context_id: nonEmptyString6,
-    title: nullableString6,
-    scope_id: nullableString6,
-    parent_context_id: nullableString6,
+    context_id: nonEmptyString7,
+    title: nullableString7,
+    scope_id: nullableString7,
+    parent_context_id: nullableString7,
     participants: { type: "array", items: participantInputSchema, uniqueItems: true }
   }
 };
 var reasonInputSchema = {
   type: "object",
   additionalProperties: false,
-  properties: { reason: nullableString6 }
+  properties: { reason: nullableString7 }
 };
 var destroyInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["reason"],
-  properties: { reason: nonEmptyString6 }
+  properties: { reason: nonEmptyString7 }
 };
 var setParticipantInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["participant_id", "role", "access"],
   properties: {
-    participant_id: nonEmptyString6,
-    role: nonEmptyString6,
-    access: accessSchema
+    participant_id: nonEmptyString7,
+    role: nonEmptyString7,
+    access: accessSchema2
   }
 };
 var removeParticipantInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["participant_id"],
-  properties: { participant_id: nonEmptyString6 }
+  properties: { participant_id: nonEmptyString7 }
 };
 var participantMutationResultSchema = {
   type: "object",
@@ -99063,25 +99464,25 @@ var participantRemovalResultSchema = {
   type: "object",
   additionalProperties: false,
   required: ["context", "participant_id", "removed"],
-  properties: { context: contextSchema, participant_id: nonEmptyString6, removed: { type: "boolean" } }
+  properties: { context: contextSchema, participant_id: nonEmptyString7, removed: { type: "boolean" } }
 };
 var communicationInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["event_type", "content", "response_expected"],
   properties: {
-    event_type: nonEmptyString6,
-    recipient_participant_id: nullableString6,
+    event_type: nonEmptyString7,
+    recipient_participant_id: nullableString7,
     content: { type: "object", properties: {
       references: { type: "array", description: "Optional named navigation references for clients. They do not assert record state, grant access or execute an action.", items: {
         type: "object",
         required: ["name", "resource_ref"],
         additionalProperties: false,
-        properties: { name: nonEmptyString6, resource_ref: resourceRefSchema7 }
+        properties: { name: nonEmptyString7, resource_ref: resourceRefSchema7 }
       } }
     } },
-    artefact_version_ids: { type: "array", items: nonEmptyString6, uniqueItems: true },
-    attachment_ingress_ids: { type: "array", items: nonEmptyString6, uniqueItems: true, maxItems: 5 },
+    artefact_version_ids: { type: "array", items: nonEmptyString7, uniqueItems: true },
+    attachment_ingress_ids: { type: "array", items: nonEmptyString7, uniqueItems: true, maxItems: 5 },
     response_expected: { type: "boolean" }
   }
 };
@@ -99109,7 +99510,7 @@ function contextRef(context) {
 function participantRef(contextId, participantId) {
   return { kind: "context_participant", id: `${contextId}:${participantId}`, revision: null };
 }
-function auditRef13(context) {
+function auditRef14(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
 function workspaceId3(context) {
@@ -99205,7 +99606,7 @@ function listContextsOperation(backend) {
           limit: input.limit
         })
       },
-      audit_ref: auditRef13(context)
+      audit_ref: auditRef14(context)
     }))
   };
 }
@@ -99228,7 +99629,7 @@ function getContextOperation(backend) {
       const value = contextInWorkspace(backend.contexts, workspaceId3(context), context.target.ref.id);
       if (!value)
         throw new ContextNotFoundError(context.target.ref.id);
-      return { state: "completed", result: { context: value }, audit_ref: auditRef13(context) };
+      return { state: "completed", result: { context: value }, audit_ref: auditRef14(context) };
     })
   };
 }
@@ -99258,7 +99659,7 @@ function inspectContextOperation(backend) {
           participants: backend.contexts.getContextParticipantRecords(value.context_id),
           retained_references: [...backend.listRetainedReferences(value.workspace_id, value.context_id)]
         },
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99329,7 +99730,7 @@ function createContextOperation(backend) {
         state: "completed",
         result: { context: created },
         changed_refs: [contextRef(created)],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99368,7 +99769,7 @@ function contextLifecycleOperation(backend, lifecycle) {
         state: "completed",
         result: { context: changed },
         changed_refs: [contextRef(changed)],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99413,7 +99814,7 @@ function setContextParticipantAccessOperation(backend) {
         state: "completed",
         result,
         changed_refs: result.changed ? [contextRef(result.context), participantRef(result.context.context_id, input.participant_id)] : [],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99450,7 +99851,7 @@ function removeContextParticipantOperation(backend) {
         state: "completed",
         result,
         changed_refs: result.removed ? [contextRef(result.context), participantRef(result.context.context_id, input.participant_id)] : [],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99507,7 +99908,7 @@ function emitContextCommunicationOperation(backend) {
           artefact_version_refs: outcome.artefact_version_refs
         },
         changed_refs: [outcome.event_ref, ...outcome.artefact_version_refs],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -99562,7 +99963,7 @@ function destroyContextPermanentlyOperation(backend) {
         state: "completed",
         result: { context: outcome.context, events_deleted: outcome.events_deleted },
         changed_refs: [contextRef(outcome.context)],
-        audit_ref: auditRef13(context)
+        audit_ref: auditRef14(context)
       };
     })
   };
@@ -100312,6 +100713,7 @@ var BusStore = class {
   extensionRuntime;
   runtimeProcessingContracts;
   workspaceIdentityStore;
+  workspaceAccessStore;
   localHostId;
   localOperatorPrincipalStore;
   localOperatorPrincipalId;
@@ -100370,6 +100772,10 @@ var BusStore = class {
     this.localOperatorPrincipalId = this.localOperatorPrincipalStore.getOrCreate().principal_id;
     this.localWorkspacePlatform = process.platform === "win32" ? "windows" : "posix";
     this.workspaceIdentityStore = new SqliteWorkspaceIdentityStore(this.db);
+    this.workspaceAccessStore = new WorkspaceAccessStore(this.db, {
+      host_id: this.localHostId,
+      home_locator: (workspaceId4) => this.workspaceIdentityStore.getCurrentBinding(workspaceId4, this.localHostId)?.locator ?? null
+    });
     this.workspacePortabilityService = new WorkspacePortabilityService({
       db: this.db,
       database_path: databasePath,
@@ -100528,6 +100934,10 @@ var BusStore = class {
     operationRegistry = registerExtensionOperations(operationRegistry, this.extensionStore, this.extensionRuntime.entry_point_execution);
     this.workspaceOperationBackend = new BusWorkspaceOperationBackend(this, (type, payload = {}) => this.broadcastFn?.(type, payload));
     operationRegistry = registerWorkspaceOperations(operationRegistry, this.workspaceOperationBackend);
+    operationRegistry = registerWorkspaceAccessOperations(operationRegistry, {
+      access: this.workspaceAccessStore,
+      changed: (access) => this.workspaceAccessChanged(access)
+    });
     operationRegistry = registerWorkspacePortabilityOperations(operationRegistry, this.workspacePortabilityService);
     this.scopeOperationBackend = new BusScopeOperationBackend(this, (type, payload = {}) => this.broadcastFn?.(type, payload));
     this.operationRegistry = registerScopeOperations(operationRegistry, this.scopeOperationBackend);
@@ -100567,15 +100977,31 @@ var BusStore = class {
    */
   settleApprovalsAfterRevocation(grant) {
     const lost = new Set(this.capabilityGrantStore.dependentGrantIds(grant.grant_id));
-    const pending = grant.boundary.kind === "workspace" ? this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending' AND workspace_id = ?").all(grant.boundary.workspace_id) : this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending'").all();
+    this.settlePendingApprovals(grant.boundary.kind === "workspace" ? grant.boundary.workspace_id : null, "system:capability-revocation", (request) => request.action.capability_grant_ids.some((id) => lost.has(id)) ? "The access this request depended on was revoked." : null);
+  }
+  /**
+   * A Workspace folder or System access change can end what a waiting tool
+   * approval needed, so pending requests are re-checked now, and the change is
+   * pushed to the Workspace's connections with its current state.
+   */
+  workspaceAccessChanged(access) {
+    this.settlePendingApprovals(access.workspace_id, "system:workspace-access", () => "The Workspace's folders or System access changed, so this call is no longer inside what it may reach.");
+    queueMicrotask(() => this.broadcastFn?.("workspace_access_changed", {
+      workspace_id: access.workspace_id,
+      access: this.workspaceAccessStore.inspect(access.workspace_id)
+    }));
+  }
+  settlePendingApprovals(workspaceId4, principalId, reasonFor) {
+    const pending = workspaceId4 !== null ? this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending' AND workspace_id = ?").all(workspaceId4) : this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending'").all();
     const invalidated = [];
     for (const row of pending) {
       const request = this.approvalStore.requireRequestForWorkspace(row.approval_request_id, row.workspace_id);
+      const reason = reasonFor(request);
       const result = this.approvalStore.refreshRequestValidity({
         workspace_id: row.workspace_id,
         approval_request_id: row.approval_request_id,
-        invalidated_by_principal_id: "system:capability-revocation",
-        ...request.action.capability_grant_ids.some((id) => lost.has(id)) ? { stale_action_reason: "The access this request depended on was revoked." } : {}
+        invalidated_by_principal_id: principalId,
+        ...reason ? { stale_action_reason: reason } : {}
       });
       if (result.invalidated)
         invalidated.push(row);
@@ -103011,9 +103437,9 @@ var BusStore = class {
     `).run(revision.workspace_id, revision.scope_id, node.node_id, bindingKey, contextId, now());
     return contextId;
   }
-  readContentKey(content, path) {
+  readContentKey(content, path3) {
     let current = content;
-    for (const segment of path.split(".").filter(Boolean)) {
+    for (const segment of path3.split(".").filter(Boolean)) {
       if (!current || typeof current !== "object" || !(segment in current))
         return null;
       current = current[segment];
@@ -103240,7 +103666,7 @@ var BusStore = class {
       throw new ScopeGraphNodeNotATriggerError(input.graph_id, input.node_id);
     const legacyCommandEndpoints = new Set(graph.nodes.filter((candidate) => candidate.kind === "command").map((candidate) => candidate.endpoint_id));
     const subscriptions = this.contextStore.getContextSubscriptions(graph.context_id).filter((subscription) => !legacyCommandEndpoints.has(subscription.endpoint_id)).filter((subscription) => subscription.event_types.includes("*") || subscription.event_types.includes(node.event_type));
-    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID34()}`;
+    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID35()}`;
     return subscriptions.map((subscription) => this.emitTriggerEvent({
       type: node.event_type,
       workspace_id: input.workspace_id,
@@ -103402,6 +103828,7 @@ var BusStore = class {
       this.db.prepare("DELETE FROM scopes WHERE workspace_id = ?").run(workspaceId4);
       this.db.prepare("DELETE FROM endpoints WHERE workspace_id = ?").run(workspaceId4);
       this.db.prepare("DELETE FROM runtime_bindings WHERE workspace_id = ?").run(workspaceId4);
+      this.workspaceAccessStore.forgetWorkspace(workspaceId4);
       this.db.prepare("DELETE FROM workspace_locator_bindings WHERE workspace_id = ?").run(workspaceId4);
       this.db.prepare("DELETE FROM workspaces WHERE workspace_id = ?").run(workspaceId4);
     });
@@ -103887,8 +104314,8 @@ var BusStore = class {
           return inserted;
         });
       } catch (error) {
-        for (const path of createdContentPaths)
-          rmSync2(path, { force: true });
+        for (const path3 of createdContentPaths)
+          rmSync2(path3, { force: true });
         throw error;
       }
       return {
@@ -104587,7 +105014,7 @@ var BusStore = class {
    */
   evaluateRuntimeToolCall(input, broadcast) {
     const inputs = this.runtimeToolPolicyInputs(input.delivery_id, input.bridge_id);
-    const toolFacts = toolFactsFromRequest(input.request, inputs.definition.actor_definition_revision_id);
+    const toolFacts = toolFactsFromRequest(input.request, inputs.definition.actor_definition_revision_id, this.workspaceAccessStore.toolBoundary(inputs.contract.workspace_id));
     const { evaluation, authority } = this.evaluateToolFacts(inputs, input.request.operation_id, toolFacts);
     const requests = evaluation.decision === "require_approval" && authority.allowed ? this.transaction(() => evaluation.approval_requirements.map((requirement) => this.approvalStore.createRequest({
       workspace_id: inputs.contract.workspace_id,
@@ -104748,7 +105175,8 @@ var BusStore = class {
       operation_id: operationId,
       facts: toolFacts,
       scope_paths: definition2.content.scope?.paths ?? null,
-      grants
+      grants,
+      workspace: this.workspaceAccessStore.toolBoundary(contract.workspace_id)
     });
     if (authority.allowed && !approvalPolicy.ok) {
       authority = { allowed: false, code: "tool_grant_missing", reason: approvalPolicy.reason };
@@ -104948,7 +105376,7 @@ var BusStore = class {
   }
   appendRuntimeTelemetry(input, broadcast) {
     const telemetry = {
-      telemetry_id: `tel_${randomUUID34()}`,
+      telemetry_id: `tel_${randomUUID35()}`,
       workspace_id: input.workspace_id,
       endpoint_id: input.endpoint_id,
       delivery_id: input.delivery_id ?? null,
@@ -105175,7 +105603,7 @@ var BusStore = class {
   }
   createConfig(input, broadcast) {
     const timestamp2 = now();
-    const configId = `cfg_${randomUUID34()}`;
+    const configId = `cfg_${randomUUID35()}`;
     this.db.prepare(`
       INSERT INTO saved_configs (config_id, name, config_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
@@ -105683,7 +106111,7 @@ var BusStore = class {
       assertAttachmentContentMatches(destination, ingress);
       return null;
     }
-    const temporary = `${destination}.upload-${randomUUID34()}.tmp`;
+    const temporary = `${destination}.upload-${randomUUID35()}.tmp`;
     try {
       writeFileSync4(temporary, ingress.bytes, { flag: "wx" });
       renameSync2(temporary, destination);
@@ -105719,7 +106147,7 @@ var BusStore = class {
       }
     }
     const envelope = {
-      event_id: `evt_${randomUUID34()}`,
+      event_id: `evt_${randomUUID35()}`,
       type: input.type,
       workspace_id: input.workspace_id,
       source_endpoint_id: input.source_endpoint_id,
@@ -105779,7 +106207,7 @@ var BusStore = class {
     return rows.map((row) => row.endpoint_id).filter((endpointId) => !(destination.exclude_source && endpointId === event.source_endpoint_id));
   }
   queueEvent(eventId, workspaceId4, destinationEndpointId, route) {
-    const queueId = `q_${randomUUID34()}`;
+    const queueId = `q_${randomUUID35()}`;
     this.db.prepare(`
       INSERT INTO event_queue (
         queue_id, event_id, workspace_id, destination_endpoint_id, state, created_at,
@@ -105799,7 +106227,7 @@ var BusStore = class {
   }
   createPendingResponse(event) {
     const pending = {
-      pending_id: `pr_${randomUUID34()}`,
+      pending_id: `pr_${randomUUID35()}`,
       workspace_id: event.workspace_id,
       waiting_endpoint_id: event.source_endpoint_id,
       source_event_id: event.event_id,
@@ -105876,7 +106304,7 @@ var BusStore = class {
     if (queuedRows.length === 0)
       return null;
     const deliveredAt = now();
-    const deliveryId = `del_${randomUUID34()}`;
+    const deliveryId = `del_${randomUUID35()}`;
     const leaseExpiresAt = clientExecuted ? null : this.deliveryLeaseExpiresAt();
     const deliveryAttempt = Math.max(...queuedRows.map((row) => Number(row.attempt_count ?? 0) + 1));
     const runtimePins = this.resolveDeliveryRuntimePins(firstQueued, endpointId, endpoint.workspace_id);
@@ -106849,8 +107277,8 @@ function attachmentTypeRef(mediaType) {
     return "core:text";
   return "core:file";
 }
-function assertAttachmentContentMatches(path, ingress) {
-  const bytes = readFileSync5(path);
+function assertAttachmentContentMatches(path3, ingress) {
+  const bytes = readFileSync5(path3);
   const digest9 = createHash31("sha256").update(bytes).digest("hex");
   if (bytes.byteLength !== ingress.size_bytes || digest9 !== ingress.digest.value) {
     throw new Error(`Stored attachment content does not match digest '${ingress.digest.value}'.`);
@@ -107001,17 +107429,17 @@ function layoutsDir(workspacePath) {
 function layoutPath(workspacePath, scopeId, renderer) {
   return join9(layoutsDir(workspacePath), `${encodeURIComponent(scopeId)}.layout.${renderer}.yaml`);
 }
-function ensureDir(path) {
-  if (!existsSync10(path)) {
-    mkdirSync7(path, { recursive: true });
+function ensureDir(path3) {
+  if (!existsSync10(path3)) {
+    mkdirSync7(path3, { recursive: true });
   }
 }
-function parseYamlFile(path) {
-  const raw = readFileSync7(path, "utf8");
+function parseYamlFile(path3) {
+  const raw = readFileSync7(path3, "utf8");
   return import_yaml3.default.parse(raw);
 }
-function writeYamlFile(path, body) {
-  writeFileSync5(path, import_yaml3.default.stringify(body), "utf8");
+function writeYamlFile(path3, body) {
+  writeFileSync5(path3, import_yaml3.default.stringify(body), "utf8");
 }
 function validateScopeId(scopeId) {
   const parsed = ScopeProjectionLayoutIdSchema.safeParse(scopeId);
@@ -107035,21 +107463,21 @@ function upsertScopeProjectionLayout(workspacePath, scopeId, renderer, body) {
   if (layout.scope_id !== scopeId) {
     throw new ScopeProjectionLayoutIdMismatchError(`layout scope_id '${layout.scope_id}' does not match path scope id '${scopeId}'`);
   }
-  const path = layoutPath(workspacePath, scopeId, renderer);
+  const path3 = layoutPath(workspacePath, scopeId, renderer);
   ensureDir(layoutsDir(workspacePath));
-  writeYamlFile(path, layout);
+  writeYamlFile(path3, layout);
   return layout;
 }
 function loadScopeProjectionLayout(workspacePath, scopeId, renderer) {
   validateScopeId(scopeId);
   validateRenderer(renderer);
-  const path = layoutPath(workspacePath, scopeId, renderer);
-  if (!existsSync10(path))
+  const path3 = layoutPath(workspacePath, scopeId, renderer);
+  if (!existsSync10(path3))
     return null;
-  const parsed = parseYamlFile(path);
+  const parsed = parseYamlFile(path3);
   const result = scopeProjectionLayoutSchema(renderer).safeParse(parsed);
   if (!result.success) {
-    throw new ScopeProjectionLayoutValidationError(`invalid layout file '${path}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
+    throw new ScopeProjectionLayoutValidationError(`invalid layout file '${path3}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
   }
   return result.data;
 }
@@ -107223,9 +107651,9 @@ function readDeclaredModels(modelsPath, provider) {
   }
   return records;
 }
-function chmodSafe(path, mode) {
+function chmodSafe(path3, mode) {
   try {
-    chmodSync(path, mode);
+    chmodSync(path3, mode);
   } catch {
   }
 }
@@ -113878,13 +114306,13 @@ function tagValue(tags, name) {
 // floe-bus/dist/fs/browseDir.js
 import { homedir as homedir3 } from "node:os";
 import { dirname as dirname9, resolve as resolve7 } from "node:path";
-import { readdirSync as readdirSync2, statSync as statSync3 } from "node:fs";
+import { readdirSync as readdirSync2, statSync as statSync4 } from "node:fs";
 function browseDir(requestedPath) {
   const base = requestedPath && requestedPath.trim().length > 0 ? requestedPath : homedir3();
   const absolute = resolve7(base);
   let stats;
   try {
-    stats = statSync3(absolute);
+    stats = statSync4(absolute);
   } catch {
     return browseDir(homedir3());
   }
@@ -113901,7 +114329,7 @@ function browseDir(requestedPath) {
     if (name.startsWith("."))
       continue;
     try {
-      const entryStats = statSync3(resolve7(dirPath, name));
+      const entryStats = statSync4(resolve7(dirPath, name));
       if (entryStats.isDirectory()) {
         entries.push({ name, is_dir: true });
       }
@@ -113918,7 +114346,7 @@ function browseDir(requestedPath) {
 }
 
 // floe-bus/dist/fs/agentFiles.js
-import { existsSync as existsSync12, readdirSync as readdirSync3, realpathSync as realpathSync3, statSync as statSync4 } from "node:fs";
+import { existsSync as existsSync12, readdirSync as readdirSync3, realpathSync as realpathSync4, statSync as statSync5 } from "node:fs";
 import { join as join12, relative, sep as sep3 } from "node:path";
 function listAgentFiles(workspaceRoot) {
   let agentsDir;
@@ -113929,7 +114357,7 @@ function listAgentFiles(workspaceRoot) {
   }
   if (!existsSync12(agentsDir))
     return [];
-  const canonicalRoot = realpathSync3(workspaceRoot);
+  const canonicalRoot = realpathSync4(workspaceRoot);
   const results = [];
   collectMdFiles(agentsDir, canonicalRoot, results);
   results.sort();
@@ -113937,12 +114365,12 @@ function listAgentFiles(workspaceRoot) {
 }
 function collectMdFiles(dir, canonicalRoot, out) {
   for (const entry of readdirSync3(dir)) {
-    const path = join12(dir, entry);
-    const stats = statSync4(path);
+    const path3 = join12(dir, entry);
+    const stats = statSync5(path3);
     if (stats.isDirectory()) {
-      collectMdFiles(path, canonicalRoot, out);
-    } else if (path.endsWith(".md")) {
-      const canonicalPath = realpathSync3(path);
+      collectMdFiles(path3, canonicalRoot, out);
+    } else if (path3.endsWith(".md")) {
+      const canonicalPath = realpathSync4(path3);
       const rel = relative(canonicalRoot, canonicalPath);
       if (!rel.startsWith("..")) {
         out.push(rel.split(sep3).join("/"));
@@ -114645,8 +115073,8 @@ var HOST_CREDENTIAL_OPERATION_IDS = /* @__PURE__ */ new Set([
   "credential.runtime-access.revoke",
   ...OPERATOR_CREDENTIAL_OPERATION_IDS
 ]);
-function workspaceMediaType(path) {
-  switch (extname2(path).toLowerCase()) {
+function workspaceMediaType(path3) {
+  switch (extname2(path3).toLowerCase()) {
     case ".png":
       return "image/png";
     case ".jpg":
@@ -114781,7 +115209,7 @@ async function createBusServer(configPath, config, options = {}) {
         return null;
       }
       return issueWorkspaceOperationSession(host.authority, workspace.workspace_id, {
-        interaction_session_id: `browser:local:${randomUUID35()}`,
+        interaction_session_id: `browser:local:${randomUUID36()}`,
         expires_in_seconds: 3600
       }, "floe-local-browser-session");
     }
@@ -114996,7 +115424,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target,
       expected_resource_revision: null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID35()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID36()}`,
       input
     };
     const response = await store.operationRegistry.invoke({
@@ -115061,7 +115489,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target: input.target ?? null,
       expected_resource_revision: input.expected_revision ?? null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID35()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID36()}`,
       input: input.value
     };
     const response = await store.operationRegistry.invoke({
@@ -115423,7 +115851,10 @@ async function createBusServer(configPath, config, options = {}) {
           break;
         replaySequence = replay.at(-1)?.sequence ?? replaySequence;
       }
-      const presence = authority.audience === "bridge_service" ? {} : { connected_bridge_ids: connectedBridgeIds(authority.audience === "workspace_operation" ? authority.workspace_id : null) };
+      const presence = authority.audience === "bridge_service" ? {} : {
+        connected_bridge_ids: connectedBridgeIds(authority.audience === "workspace_operation" ? authority.workspace_id : null),
+        ...authority.audience === "workspace_operation" ? { workspace_access: store.workspaceAccessStore.inspect(authority.workspace_id) } : {}
+      };
       client.send(JSON.stringify({
         type: "caught_up",
         payload: { cursor: pushStream.cursorForSequence(highWater), ...presence },
@@ -115730,7 +116161,7 @@ async function createBusServer(configPath, config, options = {}) {
       grant_ids: grantIds,
       interaction: {
         mode: "interactive",
-        session_id: body.interaction_session_id ?? `interaction_${randomUUID35()}`,
+        session_id: body.interaction_session_id ?? `interaction_${randomUUID36()}`,
         broker_id: brokerId
       },
       provenance: emptyOperationProvenance,
@@ -116718,7 +117149,7 @@ async function createBusServer(configPath, config, options = {}) {
     }
     try {
       const resolved = resolveWithinRoot(locator, query.path);
-      if (statSync5(resolved).size > MAX_WORKSPACE_MEDIA_BYTES) {
+      if (statSync6(resolved).size > MAX_WORKSPACE_MEDIA_BYTES) {
         return reply.code(413).send({ error: "media_too_large", message: "The image exceeds the 20MB preview limit." });
       }
       reply.header("cache-control", "no-store");
@@ -117306,7 +117737,7 @@ async function createBusServer(configPath, config, options = {}) {
     if (!host.verified || host.authority.audience !== "host_control") {
       return reply.code(503).send({ error: "identity_mint_unavailable" });
     }
-    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID35()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`);
+    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID36()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`);
     store.clientIdentityStore.recordSession({
       authority_session_id: session.authority_session_id,
       identity_id: identity.identity_id,
@@ -118870,7 +119301,15 @@ function applyLocalFloeExportPolicy(store) {
 function applyLocalFloeApprovalResponsePolicy(store) {
   applyLocalFloeOperationPolicy(store, "policy:local-floe-approval-response:v1", "capgrant_local_floe_approval_response_", ["approval.response.configure"], [{ kind: "approval_request", id: null }]);
 }
-function applyLocalFloeOperationPolicy(store, policy, grantPrefix, operationIds, targets2 = []) {
+function applyLocalFloeToolPolicy(store) {
+  const engineOperations = Object.values(ENGINE_TOOL_OPERATIONS);
+  const granted = applyLocalFloeOperationPolicy(store, "policy:local-floe-tools:v1", "capgrant_local_floe_tools_", engineOperations, [], (grants) => grants.some((grant) => grant.operation_ids.some((id) => engineOperations.includes(id))));
+  for (const workspaceId4 of granted)
+    store.workspaceAccessStore.recordToolAccessNotice(workspaceId4, "policy:local-floe-tools:v1");
+  return granted;
+}
+function applyLocalFloeOperationPolicy(store, policy, grantPrefix, operationIds, targets2 = [], alreadyChosen = () => false) {
+  const granted = [];
   for (const workspace of store.workspaceIdentityStore.listLocalProjections(store.localHostId)) {
     if (!workspace.binding?.init_authorized || !["created", "legacy_retained"].includes(workspace.creation_kind))
       continue;
@@ -118892,6 +119331,8 @@ function applyLocalFloeOperationPolicy(store, policy, grantPrefix, operationIds,
     if (inspection.unavailable_grants.length > 0)
       continue;
     if (operationIds.every((id) => inspection.active_grants.some((grant) => grant.targets.length === 0 && grant.operation_ids.includes(id))))
+      continue;
+    if (alreadyChosen(inspection.active_grants))
       continue;
     const basis = inspection.active_grants.find((grant) => grant.targets.length === 0 && ["policy:local-floe-actor:v1", "policy:legacy-workspace-model-actor-authority:v1"].includes(grant.issuer_id) && grant.evidence.some((item) => item.kind === "workspace_configuration_import_policy") && grant.operation_ids.includes("actor.create"));
     if (!basis)
@@ -118925,12 +119366,14 @@ function applyLocalFloeOperationPolicy(store, policy, grantPrefix, operationIds,
         changed_by_principal_id: policy
       });
       store.db.exec("RELEASE local_floe_delegation_policy");
+      granted.push(workspace.workspace_id);
     } catch (error) {
       store.db.exec("ROLLBACK TO local_floe_delegation_policy");
       store.db.exec("RELEASE local_floe_delegation_policy");
       throw error;
     }
   }
+  return granted;
 }
 
 // floe-bus/dist/index.js
@@ -118960,6 +119403,7 @@ async function main() {
   applyLocalFloeDelegationPolicy(server.store);
   applyLocalFloeExportPolicy(server.store);
   applyLocalFloeApprovalResponsePolicy(server.store);
+  applyLocalFloeToolPolicy(server.store);
   await server.listen();
 }
 main().catch((error) => {
