@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
+  ActorDefinitionValidationError,
+  canonicalActorScopePath,
+  validateActorDefinition
+} from "./chunk-FDTRXAR2.js";
+import {
   ExtensionSandboxError,
   authorizeExtensionHostCall,
   inspectExtensionSandbox,
@@ -986,14 +991,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text12, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text15, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text12;
+        return text15;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text12.length <= endStep)
-        return text12;
+      if (text15.length <= endStep)
+        return text15;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1010,14 +1015,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i3 = consumeMoreIndentedLines(text12, i3, indent.length);
+        i3 = consumeMoreIndentedLines(text15, i3, indent.length);
         if (i3 !== -1)
           end = i3 + endStep;
       }
-      for (let ch; ch = text12[i3 += 1]; ) {
+      for (let ch; ch = text15[i3 += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i3;
-          switch (text12[i3 + 1]) {
+          switch (text15[i3 + 1]) {
             case "x":
               i3 += 3;
               break;
@@ -1034,12 +1039,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i3 = consumeMoreIndentedLines(text12, i3, indent.length);
+            i3 = consumeMoreIndentedLines(text15, i3, indent.length);
           end = i3 + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text12[i3 + 1];
+            const next = text15[i3 + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i3;
           }
@@ -1051,12 +1056,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text12[i3 += 1];
+                ch = text15[i3 += 1];
                 overflow = true;
               }
               const j = i3 > escEnd + 1 ? i3 - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text12;
+                return text15;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1071,39 +1076,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text12;
+        return text15;
       if (onFold)
         onFold();
-      let res = text12.slice(0, folds[0]);
+      let res = text15.slice(0, folds[0]);
       for (let i4 = 0; i4 < folds.length; ++i4) {
         const fold = folds[i4];
-        const end2 = folds[i4 + 1] || text12.length;
+        const end2 = folds[i4 + 1] || text15.length;
         if (fold === 0)
           res = `
-${indent}${text12.slice(0, end2)}`;
+${indent}${text15.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text12[fold]}\\`;
+            res += `${text15[fold]}\\`;
           res += `
-${indent}${text12.slice(fold + 1, end2)}`;
+${indent}${text15.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text12, i3, indent) {
+    function consumeMoreIndentedLines(text15, i3, indent) {
       let end = i3;
       let start = i3 + 1;
-      let ch = text12[start];
+      let ch = text15[start];
       while (ch === " " || ch === "	") {
         if (i3 < start + indent) {
-          ch = text12[++i3];
+          ch = text15[++i3];
         } else {
           do {
-            ch = text12[++i3];
+            ch = text15[++i3];
           } while (ch && ch !== "\n");
           end = i3;
           start = i3 + 1;
-          ch = text12[start];
+          ch = text15[start];
         }
       }
       return end;
@@ -13471,25 +13476,25 @@ var require_transport = __commonJS({
       stream.flushSync();
     }
     function transport(fullOptions) {
-      const { pipeline, targets: targets2, levels, dedupe, worker = {}, caller = getCallers(), sync = false } = fullOptions;
+      const { pipeline, targets: targets3, levels, dedupe, worker = {}, caller = getCallers(), sync = false } = fullOptions;
       const options = {
         ...fullOptions.options
       };
       const callers = typeof caller === "string" ? [caller] : caller;
       const bundlerOverrides = typeof globalThis === "object" && Object.prototype.hasOwnProperty.call(globalThis, "__bundlerPathsOverrides") && globalThis.__bundlerPathsOverrides && typeof globalThis.__bundlerPathsOverrides === "object" ? globalThis.__bundlerPathsOverrides : /* @__PURE__ */ Object.create(null);
       let target = fullOptions.target;
-      if (target && targets2) {
+      if (target && targets3) {
         throw new Error("only one of target or targets can be specified");
       }
-      if (targets2) {
+      if (targets3) {
         target = bundlerOverrides["pino-worker"] || join13(__dirname, "worker.js");
-        options.targets = targets2.filter((dest) => dest.target).map((dest) => {
+        options.targets = targets3.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
             target: fixTarget(dest.target)
           };
         });
-        options.pipelines = targets2.filter((dest) => dest.pipeline).map((dest) => {
+        options.pipelines = targets3.filter((dest) => dest.pipeline).map((dest) => {
           return dest.pipeline.map((t) => {
             return {
               ...t,
@@ -13515,7 +13520,7 @@ var require_transport = __commonJS({
         options.dedupe = dedupe;
       }
       options.pinoWillSendConfig = true;
-      const name = targets2 || pipeline ? "pino.transport" : target;
+      const name = targets3 || pipeline ? "pino.transport" : target;
       return buildStream(fixTarget(target), options, worker, sync, name);
       function fixTarget(origin) {
         origin = bundlerOverrides[origin] || origin;
@@ -18534,13 +18539,13 @@ var require_context = __commonJS({
       this.server = server;
     }
     function defaultSchemaErrorFormatter(errors, dataVar) {
-      let text12 = "";
+      let text15 = "";
       const separator = ", ";
       for (let i3 = 0; i3 !== errors.length; ++i3) {
         const e = errors[i3];
-        text12 += dataVar + (e.instancePath || "") + " " + e.message + separator;
+        text15 += dataVar + (e.instancePath || "") + " " + e.message + separator;
       }
-      return new Error(text12.slice(0, -separator.length));
+      return new Error(text15.slice(0, -separator.length));
     }
     module.exports = Context;
   }
@@ -19236,20 +19241,20 @@ var require_secure_json_parse = __commonJS({
     var hasBuffer = typeof Buffer !== "undefined";
     var suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
     var suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
-    function _parse(text12, reviver, options) {
+    function _parse(text15, reviver, options) {
       if (options == null) {
         if (reviver !== null && typeof reviver === "object") {
           options = reviver;
           reviver = void 0;
         }
       }
-      if (hasBuffer && Buffer.isBuffer(text12)) {
-        text12 = text12.toString();
+      if (hasBuffer && Buffer.isBuffer(text15)) {
+        text15 = text15.toString();
       }
-      if (text12 && text12.charCodeAt(0) === 65279) {
-        text12 = text12.slice(1);
+      if (text15 && text15.charCodeAt(0) === 65279) {
+        text15 = text15.slice(1);
       }
-      const obj = JSON.parse(text12, reviver);
+      const obj = JSON.parse(text15, reviver);
       if (obj === null || typeof obj !== "object") {
         return obj;
       }
@@ -19259,15 +19264,15 @@ var require_secure_json_parse = __commonJS({
         return obj;
       }
       if (protoAction !== "ignore" && constructorAction !== "ignore") {
-        if (suspectProtoRx.test(text12) === false && suspectConstructorRx.test(text12) === false) {
+        if (suspectProtoRx.test(text15) === false && suspectConstructorRx.test(text15) === false) {
           return obj;
         }
       } else if (protoAction !== "ignore" && constructorAction === "ignore") {
-        if (suspectProtoRx.test(text12) === false) {
+        if (suspectProtoRx.test(text15) === false) {
           return obj;
         }
       } else {
-        if (suspectConstructorRx.test(text12) === false) {
+        if (suspectConstructorRx.test(text15) === false) {
           return obj;
         }
       }
@@ -19305,20 +19310,20 @@ var require_secure_json_parse = __commonJS({
       }
       return obj;
     }
-    function parse5(text12, reviver, options) {
+    function parse5(text15, reviver, options) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text12, reviver, options);
+        return _parse(text15, reviver, options);
       } finally {
         Error.stackTraceLimit = stackTraceLimit;
       }
     }
-    function safeParse(text12, reviver) {
+    function safeParse(text15, reviver) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text12, reviver, { safe: true });
+        return _parse(text15, reviver, { safe: true });
       } catch {
         return void 0;
       } finally {
@@ -21409,8 +21414,8 @@ var require_code2 = __commonJS({
       return allSchemaProperties(schemaMap).filter((p) => !(0, util_1.alwaysValidSchema)(it, schemaMap[p]));
     }
     exports.schemaProperties = schemaProperties;
-    function callValidateCode({ schemaCode, data, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context, passSchema) {
-      const dataAndSchema = passSchema ? (0, codegen_1._)`${schemaCode}, ${data}, ${topSchemaRef}${schemaPath}` : data;
+    function callValidateCode({ schemaCode, data, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context, passSchema2) {
+      const dataAndSchema = passSchema2 ? (0, codegen_1._)`${schemaCode}, ${data}, ${topSchemaRef}${schemaPath}` : data;
       const valCxt = [
         [names_1.default.instancePath, (0, codegen_1.strConcat)(names_1.default.instancePath, errorPath)],
         [names_1.default.parentData, it.parentData],
@@ -21517,7 +21522,7 @@ var require_keyword = __commonJS({
       const { gen, keyword, schema, parentSchema, $data, it } = cxt;
       checkAsyncKeyword(it, def);
       const validate = !$data && def.compile ? def.compile.call(it.self, schema, parentSchema, it) : def.validate;
-      const validateRef2 = useKeyword(gen, keyword, validate);
+      const validateRef = useKeyword(gen, keyword, validate);
       const valid = gen.let("valid");
       cxt.block$data(valid, validateKeyword);
       cxt.ok((_a = def.valid) !== null && _a !== void 0 ? _a : valid);
@@ -21540,15 +21545,15 @@ var require_keyword = __commonJS({
         return ruleErrs;
       }
       function validateSync() {
-        const validateErrs = (0, codegen_1._)`${validateRef2}.errors`;
+        const validateErrs = (0, codegen_1._)`${validateRef}.errors`;
         gen.assign(validateErrs, null);
         assignValid(codegen_1.nil);
         return validateErrs;
       }
       function assignValid(_await = def.async ? (0, codegen_1._)`await ` : codegen_1.nil) {
         const passCxt = it.opts.passContext ? names_1.default.this : names_1.default.self;
-        const passSchema = !("compile" in def && !$data || def.schema === false);
-        gen.assign(valid, (0, codegen_1._)`${_await}${(0, code_1.callValidateCode)(cxt, validateRef2, passCxt, passSchema)}`, def.modifying);
+        const passSchema2 = !("compile" in def && !$data || def.schema === false);
+        gen.assign(valid, (0, codegen_1._)`${_await}${(0, code_1.callValidateCode)(cxt, validateRef, passCxt, passSchema2)}`, def.modifying);
       }
       function reportErrs(errors) {
         var _a2;
@@ -23961,7 +23966,7 @@ var require_core = __commonJS({
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
         if (!errors || errors.length === 0)
           return "No errors";
-        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text12, msg) => text12 + separator + msg);
+        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text15, msg) => text15 + separator + msg);
       }
       $dataMetaSchema(metaSchema, keywordsJsonPointers) {
         const rules = this.RULES.all;
@@ -39403,7 +39408,7 @@ var require_parse_url = __commonJS({
 var require_form_data = __commonJS({
   "node_modules/light-my-request/lib/form-data.js"(exports, module) {
     "use strict";
-    var { randomUUID: randomUUID37 } = __require("node:crypto");
+    var { randomUUID: randomUUID40 } = __require("node:crypto");
     var { Readable } = __require("node:stream");
     var textEncoder;
     function isFormDataLike(payload) {
@@ -39411,7 +39416,7 @@ var require_form_data = __commonJS({
     }
     function formDataToStream(formdata) {
       textEncoder = textEncoder ?? new TextEncoder();
-      const boundary = `----formdata-${randomUUID37()}`;
+      const boundary = `----formdata-${randomUUID40()}`;
       const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
       const escape2 = (str) => str.replace(/\n/g, "%0A").replace(/\r/g, "%0D").replace(/"/g, "%22");
@@ -44911,7 +44916,7 @@ var require_websocket = __commonJS({
     var http = __require("http");
     var net = __require("net");
     var tls = __require("tls");
-    var { randomBytes: randomBytes9, createHash: createHash35 } = __require("crypto");
+    var { randomBytes: randomBytes10, createHash: createHash37 } = __require("crypto");
     var { Duplex, Readable } = __require("stream");
     var { URL: URL2 } = __require("url");
     var PerMessageDeflate = require_permessage_deflate();
@@ -45449,7 +45454,7 @@ var require_websocket = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes9(16).toString("base64");
+      const key = randomBytes10(16).toString("base64");
       const request = isSecure ? https.request : http.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -45579,8 +45584,8 @@ var require_websocket = __commonJS({
           abortHandshake(websocket2, socket, "Invalid Upgrade header");
           return;
         }
-        const digest9 = createHash35("sha1").update(key + GUID).digest("base64");
-        if (res.headers["sec-websocket-accept"] !== digest9) {
+        const digest11 = createHash37("sha1").update(key + GUID).digest("base64");
+        if (res.headers["sec-websocket-accept"] !== digest11) {
           abortHandshake(websocket2, socket, "Invalid Sec-WebSocket-Accept header");
           return;
         }
@@ -45948,7 +45953,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter = __require("events");
     var http = __require("http");
     var { Duplex } = __require("stream");
-    var { createHash: createHash35 } = __require("crypto");
+    var { createHash: createHash37 } = __require("crypto");
     var extension = require_extension();
     var PerMessageDeflate = require_permessage_deflate();
     var subprotocol = require_subprotocol();
@@ -46255,12 +46260,12 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest9 = createHash35("sha1").update(key + GUID).digest("base64");
+        const digest11 = createHash37("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
           "Connection: Upgrade",
-          `Sec-WebSocket-Accept: ${digest9}`
+          `Sec-WebSocket-Accept: ${digest11}`
         ];
         const ws = new this.options.WebSocket(null, void 0, this.options);
         if (protocols.size) {
@@ -49473,7 +49478,7 @@ var require_websocket2 = __commonJS({
     "use strict";
     var { ServerResponse } = __require("node:http");
     var { PassThrough } = __require("node:stream");
-    var { randomBytes: randomBytes9 } = __require("node:crypto");
+    var { randomBytes: randomBytes10 } = __require("node:crypto");
     var fp = require_plugin2();
     var WebSocket2 = require_ws();
     var Duplexify = require_duplexify();
@@ -49544,7 +49549,7 @@ var require_websocket2 = __commonJS({
             connection: "upgrade",
             upgrade: "websocket",
             "sec-websocket-version": 13,
-            "sec-websocket-key": randomBytes9(16).toString("base64")
+            "sec-websocket-key": randomBytes10(16).toString("base64")
           },
           httpVersion: "1.1",
           url: path3,
@@ -52791,12 +52796,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISO('P5Y3M').toObject() //=> { years: 5, months: 3 }
        * @return {Duration}
        */
-      static fromISO(text12, opts) {
-        const [parsed] = parseISODuration(text12);
+      static fromISO(text15, opts) {
+        const [parsed] = parseISODuration(text15);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -52815,12 +52820,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISOTime('T1100').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
        * @return {Duration}
        */
-      static fromISOTime(text12, opts) {
-        const [parsed] = parseISOTimeOnly(text12);
+      static fromISOTime(text15, opts) {
+        const [parsed] = parseISOTimeOnly(text15);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -53485,8 +53490,8 @@ var require_luxon = __commonJS({
        * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
        * @return {Interval}
        */
-      static fromISO(text12, opts) {
-        const [s2, e] = (text12 || "").split("/", 2);
+      static fromISO(text15, opts) {
+        const [s2, e] = (text15 || "").split("/", 2);
         if (s2 && e) {
           let start, startIsValid;
           try {
@@ -53517,7 +53522,7 @@ var require_luxon = __commonJS({
             }
           }
         }
-        return _Interval.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
+        return _Interval.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
       }
       /**
        * Check if an object is an Interval. Works across context boundaries
@@ -54747,7 +54752,7 @@ var require_luxon = __commonJS({
         o
       };
     }
-    function parseDataToDateTime(parsed, parsedZone, opts, format, text12, specificOffset) {
+    function parseDataToDateTime(parsed, parsedZone, opts, format, text15, specificOffset) {
       const {
         setZone,
         zone
@@ -54760,7 +54765,7 @@ var require_luxon = __commonJS({
         });
         return setZone ? inst : inst.setZone(zone);
       } else {
-        return DateTime.invalid(new Invalid("unparsable", `the input "${text12}" can't be parsed as ${format}`));
+        return DateTime.invalid(new Invalid("unparsable", `the input "${text15}" can't be parsed as ${format}`));
       }
     }
     function toTechFormat(dt, format, allowZ = true) {
@@ -55282,9 +55287,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromISO('2016-W05-4')
        * @return {DateTime}
        */
-      static fromISO(text12, opts = {}) {
-        const [vals, parsedZone] = parseISODate(text12);
-        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text12);
+      static fromISO(text15, opts = {}) {
+        const [vals, parsedZone] = parseISODate(text15);
+        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text15);
       }
       /**
        * Create a DateTime from an RFC 2822 string
@@ -55301,9 +55306,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromRFC2822('25 Nov 2016 13:23 Z')
        * @return {DateTime}
        */
-      static fromRFC2822(text12, opts = {}) {
-        const [vals, parsedZone] = parseRFC2822Date(text12);
-        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text12);
+      static fromRFC2822(text15, opts = {}) {
+        const [vals, parsedZone] = parseRFC2822Date(text15);
+        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text15);
       }
       /**
        * Create a DateTime from an HTTP header date
@@ -55321,8 +55326,8 @@ var require_luxon = __commonJS({
        * @example DateTime.fromHTTP('Sun Nov  6 08:49:37 1994')
        * @return {DateTime}
        */
-      static fromHTTP(text12, opts = {}) {
-        const [vals, parsedZone] = parseHTTPDate(text12);
+      static fromHTTP(text15, opts = {}) {
+        const [vals, parsedZone] = parseHTTPDate(text15);
         return parseDataToDateTime(vals, parsedZone, opts, "HTTP", opts);
       }
       /**
@@ -55339,8 +55344,8 @@ var require_luxon = __commonJS({
        * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
        * @return {DateTime}
        */
-      static fromFormat(text12, fmt, opts = {}) {
-        if (isUndefined(text12) || isUndefined(fmt)) {
+      static fromFormat(text15, fmt, opts = {}) {
+        if (isUndefined(text15) || isUndefined(fmt)) {
           throw new InvalidArgumentError("fromFormat requires an input string and a format");
         }
         const {
@@ -55350,18 +55355,18 @@ var require_luxon = __commonJS({
           locale,
           numberingSystem,
           defaultToEN: true
-        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text12, fmt);
+        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text15, fmt);
         if (invalid2) {
           return _DateTime.invalid(invalid2);
         } else {
-          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text12, specificOffset);
+          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text15, specificOffset);
         }
       }
       /**
        * @deprecated use fromFormat instead
        */
-      static fromString(text12, fmt, opts = {}) {
-        return _DateTime.fromFormat(text12, fmt, opts);
+      static fromString(text15, fmt, opts = {}) {
+        return _DateTime.fromFormat(text15, fmt, opts);
       }
       /**
        * Create a DateTime from a SQL date, time, or datetime
@@ -55384,9 +55389,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromSQL('09:12:34.342')
        * @return {DateTime}
        */
-      static fromSQL(text12, opts = {}) {
-        const [vals, parsedZone] = parseSQL(text12);
-        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text12);
+      static fromSQL(text15, opts = {}) {
+        const [vals, parsedZone] = parseSQL(text15);
+        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text15);
       }
       /**
        * Create an invalid DateTime.
@@ -56571,7 +56576,7 @@ var require_luxon = __commonJS({
        * @param {Object} options - options taken by fromFormat()
        * @return {Object}
        */
-      static fromFormatExplain(text12, fmt, options = {}) {
+      static fromFormatExplain(text15, fmt, options = {}) {
         const {
           locale = null,
           numberingSystem = null
@@ -56580,13 +56585,13 @@ var require_luxon = __commonJS({
           numberingSystem,
           defaultToEN: true
         });
-        return explainFromTokens(localeToUse, text12, fmt);
+        return explainFromTokens(localeToUse, text15, fmt);
       }
       /**
        * @deprecated use fromFormatExplain instead
        */
-      static fromStringExplain(text12, fmt, options = {}) {
-        return _DateTime.fromFormatExplain(text12, fmt, options);
+      static fromStringExplain(text15, fmt, options = {}) {
+        return _DateTime.fromFormatExplain(text15, fmt, options);
       }
       /**
        * Build a parser for `fmt` using the given locale. This parser can be passed
@@ -56621,8 +56626,8 @@ var require_luxon = __commonJS({
        * @param {Object} opts - options taken by fromFormat()
        * @returns {DateTime}
        */
-      static fromFormatParser(text12, formatParser, opts = {}) {
-        if (isUndefined(text12) || isUndefined(formatParser)) {
+      static fromFormatParser(text15, formatParser, opts = {}) {
+        if (isUndefined(text15) || isUndefined(formatParser)) {
           throw new InvalidArgumentError("fromFormatParser requires an input string and a format parser");
         }
         const {
@@ -56641,11 +56646,11 @@ var require_luxon = __commonJS({
           zone,
           specificOffset,
           invalidReason
-        } = formatParser.explainFromTokens(text12);
+        } = formatParser.explainFromTokens(text15);
         if (invalidReason) {
           return _DateTime.invalid(invalidReason);
         } else {
-          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text12, specificOffset);
+          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text15, specificOffset);
         }
       }
       // FORMAT PRESETS
@@ -63034,15 +63039,15 @@ function parseListen(value) {
 var import_fastify = __toESM(require_fastify(), 1);
 var import_cors = __toESM(require_cors(), 1);
 var import_websocket = __toESM(require_websocket2(), 1);
-import { createHash as createHash33, randomUUID as randomUUID36 } from "node:crypto";
+import { createHash as createHash36, randomUUID as randomUUID39 } from "node:crypto";
 import { mkdirSync as mkdirSync9, readFileSync as readFileSync9, statSync as statSync6, writeFileSync as writeFileSync7 } from "node:fs";
 import { dirname as dirname10, extname as extname2 } from "node:path";
 
 // floe-bus/dist/store.js
 var import_cron_parser = __toESM(require_dist6(), 1);
-import { existsSync as existsSync8, mkdirSync as mkdirSync6, readFileSync as readFileSync5, renameSync as renameSync2, rmSync as rmSync2, writeFileSync as writeFileSync4 } from "node:fs";
-import { dirname as dirname7, join as join7, parse, resolve as resolve6 } from "node:path";
-import { randomUUID as randomUUID35, createHash as createHash31 } from "node:crypto";
+import { existsSync as existsSync9, mkdirSync as mkdirSync7, readFileSync as readFileSync6, renameSync as renameSync2, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
+import { dirname as dirname7, join as join8, parse, resolve as resolve6 } from "node:path";
+import { randomUUID as randomUUID38, createHash as createHash35 } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -63817,11 +63822,11 @@ function normalizeAuthorityEvidenceRefs(value) {
     const revision = typeof candidate.revision === "string" ? requiredText(candidate.revision, `evidence_refs[${index}].revision`) : null;
     return { kind, id, revision };
   });
-  const unique6 = new Map(normalized.map((item) => [
+  const unique5 = new Map(normalized.map((item) => [
     `${item.kind}\0${item.id}\0${item.revision ?? ""}`,
     item
   ]));
-  return [...unique6.values()].sort((left, right) => `${left.kind}\0${left.id}\0${left.revision ?? ""}`.localeCompare(`${right.kind}\0${right.id}\0${right.revision ?? ""}`));
+  return [...unique5.values()].sort((left, right) => `${left.kind}\0${left.id}\0${left.revision ?? ""}`.localeCompare(`${right.kind}\0${right.id}\0${right.revision ?? ""}`));
 }
 function canonicalJson(value) {
   if (Array.isArray(value))
@@ -63832,7 +63837,7 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 function dedupeEvidence(evidence) {
-  const unique6 = /* @__PURE__ */ new Map();
+  const unique5 = /* @__PURE__ */ new Map();
   for (const item of evidence) {
     const key = [
       item.actor_id,
@@ -63845,9 +63850,9 @@ function dedupeEvidence(evidence) {
       item.source_boundary.scope_composition_revision_id ?? "",
       item.source_boundary.node_placement_id ?? ""
     ].join("\0");
-    unique6.set(key, item);
+    unique5.set(key, item);
   }
-  return [...unique6.values()].sort((left, right) => canonicalJson(left).localeCompare(canonicalJson(right)));
+  return [...unique5.values()].sort((left, right) => canonicalJson(left).localeCompare(canonicalJson(right)));
 }
 function withSavepoint(db, name, fn) {
   const savepoint = name.replace(/[^A-Za-z0-9_]/g, "_");
@@ -63904,7 +63909,7 @@ var ContextParticipantRequiredError = class extends Error {
 };
 var CONTEXT_ACCESS_LEVELS = /* @__PURE__ */ new Set(["read", "contribute", "manage"]);
 function normalizeParticipants(participants) {
-  const unique6 = /* @__PURE__ */ new Map();
+  const unique5 = /* @__PURE__ */ new Map();
   for (const value of participants) {
     const participant = typeof value === "string" ? { participant_id: value, role: "participant", access: "contribute" } : {
       participant_id: value.participant_id,
@@ -63918,9 +63923,9 @@ function normalizeParticipants(participants) {
     if (!CONTEXT_ACCESS_LEVELS.has(participant.access)) {
       throw new Error(`Context participant access '${participant.access}' is invalid`);
     }
-    unique6.set(participant.participant_id, participant);
+    unique5.set(participant.participant_id, participant);
   }
-  return [...unique6.values()];
+  return [...unique5.values()];
 }
 function nowIso() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -64445,12 +64450,12 @@ var ContextStore = class {
     } catch {
       return null;
     }
-    const text12 = parsed && typeof parsed.text === "string" ? parsed.text : null;
-    if (!text12)
+    const text15 = parsed && typeof parsed.text === "string" ? parsed.text : null;
+    if (!text15)
       return null;
-    if (text12.length <= maxChars)
-      return text12;
-    return text12.slice(0, maxChars) + "\u2026";
+    if (text15.length <= maxChars)
+      return text15;
+    return text15.slice(0, maxChars) + "\u2026";
   }
   getLatestMessagePreview(context_id, maxChars = 160) {
     const row = this.db.prepare("SELECT content_json FROM events WHERE context_id = ? AND type = 'message' ORDER BY created_at DESC LIMIT 1").get(context_id);
@@ -64458,10 +64463,10 @@ var ContextStore = class {
       return null;
     try {
       const parsed = JSON.parse(row.content_json);
-      const text12 = typeof parsed.text === "string" ? parsed.text.trim() : "";
-      if (!text12)
+      const text15 = typeof parsed.text === "string" ? parsed.text.trim() : "";
+      if (!text15)
         return null;
-      return text12.length <= maxChars ? text12 : `${text12.slice(0, maxChars)}\u2026`;
+      return text15.length <= maxChars ? text15 : `${text15.slice(0, maxChars)}\u2026`;
     } catch {
       return null;
     }
@@ -64918,8 +64923,1507 @@ function decodeEventCursor(value) {
   }
 }
 
+// floe-bus/dist/capability-grants.js
+import { createHash as createHash3, randomUUID as randomUUID4 } from "node:crypto";
+
+// floe-bus/dist/workspace-paths.js
+import path from "node:path";
+function canonicalAbsolutePath(realPath) {
+  const slashed = realPath.split(path.sep).join("/");
+  return slashed.length > 1 && slashed.endsWith("/") && !/^[A-Za-z]:\/$/.test(slashed) ? slashed.slice(0, -1) : slashed;
+}
+function isAbsoluteCanonicalPath(value) {
+  return value.startsWith("/") || /^[A-Za-z]:\//.test(value);
+}
+function pathUnder(folder, candidate) {
+  const insensitive = /^[A-Za-z]:\//.test(folder);
+  const base = insensitive ? folder.toLowerCase() : folder;
+  const value = insensitive ? candidate.toLowerCase() : candidate;
+  if (value === base)
+    return ".";
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return value.startsWith(prefix) ? candidate.slice(prefix.length) : null;
+}
+
+// floe-bus/dist/operations.js
+import { createHash as createHash2, randomUUID as randomUUID3 } from "node:crypto";
+function operationAuthorityBoundaryId(boundary) {
+  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
+}
+function sameOperationAuthorityBoundary(left, right) {
+  return left.kind === right.kind && operationAuthorityBoundaryId(left) === operationAuthorityBoundaryId(right);
+}
+function requireWorkspaceAuthorityId(authority) {
+  if (authority.boundary.kind !== "workspace") {
+    throw new Error("This semantic operation requires Workspace authority.");
+  }
+  return authority.boundary.workspace_id;
+}
+function createOperationAuthorityContext(input) {
+  return {
+    principal_id: input.principal_id,
+    boundary: input.boundary,
+    capability_grant_ids: Object.freeze([...input.capability_grant_ids ?? []]),
+    ...input.session_capability_grant_ids ? {
+      session_capability_grant_ids: Object.freeze([...input.session_capability_grant_ids])
+    } : {},
+    grants: input.grants,
+    interaction: input.interaction
+  };
+}
+var DEFAULT_OPERATION_USAGE = Object.freeze({ "operation.count": 1 });
+var EMPTY_OPERATION_PROVENANCE = Object.freeze({
+  cause_event_id: null,
+  delivery_ids: Object.freeze([]),
+  execution_attempt_id: null,
+  node_execution_id: null,
+  scope_execution_id: null
+});
+var IDEMPOTENCY_KEY_REQUIRED = "idempotency_key_required";
+var EMPTY_GOVERNANCE_EVIDENCE = Object.freeze({
+  policy_evaluation_id: null,
+  approval_request_ids: Object.freeze([]),
+  approval_receipt_ids: Object.freeze([]),
+  budget_reservation_id: null
+});
+var SemanticOperationRegistry = class {
+  validator;
+  ledger;
+  governance;
+  definitions = /* @__PURE__ */ new Map();
+  currentVersions = /* @__PURE__ */ new Map();
+  executionOwnerId = `operation_owner_${process.pid}_${randomUUID3()}`;
+  constructor(validator, ledger, governance) {
+    this.validator = validator;
+    this.ledger = ledger;
+    this.governance = governance;
+  }
+  register(definition2, options = {}) {
+    assertDefinition(definition2);
+    const versions = this.definitions.get(definition2.operation_id) ?? /* @__PURE__ */ new Map();
+    if (versions.has(definition2.operation_version)) {
+      throw new Error(`Operation '${definition2.operation_id}@${definition2.operation_version}' is already registered.`);
+    }
+    versions.set(definition2.operation_version, definition2);
+    this.definitions.set(definition2.operation_id, versions);
+    if (options.current !== false)
+      this.currentVersions.set(definition2.operation_id, definition2.operation_version);
+    return this;
+  }
+  /**
+   * Projects the current registry identities for a trusted authority issuer.
+   * The caller must still apply an explicit session-purpose policy; this does
+   * not imply that every registered operation belongs in every session.
+   */
+  listCurrentOperationIds(input) {
+    const operationIds = [];
+    for (const [operationId, version] of this.currentVersions) {
+      const definition2 = this.definitions.get(operationId)?.get(version);
+      if (!definition2)
+        continue;
+      if (!definition2.interaction_constraints.allowed_modes.includes(input.interaction_mode))
+        continue;
+      if (input.boundary_kind && !definition2.authority_boundary_kinds.includes(input.boundary_kind))
+        continue;
+      operationIds.push(operationId);
+    }
+    return operationIds.sort((left, right) => left.localeCompare(right));
+  }
+  /**
+   * Canonical, non-authority-specific metadata for trusted diagnostics and
+   * contract inventories. Availability still requires project() with an
+   * authenticated principal and optional selected resource.
+   */
+  listCurrentOperationMetadata(input) {
+    const operations = [];
+    for (const [operationId, version] of this.currentVersions) {
+      const definition2 = this.definitions.get(operationId)?.get(version);
+      if (!definition2)
+        continue;
+      if (!definition2.interaction_constraints.allowed_modes.includes(input.interaction_mode))
+        continue;
+      if (input.boundary_kind && !definition2.authority_boundary_kinds.includes(input.boundary_kind))
+        continue;
+      operations.push({
+        operation_id: definition2.operation_id,
+        operation_version: definition2.operation_version,
+        category: definition2.category,
+        title: definition2.title,
+        effects: definition2.effects
+      });
+    }
+    return operations.sort((left, right) => left.operation_id.localeCompare(right.operation_id));
+  }
+  async project(request) {
+    const queryTokens = [...new Set((request.query ?? "").toLowerCase().split(/\s+/).filter((token) => token.length >= 2))];
+    const category = request.category?.toLowerCase();
+    const descriptors = [];
+    for (const [operationId, version] of this.currentVersions) {
+      const definition2 = this.definitions.get(operationId)?.get(version);
+      if (!definition2)
+        continue;
+      if (!definition2.authority_boundary_kinds.includes(request.authority.boundary.kind))
+        continue;
+      if (category && definition2.category.toLowerCase() !== category)
+        continue;
+      if (request.target && !definition2.target.resource_kinds.includes(request.target.ref.kind))
+        continue;
+      const haystack = `${definition2.operation_id} ${definition2.category} ${definition2.title} ${definition2.description}`.toLowerCase();
+      if (queryTokens.length > 0 && !queryTokens.some((token) => haystack.includes(token)))
+        continue;
+      descriptors.push({
+        operation_id: definition2.operation_id,
+        operation_version: definition2.operation_version,
+        authority_boundary_kinds: definition2.authority_boundary_kinds,
+        category: definition2.category,
+        title: definition2.title,
+        description: definition2.description,
+        effects: definition2.effects,
+        required_grants: definition2.required_grants,
+        interaction_constraints: definition2.interaction_constraints,
+        target: definition2.target,
+        input: definition2.input,
+        result: definition2.result,
+        availability: await this.evaluateAvailability(definition2, {
+          authority: request.authority,
+          target: request.target ?? null
+        })
+      });
+    }
+    if (queryTokens.length === 0)
+      return descriptors;
+    const ranked = descriptors.map((descriptor) => {
+      const id = descriptor.operation_id.toLowerCase();
+      const title = descriptor.title.toLowerCase();
+      const haystack = `${id} ${descriptor.category} ${title} ${descriptor.description}`.toLowerCase();
+      return { descriptor, rank: [
+        Number(id === queryTokens.join(".") || id === queryTokens.join(" ")),
+        queryTokens.filter((token) => haystack.includes(token)).length,
+        queryTokens.filter((token) => id.includes(token)).length,
+        queryTokens.filter((token) => title.includes(token)).length
+      ] };
+    });
+    ranked.sort((left, right) => {
+      for (let index = 0; index < left.rank.length; index++) {
+        const difference = right.rank[index] - left.rank[index];
+        if (difference)
+          return difference;
+      }
+      return 0;
+    });
+    return ranked.map((item) => item.descriptor);
+  }
+  async invoke(environment, invocation) {
+    const definition2 = this.definitions.get(invocation.operation_id)?.get(invocation.operation_version);
+    if (!definition2) {
+      return {
+        kind: "rejected",
+        refusal: refusal("operation_version_not_found", `Operation '${invocation.operation_id}@${invocation.operation_version}' is not registered.`, false, requiredAction("rediscover_operation", "Refresh available actions", "Discover the current operation contract before trying again."), { operation_id: invocation.operation_id, operation_version: invocation.operation_version })
+      };
+    }
+    const suppliedKey = invocation.idempotency_key?.trim() ? invocation.idempotency_key : null;
+    if (!suppliedKey && definition2.effects.mode !== "read") {
+      return {
+        kind: "rejected",
+        refusal: refusal(IDEMPOTENCY_KEY_REQUIRED, "A write needs an idempotency key, so a retry replays instead of applying twice. Reads do not.", true, requiredAction("supply_idempotency_key", "Retry safely", "Retry with one stable idempotency key for this intended operation."))
+      };
+    }
+    const request = {
+      ...invocation,
+      idempotency_key: suppliedKey ?? `read:${randomUUID3()}`
+    };
+    const ledgerKey = invocationLedgerKey(environment.authority, request);
+    const requestDigest = digest(request);
+    const invocationId = `opinv_${digest({ ledger_key: ledgerKey }).slice(0, 32)}`;
+    const startedAt = (environment.now ?? isoNow)();
+    const runningReceipt = {
+      receipt_id: invocationId,
+      invocation_id: invocationId,
+      operation_id: definition2.operation_id,
+      operation_version: definition2.operation_version,
+      principal_id: environment.authority.principal_id,
+      authority_boundary: environment.authority.boundary,
+      target: request.target ?? null,
+      expected_resource_revision: request.expected_resource_revision ?? null,
+      idempotency_key: request.idempotency_key,
+      request_digest: requestDigest,
+      provenance: environment.provenance ?? EMPTY_OPERATION_PROVENANCE,
+      state: "running",
+      result_schema_version: definition2.result.version,
+      result: null,
+      refusal: null,
+      changed_refs: [],
+      progress_ref: { kind: "operation_invocation", id: invocationId, revision: null },
+      cancel_ref: null,
+      audit_ref: null,
+      governance: EMPTY_GOVERNANCE_EVIDENCE,
+      execution_owner_id: this.executionOwnerId,
+      started_at: startedAt,
+      updated_at: startedAt,
+      completed_at: null
+    };
+    const existing = await this.ledger.begin(ledgerKey, requestDigest, runningReceipt);
+    if (existing) {
+      if (existing.request_digest !== requestDigest) {
+        return {
+          kind: "conflict",
+          refusal: refusal("idempotency_key_reused", "This idempotency key already identifies a different invocation request.", false, requiredAction("new_idempotency_key", "Use a new idempotency key", "Keep the existing key for the original intent and use a new key for this different request."), { existing_receipt_id: existing.receipt.receipt_id }),
+          existing_receipt: existing.receipt
+        };
+      }
+      if (existing.receipt.state === "running" && ownerMayStillBeRunning(existing.receipt.execution_owner_id, this.executionOwnerId)) {
+        return { kind: "receipt", replayed: true, receipt: existing.receipt };
+      }
+      if (existing.receipt.state === "running") {
+        await this.governance.recover({
+          invocation_id: invocationId,
+          definition: definition2,
+          authority: environment.authority,
+          provenance: existing.receipt.provenance,
+          target: null,
+          request,
+          request_digest: requestDigest,
+          input: request.input,
+          pre_effect_refusal: null,
+          prior_evidence: existing.receipt.governance,
+          receipt: existing.receipt
+        });
+        const recoveredAt = (environment.now ?? isoNow)();
+        const recovered = {
+          ...existing.receipt,
+          state: "outcome_unknown",
+          refusal: refusal("operation_outcome_unknown", "The Bus restarted or lost ownership while this operation might have been causing effects.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the target and retained audit evidence before deciding whether another operation is safe."), { invocation_id: invocationId }),
+          progress_ref: null,
+          execution_owner_id: null,
+          updated_at: recoveredAt,
+          completed_at: recoveredAt
+        };
+        await this.ledger.update(ledgerKey, recovered);
+        return { kind: "receipt", replayed: true, receipt: recovered };
+      }
+      if (existing.receipt.state === "outcome_unknown") {
+        try {
+          await this.governance.recover({
+            invocation_id: invocationId,
+            definition: definition2,
+            authority: environment.authority,
+            provenance: existing.receipt.provenance,
+            target: null,
+            request,
+            request_digest: requestDigest,
+            input: request.input,
+            pre_effect_refusal: null,
+            prior_evidence: existing.receipt.governance,
+            receipt: existing.receipt
+          });
+        } catch {
+        }
+        return { kind: "receipt", replayed: true, receipt: existing.receipt };
+      }
+      if (existing.receipt.state !== "awaiting_approval") {
+        return { kind: "receipt", replayed: true, receipt: existing.receipt };
+      }
+    }
+    const baseReceipt = existing?.receipt ?? runningReceipt;
+    const completeRefusal = async (operationRefusal4, target2 = request.target ?? null) => {
+      const completedAt2 = (environment.now ?? isoNow)();
+      const receipt2 = {
+        ...baseReceipt,
+        target: target2,
+        state: "refused",
+        refusal: operationRefusal4,
+        progress_ref: null,
+        execution_owner_id: null,
+        updated_at: completedAt2,
+        completed_at: completedAt2
+      };
+      await this.ledger.update(ledgerKey, receipt2);
+      return { kind: "receipt", replayed: false, receipt: receipt2 };
+    };
+    if (!definition2.authority_boundary_kinds.includes(environment.authority.boundary.kind)) {
+      return completeRefusal(refusal("operation_authority_boundary_not_supported", `Operation '${definition2.operation_id}' cannot run with '${environment.authority.boundary.kind}' authority.`, false, requiredAction("use_supported_authority", "Use the correct authority", "Discover and invoke this operation through one of its declared authority boundaries."), { allowed_boundary_kinds: definition2.authority_boundary_kinds }));
+    }
+    let target = null;
+    if (definition2.target.resource_kinds.length > 0) {
+      if (!request.target) {
+        return completeRefusal(refusal("operation_target_required", "This operation requires a target resource.", false, requiredAction("select_resource", "Select a target", "Select the resource this operation should act on."), { resource_kinds: definition2.target.resource_kinds }));
+      }
+      if (!definition2.target.resource_kinds.includes(request.target.kind)) {
+        return completeRefusal(refusal("operation_target_invalid", `Operation '${definition2.operation_id}' does not support resource kind '${request.target.kind}'.`, false, requiredAction("select_resource", "Select a supported target", "Select a resource supported by the current operation contract."), { resource_kinds: definition2.target.resource_kinds }));
+      }
+      target = await environment.resolve_resource(request.target);
+      if (!target || target.ref.kind !== request.target.kind || target.ref.id !== request.target.id) {
+        return completeRefusal(refusal("operation_target_not_found", `Target '${request.target.kind}:${request.target.id}' was not found in the authenticated authority boundary.`, false, requiredAction("refresh_resource", "Refresh the Workspace", "Refresh current state and select an available resource.")));
+      }
+    } else if (request.target) {
+      return completeRefusal(refusal("operation_target_not_supported", `Operation '${definition2.operation_id}' does not accept a target resource.`, false, requiredAction("remove_target", "Remove the target", "Retry the operation without a target resource.")));
+    }
+    const targetRef = target?.ref ?? null;
+    const revisionRefusal = validateExpectedRevision(definition2, request, target);
+    if (revisionRefusal)
+      return completeRefusal(revisionRefusal, targetRef);
+    if (request.input_schema_version !== definition2.input.version) {
+      return completeRefusal(refusal("operation_input_schema_version_mismatch", `Input schema version '${request.input_schema_version}' is not accepted by '${definition2.operation_id}@${definition2.operation_version}'.`, false, requiredAction("rediscover_operation", "Refresh available actions", "Discover the current operation contract and rebuild the request from its input schema."), { expected: definition2.input.version, received: request.input_schema_version }));
+    }
+    const inputValidation = this.validator.validate(definition2.input.schema, request.input);
+    if (!inputValidation.valid) {
+      return completeRefusal(refusal("operation_input_invalid", "The operation input does not match its discovered schema.", false, requiredAction("correct_input", "Correct the input", "Use the exact versioned input schema returned by operation discovery."), { issues: inputValidation.issues }), targetRef);
+    }
+    const availability3 = await this.evaluateAvailability(definition2, {
+      authority: environment.authority,
+      target
+    });
+    let preEffectRefusal = availability3.available ? null : availability3.refusal;
+    const confirmation = definition2.interaction_constraints.confirmation;
+    if (!preEffectRefusal && confirmation?.required && !environment.authority.interaction.confirmed_prompts.has(confirmation.prompt_id)) {
+      preEffectRefusal = refusal("operation_confirmation_required", confirmation.description, true, requiredAction("confirm", confirmation.title, confirmation.description, {
+        operation_id: definition2.operation_id,
+        operation_version: definition2.operation_version,
+        target: request.target ?? null
+      }), { prompt_id: confirmation.prompt_id });
+    }
+    const governanceInvocation = {
+      invocation_id: invocationId,
+      definition: definition2,
+      authority: environment.authority,
+      // A retry resumes the same retained intent. Its new authenticated
+      // transport/Delivery is not a replacement for that intent's causal origin.
+      // Authority, current target, roles, Policy and exact inputs are still
+      // revalidated below and by governance before any handler runs.
+      provenance: existing?.receipt.state === "awaiting_approval" ? existing.receipt.provenance : environment.provenance ?? EMPTY_OPERATION_PROVENANCE,
+      target,
+      request,
+      request_digest: requestDigest,
+      input: request.input,
+      pre_effect_refusal: preEffectRefusal,
+      prior_evidence: existing?.receipt.governance ?? null
+    };
+    let preparation;
+    try {
+      preparation = await this.governance.prepare(governanceInvocation);
+    } catch {
+      return completeRefusal(refusal("operation_governance_unavailable", "Floe could not establish the canonical Policy, approval, Budget, and audit decision for this operation.", true, requiredAction("inspect_governance", "Inspect governance", "Inspect retained governance state before retrying this exact idempotent invocation."), { invocation_id: invocationId }), targetRef);
+    }
+    if (preparation.state !== "authorized") {
+      const completedAt2 = (environment.now ?? isoNow)();
+      const receipt2 = {
+        ...baseReceipt,
+        target: targetRef,
+        state: preparation.state,
+        refusal: preparation.refusal,
+        governance: preparation.evidence,
+        audit_ref: preparation.audit_ref,
+        provenance: preparation.canonical_provenance,
+        progress_ref: null,
+        execution_owner_id: null,
+        updated_at: completedAt2,
+        completed_at: preparation.state === "refused" ? completedAt2 : null
+      };
+      await this.ledger.update(ledgerKey, receipt2);
+      return { kind: "receipt", replayed: false, receipt: receipt2 };
+    }
+    const authorizedReceipt = {
+      ...baseReceipt,
+      target: targetRef,
+      state: "running",
+      refusal: null,
+      governance: preparation.evidence,
+      audit_ref: preparation.audit_ref,
+      provenance: preparation.canonical_provenance,
+      progress_ref: { kind: "operation_invocation", id: invocationId, revision: null },
+      execution_owner_id: this.executionOwnerId,
+      updated_at: (environment.now ?? isoNow)(),
+      completed_at: null
+    };
+    await this.ledger.update(ledgerKey, authorizedReceipt);
+    const settle = async (input) => {
+      const targetAfter = request.target ? await environment.resolve_resource(request.target) : null;
+      await this.governance.settle({
+        ...governanceInvocation,
+        preparation,
+        state: input.state,
+        result: input.result ?? null,
+        refusal: input.refusal ?? null,
+        changed_refs: input.changed_refs ?? [],
+        target_after: targetAfter,
+        actual_usage: input.actual_usage ?? null
+      });
+      return targetAfter;
+    };
+    const completeUnknown = async (operationRefusal4, result = null, changedRefs = []) => {
+      try {
+        await settle({ state: "outcome_unknown", result, refusal: operationRefusal4, changed_refs: changedRefs });
+      } catch {
+      }
+      const completedAt2 = (environment.now ?? isoNow)();
+      const receipt2 = {
+        ...authorizedReceipt,
+        state: "outcome_unknown",
+        result,
+        refusal: operationRefusal4,
+        changed_refs: changedRefs,
+        progress_ref: null,
+        execution_owner_id: null,
+        updated_at: completedAt2,
+        completed_at: completedAt2
+      };
+      await this.ledger.update(ledgerKey, receipt2);
+      return { kind: "receipt", replayed: false, receipt: receipt2 };
+    };
+    let outcome;
+    try {
+      outcome = await definition2.handler({
+        authority: environment.authority,
+        target,
+        invocation_id: invocationId,
+        idempotency_key: request.idempotency_key,
+        expected_resource_revision: request.expected_resource_revision ?? null,
+        provenance: preparation.canonical_provenance,
+        governance: preparation.evidence
+      }, request.input);
+    } catch {
+      return completeUnknown(refusal("operation_outcome_unknown", "The operation handler stopped without proving whether its effects completed.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the target and invocation evidence before deciding whether a new operation is safe."), { invocation_id: invocationId }));
+    }
+    if (outcome.state === "refused") {
+      await settle({ state: "refused", refusal: outcome.refusal });
+      const completedAt2 = (environment.now ?? isoNow)();
+      const receipt2 = {
+        ...authorizedReceipt,
+        state: "refused",
+        refusal: outcome.refusal,
+        progress_ref: null,
+        execution_owner_id: null,
+        updated_at: completedAt2,
+        completed_at: completedAt2
+      };
+      await this.ledger.update(ledgerKey, receipt2);
+      return { kind: "receipt", replayed: false, receipt: receipt2 };
+    }
+    const resultValidation = this.validator.validate(definition2.result.schema, outcome.result);
+    if (!resultValidation.valid) {
+      return completeUnknown(refusal("operation_result_invalid", "The operation handler returned a result that violates its published result schema.", false, requiredAction("inspect_contract", "Inspect the operation contract", "The Bus operation implementation and its published result schema must be corrected together."), { issues: resultValidation.issues, invocation_id: invocationId }), null, outcome.changed_refs ?? []);
+    }
+    if (outcome.state === "accepted" && !outcome.progress_ref) {
+      return completeUnknown(refusal("operation_progress_ref_required", "An accepted asynchronous operation must return an inspectable progress reference.", false, requiredAction("inspect_contract", "Inspect the operation contract", "The handler must expose progress for accepted asynchronous work."), { invocation_id: invocationId }), outcome.result, outcome.changed_refs ?? []);
+    }
+    let actualUsage = DEFAULT_OPERATION_USAGE;
+    try {
+      if (definition2.resource_accounting?.measure) {
+        const measured = await definition2.resource_accounting.measure({ authority: environment.authority, target }, request.input, outcome.result);
+        actualUsage = normalizeResourceUsage({ ...DEFAULT_OPERATION_USAGE, ...measured });
+      }
+      await settle({
+        state: outcome.state,
+        result: outcome.result,
+        changed_refs: outcome.changed_refs ?? [],
+        actual_usage: actualUsage
+      });
+    } catch {
+      return completeUnknown(refusal("operation_governance_outcome_unknown", "The operation completed its handler, but Floe could not prove its final governance records.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the operation receipt, target, Budget, and audit evidence before retrying."), { invocation_id: invocationId }), outcome.result, outcome.changed_refs ?? []);
+    }
+    const completedAt = (environment.now ?? isoNow)();
+    const receipt = {
+      ...authorizedReceipt,
+      target: targetRef,
+      state: outcome.state,
+      result: outcome.result,
+      changed_refs: outcome.changed_refs ?? [],
+      progress_ref: outcome.progress_ref ?? null,
+      cancel_ref: outcome.cancel_ref ?? null,
+      audit_ref: preparation.audit_ref ?? outcome.audit_ref ?? null,
+      execution_owner_id: null,
+      updated_at: completedAt,
+      completed_at: outcome.state === "completed" ? completedAt : null
+    };
+    await this.ledger.update(ledgerKey, receipt);
+    return { kind: "receipt", replayed: false, receipt };
+  }
+  async evaluateAvailability(definition2, context) {
+    const missingGrants = definition2.required_grants.filter((grant) => !context.authority.grants.has(grant));
+    if (missingGrants.length > 0) {
+      return unavailable(refusal("operation_grant_required", "The current principal is not authorised to use this operation.", false, requiredAction("request_grant", "Request access", "Request the narrow grants required for this operation."), { missing_grants: missingGrants }));
+    }
+    if (!definition2.interaction_constraints.allowed_modes.includes(context.authority.interaction.mode)) {
+      return unavailable(refusal("operation_interaction_not_supported", `This operation cannot run in '${context.authority.interaction.mode}' interaction mode.`, false, requiredAction("change_interaction", "Use a supported interaction", "Run this operation through a client that can satisfy its declared interaction constraints."), { allowed_modes: definition2.interaction_constraints.allowed_modes }));
+    }
+    const broker = definition2.interaction_constraints.broker;
+    if (broker && context.authority.interaction.broker_id !== broker.broker_id) {
+      return unavailable(refusal("operation_broker_required", `This operation requires the trusted '${broker.broker_id}' broker.`, false, requiredAction("use_broker", "Open the trusted broker", broker.purpose), { broker_id: broker.broker_id }));
+    }
+    if (definition2.target.resource_kinds.length > 0 && !context.target) {
+      return unavailable(refusal("operation_target_required", "Select a target resource to determine whether this operation is available.", false, requiredAction("select_resource", "Select a target", "Select the resource this operation should act on."), { resource_kinds: definition2.target.resource_kinds }));
+    }
+    if (!definition2.availability)
+      return { available: true };
+    try {
+      return await definition2.availability(context);
+    } catch {
+      return unavailable(refusal("operation_availability_unknown", "Floe could not determine whether this operation is currently safe and available.", true, requiredAction("refresh_resource", "Refresh current state", "Refresh the target and try discovery again.")));
+    }
+  }
+};
+function validateExpectedRevision(definition2, request, target) {
+  const policy = definition2.target.expected_revision;
+  const expected = request.expected_resource_revision ?? null;
+  const current = target?.ref.revision ?? null;
+  if (policy === "not_applicable") {
+    return expected === null ? null : refusal("operation_revision_not_supported", "This operation does not accept an expected resource revision.", false, requiredAction("remove_expected_revision", "Remove the revision", "Retry without an expected resource revision."));
+  }
+  if (policy === "required" && expected === null) {
+    return refusal("operation_expected_revision_required", "The current resource revision is required before this operation can change it.", true, requiredAction("refresh_resource", "Refresh the resource", "Read the current resource and retry with its exact revision."), { current_revision: current });
+  }
+  if (expected !== null && current !== expected) {
+    return refusal("operation_resource_revision_conflict", "The target changed after this operation was prepared.", true, requiredAction("refresh_resource", "Review the latest version", "Refresh the resource, review the change, and create a new invocation."), { expected_revision: expected, current_revision: current });
+  }
+  return null;
+}
+function unavailable(operationRefusal4) {
+  return { available: false, refusal: operationRefusal4 };
+}
+function refusal(code, message, retryable, requiredActionValue, details = {}) {
+  return {
+    code,
+    message,
+    retryable,
+    required_action: requiredActionValue,
+    details
+  };
+}
+function requiredAction(code, title, description, operation = null) {
+  return { code, title, description, operation };
+}
+function assertDefinition(definition2) {
+  for (const [label, value] of [
+    ["operation_id", definition2.operation_id],
+    ["operation_version", definition2.operation_version],
+    ["input schema version", definition2.input.version],
+    ["result schema version", definition2.result.version]
+  ]) {
+    if (!value.trim())
+      throw new Error(`Semantic operation ${label} must not be empty.`);
+  }
+  if (definition2.interaction_constraints.allowed_modes.length === 0) {
+    throw new Error(`Operation '${definition2.operation_id}' must allow at least one interaction mode.`);
+  }
+  if (definition2.interaction_constraints.approval) {
+    throw new Error(`Operation '${definition2.operation_id}' declares a session approval. Approval must be a canonical bound Policy decision.`);
+  }
+  if (definition2.authority_boundary_kinds.length === 0) {
+    throw new Error(`Operation '${definition2.operation_id}' must allow at least one authority boundary kind.`);
+  }
+  const boundaryKinds = new Set(definition2.authority_boundary_kinds);
+  if (boundaryKinds.size !== definition2.authority_boundary_kinds.length || [...boundaryKinds].some((kind) => kind !== "workspace" && kind !== "host")) {
+    throw new Error(`Operation '${definition2.operation_id}' declares invalid authority boundary kinds.`);
+  }
+}
+function invocationLedgerKey(authority, request) {
+  return canonicalJson2({
+    authority_boundary: authority.boundary,
+    principal_id: authority.principal_id,
+    operation_id: request.operation_id,
+    idempotency_key: request.idempotency_key
+  });
+}
+function digest(value) {
+  return createHash2("sha256").update(canonicalJson2(value)).digest("hex");
+}
+function canonicalJson2(value) {
+  return JSON.stringify(canonicalize(value));
+}
+function canonicalize(value) {
+  if (Array.isArray(value))
+    return value.map(canonicalize);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => [key, canonicalize(entry)]));
+  }
+  return value;
+}
+function isoNow() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function ownerMayStillBeRunning(existingOwnerId, currentOwnerId) {
+  if (!existingOwnerId)
+    return false;
+  if (existingOwnerId === currentOwnerId)
+    return true;
+  const match = /^operation_owner_(\d+)_/.exec(existingOwnerId);
+  if (!match)
+    return false;
+  const pid = Number(match[1]);
+  if (!Number.isInteger(pid) || pid <= 0)
+    return false;
+  if (pid === process.pid)
+    return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function normalizeResourceUsage(input) {
+  const normalized = {};
+  for (const [metric, amount] of Object.entries(input)) {
+    const name = metric.trim();
+    if (!name || !Number.isFinite(amount) || amount < 0) {
+      throw new Error("Operation resource accounting returned an invalid metric or amount.");
+    }
+    normalized[name] = amount;
+  }
+  return Object.freeze(Object.fromEntries(Object.entries(normalized).sort(([left], [right]) => left.localeCompare(right))));
+}
+
+// floe-bus/dist/capability-grants.js
+var FILESYSTEM_PATH_TARGET_KIND = "filesystem_path";
+var EXECUTABLE_TARGET_KIND = "executable";
+var NETWORK_DOMAIN_TARGET_KIND = "network_domain";
+function applyCapabilityGrantSchema(db) {
+  const existingColumns = db.prepare("PRAGMA table_info(capability_grants)").all();
+  if (existingColumns.length > 0) {
+    const names = new Set(existingColumns.map((column) => column.name));
+    if (!names.has("boundary_kind") || names.has("workspace_id")) {
+      migrateCapabilityGrantsToCanonical(db, names.has("boundary_kind"));
+    }
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS capability_grants (
+      grant_id TEXT PRIMARY KEY,
+      principal_id TEXT NOT NULL,
+      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
+      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
+      issued_at TEXT NOT NULL,
+      expires_at TEXT,
+      revoked_at TEXT,
+      issuer_id TEXT NOT NULL,
+      evidence_json TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_operations (
+      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      operation_id TEXT NOT NULL,
+      PRIMARY KEY (grant_id, operation_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_targets (
+      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      target_kind TEXT NOT NULL,
+      target_id TEXT,
+      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_delegations (
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      source_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
+      authority_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
+      CHECK (grant_id != source_grant_id AND grant_id != authority_grant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_delegation_only (
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_grant_target_identity
+      ON capability_grant_targets(grant_id, target_kind, COALESCE(target_id, ''));
+
+    CREATE INDEX IF NOT EXISTS idx_capability_grant_principal_boundary
+      ON capability_grants(principal_id, boundary_kind, boundary_id, expires_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_capability_grant_active_expiry
+      ON capability_grants(expires_at)
+      WHERE revoked_at IS NULL;
+
+    CREATE TABLE IF NOT EXISTS host_capability_policy_revisions (
+      host_policy_id TEXT NOT NULL,
+      policy_revision TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      host_id TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id),
+      supersedes_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
+      superseded_by_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
+      activated_at TEXT NOT NULL,
+      superseded_at TEXT,
+      UNIQUE(host_policy_id, policy_revision),
+      CHECK (superseded_by_grant_id IS NULL OR superseded_at IS NOT NULL)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_host_capability_policy_active
+      ON host_capability_policy_revisions(host_policy_id)
+      WHERE superseded_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_host_capability_policy_history
+      ON host_capability_policy_revisions(host_policy_id, activated_at DESC);
+  `);
+}
+function migrateCapabilityGrantsToCanonical(db, hasBoundaryKind) {
+  inSavepoint(db, () => {
+    const hasSecretConstraints = tableExists2(db, "secret_grant_constraints");
+    const hasSecretPurposes = tableExists2(db, "secret_grant_constraint_purposes");
+    if (hasSecretConstraints) {
+      db.exec(`
+      CREATE TEMP TABLE floe_capability_secret_constraints AS
+      SELECT grant_id, secret_ref_id, workspace_id FROM secret_grant_constraints;
+    `);
+    }
+    if (hasSecretPurposes) {
+      db.exec(`
+      CREATE TEMP TABLE floe_capability_secret_purposes AS
+      SELECT grant_id, purpose FROM secret_grant_constraint_purposes;
+    `);
+    }
+    if (hasSecretPurposes)
+      db.exec("DROP TABLE secret_grant_constraint_purposes;");
+    if (hasSecretConstraints)
+      db.exec("DROP TABLE secret_grant_constraints;");
+    db.exec(`
+    CREATE TABLE capability_grants_next (
+      grant_id TEXT PRIMARY KEY,
+      principal_id TEXT NOT NULL,
+      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
+      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
+      issued_at TEXT NOT NULL,
+      expires_at TEXT,
+      revoked_at TEXT,
+      issuer_id TEXT NOT NULL,
+      evidence_json TEXT NOT NULL
+    );
+    CREATE TABLE capability_grant_operations_next (
+      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
+      operation_id TEXT NOT NULL,
+      PRIMARY KEY (grant_id, operation_id)
+    );
+    CREATE TABLE capability_grant_targets_next (
+      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
+      target_kind TEXT NOT NULL,
+      target_id TEXT,
+      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
+    );
+    INSERT INTO capability_grants_next (
+      grant_id, principal_id, boundary_kind, boundary_id,
+      issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    )
+    SELECT grant_id, principal_id,
+           ${hasBoundaryKind ? "boundary_kind, boundary_id" : "'workspace', workspace_id"},
+           issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    FROM capability_grants;
+    INSERT INTO capability_grant_operations_next
+      SELECT grant_id, operation_id FROM capability_grant_operations;
+    INSERT INTO capability_grant_targets_next
+      SELECT grant_id, target_kind, target_id FROM capability_grant_targets;
+    DROP TABLE capability_grant_targets;
+    DROP TABLE capability_grant_operations;
+    DROP TABLE capability_grants;
+    ALTER TABLE capability_grants_next RENAME TO capability_grants;
+    ALTER TABLE capability_grant_operations_next RENAME TO capability_grant_operations;
+    ALTER TABLE capability_grant_targets_next RENAME TO capability_grant_targets;
+  `);
+    if (hasSecretConstraints) {
+      db.exec(`
+      CREATE TABLE secret_grant_constraints (
+        grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+        secret_ref_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        FOREIGN KEY (workspace_id, secret_ref_id)
+          REFERENCES secret_refs(workspace_id, secret_ref_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_secret_grant_constraints_ref
+        ON secret_grant_constraints(workspace_id, secret_ref_id);
+      INSERT INTO secret_grant_constraints (grant_id, secret_ref_id, workspace_id)
+      SELECT grant_id, secret_ref_id, workspace_id FROM floe_capability_secret_constraints;
+      DROP TABLE floe_capability_secret_constraints;
+    `);
+    }
+    if (hasSecretPurposes) {
+      db.exec(`
+      CREATE TABLE secret_grant_constraint_purposes (
+        grant_id TEXT NOT NULL REFERENCES secret_grant_constraints(grant_id) ON DELETE CASCADE,
+        purpose TEXT NOT NULL,
+        PRIMARY KEY (grant_id, purpose)
+      );
+      INSERT INTO secret_grant_constraint_purposes (grant_id, purpose)
+      SELECT grant_id, purpose FROM floe_capability_secret_purposes;
+      DROP TABLE floe_capability_secret_purposes;
+    `);
+    }
+  });
+}
+function rebuildCapabilityGrantsForUntilRevoked(db) {
+  const columns = db.prepare("PRAGMA table_info(capability_grants)").all();
+  const expiry = columns.find((column) => column.name === "expires_at");
+  if (!expiry || Number(expiry.notnull) === 0 || !columns.some((column) => column.name === "boundary_kind")) {
+    return false;
+  }
+  db.exec(`
+    CREATE TABLE capability_grants_next (
+      grant_id TEXT PRIMARY KEY,
+      principal_id TEXT NOT NULL,
+      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
+      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
+      issued_at TEXT NOT NULL,
+      expires_at TEXT,
+      revoked_at TEXT,
+      issuer_id TEXT NOT NULL,
+      evidence_json TEXT NOT NULL
+    );
+    INSERT INTO capability_grants_next (
+      grant_id, principal_id, boundary_kind, boundary_id,
+      issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    )
+    SELECT grant_id, principal_id, boundary_kind, boundary_id,
+           issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    FROM capability_grants;
+    DROP TABLE capability_grants;
+    ALTER TABLE capability_grants_next RENAME TO capability_grants;
+  `);
+  return true;
+}
+function tableExists2(db, name) {
+  return Boolean(db.prepare(`
+    SELECT 1 AS present FROM sqlite_schema WHERE type = 'table' AND name = ?
+  `).get(name));
+}
+var SqliteCapabilityGrantStore = class {
+  db;
+  now;
+  grantIdFactory;
+  onRevoked;
+  onIssued;
+  constructor(db, dependencies = {}) {
+    this.db = db;
+    this.now = dependencies.now ?? isoNow2;
+    this.grantIdFactory = dependencies.grant_id_factory ?? (() => `capgrant_${randomUUID4()}`);
+    this.onRevoked = dependencies.on_revoked ?? null;
+    this.onIssued = dependencies.on_issued ?? null;
+  }
+  issueGrant(input) {
+    assertNonEmpty("principal_id", input.principal_id);
+    const boundary = normalizeBoundary2(input.boundary);
+    assertNonEmpty("issuer_id", input.issuer_id);
+    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets3 = normalizeTargets(input.targets ?? []);
+    const evidence = normalizeEvidence(input.evidence);
+    const issuedAt = this.now();
+    const issuedAtMs = parseTimestamp("issued_at", issuedAt);
+    if (input.expires_at === void 0) {
+      throw new Error("CapabilityGrant lifetime must be explicit: an expiry time, or until revoked.");
+    }
+    if (input.expires_at !== null && parseTimestamp("expires_at", input.expires_at) <= issuedAtMs) {
+      throw new Error("CapabilityGrant expiry must be after its issue time.");
+    }
+    const grantId = input.grant_id ?? this.grantIdFactory();
+    assertNonEmpty("grant_id", grantId);
+    inSavepoint(this.db, () => {
+      this.db.prepare(`
+        INSERT INTO capability_grants (
+          grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
+          revoked_at, issuer_id, evidence_json
+        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+      `).run(grantId, input.principal_id, boundary.kind, boundaryId2(boundary), issuedAt, input.expires_at, input.issuer_id, JSON.stringify(evidence));
+      const insertOperation = this.db.prepare(`
+        INSERT INTO capability_grant_operations (grant_id, operation_id)
+        VALUES (?, ?)
+      `);
+      for (const operationId of operationIds)
+        insertOperation.run(grantId, operationId);
+      const insertTarget = this.db.prepare(`
+        INSERT INTO capability_grant_targets (grant_id, target_kind, target_id)
+        VALUES (?, ?, ?)
+      `);
+      for (const target of targets3)
+        insertTarget.run(grantId, target.kind, target.id);
+      if (input.delegation_only) {
+        this.db.prepare("INSERT INTO capability_grant_delegation_only (grant_id) VALUES (?)").run(grantId);
+      }
+    });
+    const issued = this.requireGrant(grantId);
+    this.onIssued?.(issued);
+    return issued;
+  }
+  /** Delegate only pinned, current authority. Parent revocation also removes child authority. */
+  delegateGrant(input) {
+    const authority = input.authority;
+    const source = this.requireActiveSessionGrantIds({
+      principal_id: authority.principal_id,
+      boundary: authority.boundary,
+      grant_ids: [input.source_grant_id]
+    })[0];
+    if (!(authority.session_capability_grant_ids ?? []).includes(source)) {
+      throw new Error("The source grant is not part of this authenticated session.");
+    }
+    const parent = this.requireGrant(source);
+    const permission = this.inspectSessionGrantIds({
+      principal_id: authority.principal_id,
+      boundary: authority.boundary,
+      grant_ids: authority.capability_grant_ids ?? []
+    }).active_grants.filter((grant) => grant.operation_ids.includes("capability.grant.delegate") && grantAppliesToTarget(grant, input.recipient)).sort((a, b) => expiryMs(b.expires_at) - expiryMs(a.expires_at) || a.grant_id.localeCompare(b.grant_id))[0];
+    if (!permission || !authority.grants.has("capability.grant.delegate")) {
+      throw new Error("Delegating access requires a current delegation grant for this recipient.");
+    }
+    const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets3 = normalizeTargets(input.targets ?? parent.targets);
+    if (operations.some((id) => !parent.operation_ids.includes(id))) {
+      throw new Error("Delegated operations must be a subset of the source grant.");
+    }
+    if (parent.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !parent.targets.some((allowed) => targetContains(allowed, target))))) {
+      throw new Error("Delegated targets must be contained in the source grant.");
+    }
+    if (input.expires_at === void 0) {
+      throw new Error("Delegated access needs an explicit lifetime: an expiry time, or until revoked.");
+    }
+    const limit = Math.min(expiryMs(parent.expires_at), expiryMs(permission.expires_at));
+    const expiry = input.expires_at;
+    if ((expiry === null ? Infinity : parseTimestamp("expires_at", expiry)) > limit) {
+      throw new Error("Delegated access cannot outlive its source or delegation permission.");
+    }
+    return inSavepoint(this.db, () => {
+      const grant = this.issueGrant({
+        principal_id: input.principal_id,
+        boundary: authority.boundary,
+        operation_ids: operations,
+        targets: targets3,
+        expires_at: expiry,
+        issuer_id: authority.principal_id,
+        evidence: [{ kind: "operation_invocation", ref: input.invocation_id }],
+        delegation_only: input.delegation_only === true
+      });
+      this.db.prepare(`INSERT INTO capability_grant_delegations (grant_id, source_grant_id, authority_grant_id)
+        VALUES (?, ?, ?)`).run(grant.grant_id, parent.grant_id, permission.grant_id);
+      this.onIssued?.(grant);
+      return grant;
+    });
+  }
+  /**
+   * Issue a grant that depends on a source grant the Bus already trusts, such
+   * as a person's root, without a session. It is issued by the source's
+   * principal, lasts until revoked unless an earlier expiry is given, and
+   * stops with its source. It can only narrow: operations, targets and
+   * lifetime must sit inside the source.
+   */
+  issueDependentGrant(input) {
+    const source = this.requireGrant(input.source_grant_id);
+    if (!this.isActiveGrant(source, parseTimestamp("now", this.now()))) {
+      throw new Error("Access can only depend on an active source grant.");
+    }
+    const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets3 = normalizeTargets(input.targets ?? []);
+    if (operations.some((id) => !source.operation_ids.includes(id))) {
+      throw new Error("Dependent operations must be a subset of the source grant.");
+    }
+    if (source.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !source.targets.some((allowed) => targetContains(allowed, target))))) {
+      throw new Error("Dependent targets must be contained in the source grant.");
+    }
+    const expiry = input.expires_at ?? null;
+    if (expiry !== null && parseTimestamp("expires_at", expiry) > expiryMs(this.effectiveExpiry(source.grant_id))) {
+      throw new Error("Dependent access cannot outlive its source grant.");
+    }
+    return inSavepoint(this.db, () => {
+      const grant = this.issueGrant({
+        grant_id: input.grant_id,
+        principal_id: input.principal_id,
+        boundary: source.boundary,
+        operation_ids: operations,
+        targets: targets3,
+        expires_at: expiry,
+        issuer_id: source.principal_id,
+        evidence: input.evidence
+      });
+      this.db.prepare(`INSERT INTO capability_grant_delegations (grant_id, source_grant_id, authority_grant_id)
+        VALUES (?, ?, ?)`).run(grant.grant_id, source.grant_id, source.grant_id);
+      this.onIssued?.(grant);
+      return grant;
+    });
+  }
+  getDelegation(grantId) {
+    return this.db.prepare(`SELECT source_grant_id, authority_grant_id FROM capability_grant_delegations WHERE grant_id = ?`).get(grantId) ?? null;
+  }
+  delegationIsActive(grantId, nowMs, path3 = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
+    if (memo.has(grantId))
+      return memo.get(grantId);
+    if (path3.has(grantId))
+      return false;
+    path3.add(grantId);
+    const delegation = this.getDelegation(grantId);
+    if (!delegation) {
+      memo.set(grantId, true);
+      return true;
+    }
+    const child = this.requireGrant(grantId);
+    const active = [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].every((id) => {
+      const parent = this.getGrant(id);
+      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path3), memo);
+    });
+    memo.set(grantId, active);
+    return active;
+  }
+  /**
+   * Activates one immutable host-policy revision. Repeating the exact revision
+   * is idempotent. Any semantic change requires a new revision and atomically
+   * revokes/supersedes the previous grant; revoked history is never revived.
+   */
+  activateHostPolicyGrant(input) {
+    const hostId = assertNonEmpty("host_id", input.host_id);
+    const principalId = assertNonEmpty("principal_id", input.principal_id);
+    const purpose = assertNonEmpty("policy purpose", input.purpose);
+    const policyRevision = assertNonEmpty("policy_revision", input.policy_revision);
+    const issuerId = assertNonEmpty("issuer_id", input.issuer_id);
+    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets3 = normalizeTargets(input.targets ?? []);
+    const evidence = normalizeEvidence(input.evidence);
+    const policyId = hostCapabilityPolicyId(hostId, purpose);
+    const grantId = hostCapabilityPolicyGrantId(policyId, policyRevision);
+    const existingPolicy = this.getHostPolicyRevision(policyId, policyRevision);
+    if (existingPolicy) {
+      const existingGrant = this.requireGrant(existingPolicy.grant_id);
+      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets3) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
+      if (!exact) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' already identifies different authority.`);
+      }
+      if (existingGrant.revoked_at !== null || existingPolicy.superseded_at !== null) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has been superseded and cannot be reactivated.`);
+      }
+      if (expiryMs(existingGrant.expires_at) <= parseTimestamp("now", this.now())) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has expired and cannot be reactivated.`);
+      }
+      return { replayed: true, policy: existingPolicy, grant: existingGrant };
+    }
+    const activePolicy = this.getActiveHostPolicyRevision(policyId);
+    const activatedAt = this.now();
+    let grant;
+    inSavepoint(this.db, () => {
+      if (activePolicy) {
+        this.db.prepare(`
+          UPDATE host_capability_policy_revisions
+          SET superseded_at = ?
+          WHERE grant_id = ? AND superseded_at IS NULL
+        `).run(activatedAt, activePolicy.grant_id);
+      }
+      grant = this.issueGrant({
+        grant_id: grantId,
+        principal_id: principalId,
+        boundary: { kind: "host", host_id: hostId },
+        operation_ids: operationIds,
+        targets: targets3,
+        expires_at: input.expires_at,
+        issuer_id: issuerId,
+        evidence
+      });
+      this.db.prepare(`
+        INSERT INTO host_capability_policy_revisions (
+          host_policy_id, policy_revision, purpose, host_id, principal_id,
+          grant_id, supersedes_grant_id, superseded_by_grant_id,
+          activated_at, superseded_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
+      `).run(policyId, policyRevision, purpose, hostId, principalId, grant.grant_id, activePolicy?.grant_id ?? null, activatedAt);
+      if (activePolicy) {
+        this.db.prepare(`
+          UPDATE host_capability_policy_revisions
+          SET superseded_by_grant_id = ?
+          WHERE grant_id = ?
+        `).run(grant.grant_id, activePolicy.grant_id);
+        this.db.prepare(`
+          UPDATE capability_grants
+          SET revoked_at = ?
+          WHERE grant_id = ? AND revoked_at IS NULL
+        `).run(activatedAt, activePolicy.grant_id);
+      }
+    });
+    return {
+      replayed: false,
+      policy: this.requireHostPolicyRevision(policyId, policyRevision),
+      grant
+    };
+  }
+  getHostPolicyRevision(policyId, policyRevision) {
+    const row = this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ? AND policy_revision = ?
+    `).get(policyId, policyRevision);
+    return row ? rowToHostCapabilityPolicy(row) : null;
+  }
+  getActiveHostPolicyRevision(policyId) {
+    const row = this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ? AND superseded_at IS NULL
+    `).get(policyId);
+    return row ? rowToHostCapabilityPolicy(row) : null;
+  }
+  listHostPolicyHistory(hostId, purpose) {
+    const policyId = hostCapabilityPolicyId(hostId, purpose);
+    return this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ?
+      ORDER BY activated_at DESC, policy_revision DESC
+    `).all(policyId).map(rowToHostCapabilityPolicy);
+  }
+  getGrant(grantId) {
+    const row = this.db.prepare(`
+      SELECT grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
+             revoked_at, issuer_id, evidence_json
+      FROM capability_grants
+      WHERE grant_id = ?
+    `).get(grantId);
+    if (!row)
+      return null;
+    const operationIds = this.db.prepare(`
+      SELECT operation_id
+      FROM capability_grant_operations
+      WHERE grant_id = ?
+      ORDER BY operation_id
+    `).all(grantId).map((item) => item.operation_id);
+    if (operationIds.length === 0) {
+      throw new Error(`Stored CapabilityGrant '${grantId}' has no semantic operations.`);
+    }
+    const targets3 = this.db.prepare(`
+      SELECT target_kind, target_id
+      FROM capability_grant_targets
+      WHERE grant_id = ?
+      ORDER BY target_kind, target_id
+    `).all(grantId).map((target) => ({
+      kind: target.target_kind,
+      id: target.target_id
+    }));
+    return {
+      grant_id: row.grant_id,
+      principal_id: row.principal_id,
+      boundary: boundaryFromRow(row.boundary_kind, row.boundary_id),
+      operation_ids: operationIds,
+      targets: targets3,
+      issued_at: row.issued_at,
+      expires_at: row.expires_at,
+      revoked_at: row.revoked_at,
+      issuer_id: row.issuer_id,
+      evidence: parseEvidence(row.evidence_json),
+      delegation_only: Boolean(this.db.prepare("SELECT 1 AS present FROM capability_grant_delegation_only WHERE grant_id = ?").get(grantId))
+    };
+  }
+  revokeGrant(grantId, revokedAt = this.now()) {
+    assertNonEmpty("grant_id", grantId);
+    const revokedAtMs = parseTimestamp("revoked_at", revokedAt);
+    const grant = this.getGrant(grantId);
+    if (!grant || grant.revoked_at !== null)
+      return false;
+    if (revokedAtMs < parseTimestamp("issued_at", grant.issued_at)) {
+      throw new Error("CapabilityGrant revocation cannot predate its issue time.");
+    }
+    const result = this.db.prepare(`
+      UPDATE capability_grants
+      SET revoked_at = ?
+      WHERE grant_id = ? AND revoked_at IS NULL
+    `).run(revokedAt, grantId);
+    const revoked = Number(result.changes) === 1;
+    if (revoked)
+      this.onRevoked?.(this.getGrant(grantId));
+    return revoked;
+  }
+  /** When the grant actually ends: its own expiry or any source's, whichever is first. Null is until revoked. */
+  effectiveExpiry(grantId, seen = /* @__PURE__ */ new Set()) {
+    const grant = this.getGrant(grantId);
+    if (!grant || seen.has(grantId))
+      return grant?.expires_at ?? null;
+    seen.add(grantId);
+    const delegation = this.getDelegation(grantId);
+    const candidates = [grant.expires_at, ...delegation ? [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].map((id) => this.effectiveExpiry(id, seen)) : []].filter((value) => value !== null);
+    return candidates.sort((a, b) => expiryMs(a) - expiryMs(b))[0] ?? null;
+  }
+  /** True when the grant is issued, unexpired, unrevoked, and every grant it depends on is too. */
+  isActiveGrant(grant, nowMs = parseTimestamp("now", this.now())) {
+    return grant.revoked_at === null && parseTimestamp("issued_at", grant.issued_at) <= nowMs && expiryMs(grant.expires_at) > nowMs && this.delegationIsActive(grant.grant_id, nowMs);
+  }
+  /** The grant and every grant delegated from it or under its authority, at any depth. */
+  dependentGrantIds(grantId) {
+    return this.db.prepare(`
+      WITH RECURSIVE lost(grant_id) AS (
+        SELECT ?
+        UNION
+        SELECT delegation.grant_id FROM capability_grant_delegations delegation
+        JOIN lost ON delegation.source_grant_id = lost.grant_id OR delegation.authority_grant_id = lost.grant_id
+      )
+      SELECT grant_id FROM lost ORDER BY grant_id
+    `).all(grantId).map((row) => row.grant_id);
+  }
+  listActiveGrantsForPrincipalBoundary(principalId, boundaryValue) {
+    assertNonEmpty("principal_id", principalId);
+    const boundary = normalizeBoundary2(boundaryValue);
+    const now3 = new Date(parseTimestamp("now", this.now())).toISOString();
+    const ids = this.db.prepare(`
+      SELECT grant_id
+      FROM capability_grants
+      WHERE principal_id = ?
+        AND boundary_kind = ?
+        AND boundary_id = ?
+        AND revoked_at IS NULL
+        AND issued_at <= ?
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY issued_at DESC, grant_id
+    `).all(principalId, boundary.kind, boundaryId2(boundary), now3, now3);
+    return ids.filter(({ grant_id }) => this.delegationIsActive(grant_id, Date.parse(now3))).map(({ grant_id }) => this.requireGrant(grant_id)).filter((grant) => !grant.delegation_only);
+  }
+  /**
+   * Checks that every ID is a current grant for the exact session principal and
+   * authority boundary. Session issuance should refuse any unavailable reference.
+   */
+  inspectSessionGrantIds(session) {
+    assertNonEmpty("session principal_id", session.principal_id);
+    normalizeBoundary2(session.boundary);
+    const grantIds = normalizeNonEmptySet(session.grant_ids, "session grant_id", false);
+    const nowMs = parseTimestamp("now", this.now());
+    const activeGrants = [];
+    const delegableGrants = [];
+    const unavailableGrants = [];
+    for (const grantId of grantIds) {
+      const grant = this.getGrant(grantId);
+      const code = grantReferenceFailure(grant, session, nowMs) ?? (this.delegationIsActive(grantId, nowMs) ? null : "grant_dependency_unavailable");
+      if (code === null && grant)
+        (grant.delegation_only ? delegableGrants : activeGrants).push(grant);
+      else
+        unavailableGrants.push({ grant_id: grantId, code: code ?? "grant_not_found" });
+    }
+    return { active_grants: activeGrants, delegable_grants: delegableGrants, unavailable_grants: unavailableGrants };
+  }
+  /**
+   * Assertion helper for trusted session issuance. Stored sessions should keep
+   * the returned opaque IDs, never a copied list of operation strings.
+   */
+  requireActiveSessionGrantIds(session) {
+    const inspection = this.inspectSessionGrantIds(session);
+    const live = [...inspection.active_grants, ...inspection.delegable_grants];
+    if (live.length === 0 || inspection.unavailable_grants.length > 0) {
+      throw new CapabilityGrantReferenceError(inspection.unavailable_grants);
+    }
+    const liveIds = new Set(live.map((grant) => grant.grant_id));
+    return normalizeNonEmptySet(session.grant_ids, "session grant_id", false).filter((id) => liveIds.has(id));
+  }
+  /**
+   * Resolves an existing session at request time. Revoked, expired, missing, or
+   * mismatched grants contribute no operations. Resource-bound grants only
+   * contribute for their exact target.
+   */
+  resolveSessionAuthority(session, target) {
+    assertNonEmpty("interaction session_id", session.interaction.session_id);
+    const inspection = this.inspectSessionGrantIds(session);
+    const applicableGrants = inspection.active_grants.filter((grant) => grantAppliesToTarget(grant, target));
+    const operationIds = /* @__PURE__ */ new Set();
+    for (const grant of applicableGrants) {
+      for (const operationId of grant.operation_ids)
+        operationIds.add(operationId);
+    }
+    return {
+      authority: createOperationAuthorityContext({
+        principal_id: session.principal_id,
+        boundary: session.boundary,
+        capability_grant_ids: applicableGrants.map((grant) => grant.grant_id),
+        // Delegation-only grants stay pinned to the session so they can be a
+        // delegation source, but they never contribute operations above.
+        session_capability_grant_ids: [...inspection.active_grants, ...inspection.delegable_grants].map((grant) => grant.grant_id),
+        grants: operationIds,
+        interaction: {
+          mode: session.interaction.mode,
+          session_id: session.interaction.session_id,
+          broker_id: session.interaction.broker_id ?? null,
+          confirmed_prompts: new Set(session.interaction.confirmed_prompts),
+          approval_refs: new Set(session.interaction.approval_refs)
+        }
+      }),
+      active_grant_ids: inspection.active_grants.map((grant) => grant.grant_id),
+      applicable_grant_ids: applicableGrants.map((grant) => grant.grant_id),
+      unavailable_grants: inspection.unavailable_grants
+    };
+  }
+  requireGrant(grantId) {
+    const grant = this.getGrant(grantId);
+    if (!grant)
+      throw new Error(`CapabilityGrant '${grantId}' was not persisted.`);
+    return grant;
+  }
+  requireHostPolicyRevision(policyId, policyRevision) {
+    const policy = this.getHostPolicyRevision(policyId, policyRevision);
+    if (!policy) {
+      throw new Error(`Host capability policy '${policyId}@${policyRevision}' was not persisted.`);
+    }
+    return policy;
+  }
+};
+var CapabilityGrantReferenceError = class extends Error {
+  failures;
+  constructor(failures) {
+    super(failures.length === 0 ? "An authority session must reference at least one active CapabilityGrant." : failures.map((failure) => `CapabilityGrant '${failure.grant_id}': ${failure.code}.`).join(" "));
+    this.failures = failures;
+    this.name = "CapabilityGrantReferenceError";
+  }
+};
+function grantReferenceFailure(grant, session, nowMs) {
+  if (!grant)
+    return "grant_not_found";
+  if (grant.principal_id !== session.principal_id)
+    return "grant_principal_mismatch";
+  if (!sameBoundary(grant.boundary, session.boundary))
+    return "grant_boundary_mismatch";
+  if (grant.revoked_at !== null)
+    return "grant_revoked";
+  if (parseTimestamp("issued_at", grant.issued_at) > nowMs)
+    return "grant_not_yet_active";
+  if (expiryMs(grant.expires_at) <= nowMs)
+    return "grant_expired";
+  return null;
+}
+function grantAppliesToTarget(grant, target) {
+  if (grant.targets.length === 0)
+    return true;
+  if (target === null)
+    return false;
+  return grant.targets.some((candidate) => candidate.kind === target.kind && (candidate.id === null || candidate.id === target.id));
+}
+function targetContains(allowed, child) {
+  if (allowed.kind !== child.kind)
+    return false;
+  if (allowed.id === null || allowed.id === child.id)
+    return true;
+  if (child.id === null)
+    return false;
+  if (allowed.kind === FILESYSTEM_PATH_TARGET_KIND) {
+    if (allowed.id === ".")
+      return !isAbsoluteCanonicalPath(child.id);
+    return child.id.startsWith(`${allowed.id}/`);
+  }
+  if (allowed.kind === EXECUTABLE_TARGET_KIND)
+    return allowed.id.toLowerCase() === child.id.toLowerCase();
+  if (allowed.kind === NETWORK_DOMAIN_TARGET_KIND) {
+    const domain = allowed.id.toLowerCase();
+    const host = child.id.toLowerCase();
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+  return false;
+}
+function normalizeTargets(targets3) {
+  const normalized = /* @__PURE__ */ new Map();
+  for (const target of targets3) {
+    assertNonEmpty("target kind", target.kind);
+    if (target.id !== null)
+      assertNonEmpty("target id", target.id);
+    const value = { kind: target.kind, id: target.id };
+    normalized.set(JSON.stringify([value.kind, value.id]), value);
+  }
+  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || (left.id ?? "").localeCompare(right.id ?? ""));
+}
+function normalizeBoundary2(boundary) {
+  if (boundary.kind === "workspace") {
+    assertNonEmpty("boundary workspace_id", boundary.workspace_id);
+    return { kind: "workspace", workspace_id: boundary.workspace_id };
+  }
+  if (boundary.kind === "host") {
+    assertNonEmpty("boundary host_id", boundary.host_id);
+    return { kind: "host", host_id: boundary.host_id };
+  }
+  throw new Error("CapabilityGrant boundary kind is invalid.");
+}
+function boundaryId2(boundary) {
+  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
+}
+function sameBoundary(left, right) {
+  return left.kind === right.kind && boundaryId2(left) === boundaryId2(right);
+}
+function boundaryFromRow(kind, id) {
+  if (kind === "workspace")
+    return { kind: "workspace", workspace_id: id };
+  if (kind === "host")
+    return { kind: "host", host_id: id };
+  throw new Error("Stored CapabilityGrant authority boundary is invalid.");
+}
+function hostCapabilityPolicyId(hostId, purpose) {
+  assertNonEmpty("host_id", hostId);
+  assertNonEmpty("policy purpose", purpose);
+  return `host_policy_${digest2(`${hostId}\0${purpose}`).slice(0, 32)}`;
+}
+function hostCapabilityPolicyGrantId(policyId, policyRevision) {
+  assertNonEmpty("host_policy_id", policyId);
+  assertNonEmpty("policy_revision", policyRevision);
+  return `capgrant_host_policy_${digest2(`${policyId}\0${policyRevision}`).slice(0, 32)}`;
+}
+function rowToHostCapabilityPolicy(row) {
+  return {
+    host_policy_id: row.host_policy_id,
+    policy_revision: row.policy_revision,
+    purpose: row.purpose,
+    host_id: row.host_id,
+    principal_id: row.principal_id,
+    grant_id: row.grant_id,
+    supersedes_grant_id: row.supersedes_grant_id,
+    superseded_by_grant_id: row.superseded_by_grant_id,
+    activated_at: row.activated_at,
+    superseded_at: row.superseded_at
+  };
+}
+function normalizeEvidence(evidence) {
+  if (evidence.length === 0)
+    throw new Error("CapabilityGrant evidence must not be empty.");
+  const normalized = /* @__PURE__ */ new Map();
+  for (const item of evidence) {
+    assertNonEmpty("evidence kind", item.kind);
+    assertNonEmpty("evidence ref", item.ref);
+    const value = { kind: item.kind, ref: item.ref };
+    normalized.set(JSON.stringify([value.kind, value.ref]), value);
+  }
+  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.ref.localeCompare(right.ref));
+}
+function parseEvidence(value) {
+  const parsed = JSON.parse(value);
+  if (!Array.isArray(parsed))
+    throw new Error("Stored CapabilityGrant evidence is invalid.");
+  return normalizeEvidence(parsed.map((item) => {
+    if (!item || typeof item !== "object")
+      throw new Error("Stored CapabilityGrant evidence is invalid.");
+    const candidate = item;
+    if (typeof candidate.kind !== "string" || typeof candidate.ref !== "string") {
+      throw new Error("Stored CapabilityGrant evidence is invalid.");
+    }
+    return { kind: candidate.kind, ref: candidate.ref };
+  }));
+}
+function normalizeNonEmptySet(values, label, requireValue) {
+  if (requireValue && values.length === 0)
+    throw new Error(`CapabilityGrant ${label} list must not be empty.`);
+  for (const value of values)
+    assertNonEmpty(label, value);
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+function assertNonEmpty(label, value) {
+  if (!value.trim())
+    throw new Error(`CapabilityGrant ${label} must not be empty.`);
+  return value;
+}
+function digest2(value) {
+  return createHash3("sha256").update(value, "utf8").digest("hex");
+}
+function expiryMs(value) {
+  return value === null ? Infinity : parseTimestamp("expires_at", value);
+}
+function parseTimestamp(label, value) {
+  const timestamp2 = Date.parse(value);
+  if (!Number.isFinite(timestamp2))
+    throw new Error(`CapabilityGrant ${label} must be an ISO timestamp.`);
+  return timestamp2;
+}
+var savepointSequence = 0;
+function inSavepoint(db, action) {
+  savepointSequence += 1;
+  const name = `capability_grant_${savepointSequence}`;
+  db.exec(`SAVEPOINT ${name}`);
+  try {
+    const result = action();
+    db.exec(`RELEASE SAVEPOINT ${name}`);
+    return result;
+  } catch (error) {
+    db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
+    db.exec(`RELEASE SAVEPOINT ${name}`);
+    throw error;
+  }
+}
+function isoNow2() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+
 // floe-bus/dist/credential-broker.js
-import { createHash as createHash2, randomUUID as randomUUID3, timingSafeEqual } from "node:crypto";
+import { createHash as createHash4, randomUUID as randomUUID5, timingSafeEqual } from "node:crypto";
 var SecretAccessDeniedError = class extends Error {
   reason_code;
   error_code = "E_SECRET_ACCESS_DENIED";
@@ -64962,7 +66466,7 @@ var WindowsCredentialBroker = class {
     if (protector.protection_kind !== "windows-os-credential-protection") {
       throw new Error("WindowsCredentialBroker requires an operating-system credential protector.");
     }
-    this.locatorFactory = dependencies.locator_factory ?? ((request) => `floe/${encodeURIComponent(boundaryKey(request.owner))}/${encodeURIComponent(request.secret_ref_id)}/${randomUUID3()}`);
+    this.locatorFactory = dependencies.locator_factory ?? ((request) => `floe/${encodeURIComponent(boundaryKey(request.owner))}/${encodeURIComponent(request.secret_ref_id)}/${randomUUID5()}`);
   }
   async store(request) {
     requireSecretMaterial(request.material);
@@ -65070,7 +66574,7 @@ function migrateSecretRefsToOwnedBoundaries(db) {
   if (duplicate) {
     throw new Error(`SecretRef migration requires a unique identity; '${duplicate.secret_ref_id}' is duplicated.`);
   }
-  inSavepoint(db, "secret_ref_owner", () => {
+  inSavepoint2(db, "secret_ref_owner", () => {
     db.exec(`
       CREATE TEMP TABLE floe_secret_constraints AS
         SELECT grant_id, secret_ref_id, workspace_id FROM secret_grant_constraints;
@@ -65176,7 +66680,7 @@ function migrateSecretAccessAuditActions(db) {
   `).get();
   if (!row || row.sql.includes("'health'") && row.sql.includes("'revoke'"))
     return;
-  inSavepoint(db, "secret_audit_actions", () => {
+  inSavepoint2(db, "secret_audit_actions", () => {
     db.exec(`
       DROP INDEX IF EXISTS idx_secret_access_audit_workspace;
       ALTER TABLE secret_access_audit RENAME TO secret_access_audit_legacy_actions;
@@ -65212,13 +66716,13 @@ var SqliteSecretRefStore = class {
   auditIdFactory;
   constructor(db, dependencies = {}) {
     this.db = db;
-    this.now = dependencies.now ?? isoNow;
-    this.secretRefIdFactory = dependencies.secret_ref_id_factory ?? (() => `secretref_${randomUUID3()}`);
-    this.auditIdFactory = dependencies.audit_id_factory ?? (() => `secretaudit_${randomUUID3()}`);
+    this.now = dependencies.now ?? isoNow3;
+    this.secretRefIdFactory = dependencies.secret_ref_id_factory ?? (() => `secretref_${randomUUID5()}`);
+    this.auditIdFactory = dependencies.audit_id_factory ?? (() => `secretaudit_${randomUUID5()}`);
   }
   createSecretRef(input) {
     const secretRefId = requireText(input.secret_ref_id ?? this.secretRefIdFactory(), "secret_ref_id");
-    const owner = normalizeBoundary2(input.owner);
+    const owner = normalizeBoundary3(input.owner);
     const resource = normalizeResource(input.resource);
     const secretKind = requireText(input.secret_kind, "secret_kind");
     const label = requireText(input.label, "label");
@@ -65228,7 +66732,7 @@ var SqliteSecretRefStore = class {
         secret_ref_id, owner_kind, owner_id, resource_kind, resource_id, secret_kind,
         label, resolution, broker_id, broker_locator, generation, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, 'unresolved', NULL, NULL, 0, ?, ?)
-    `).run(secretRefId, owner.kind, boundaryId2(owner), resource.kind, resource.id, secretKind, label, now3, now3);
+    `).run(secretRefId, owner.kind, boundaryId3(owner), resource.kind, resource.id, secretKind, label, now3, now3);
     return this.requireSecretRef(secretRefId);
   }
   getSecretRef(secretRefId) {
@@ -65242,19 +66746,19 @@ var SqliteSecretRefStore = class {
     return row ? secretRefFromRow(row) : null;
   }
   listSecretRefs(owner) {
-    const normalizedOwner = owner ? normalizeBoundary2(owner) : null;
+    const normalizedOwner = owner ? normalizeBoundary3(owner) : null;
     return this.db.prepare(`
       SELECT secret_ref_id, owner_kind, owner_id, resource_kind, resource_id, secret_kind,
              label, resolution, broker_id, broker_locator, generation, created_at, updated_at
       FROM secret_refs
       WHERE (? IS NULL OR (owner_kind = ? AND owner_id = ?))
       ORDER BY secret_ref_id
-    `).all(normalizedOwner?.kind ?? null, normalizedOwner?.kind ?? null, normalizedOwner ? boundaryId2(normalizedOwner) : null).map(secretRefFromRow);
+    `).all(normalizedOwner?.kind ?? null, normalizedOwner?.kind ?? null, normalizedOwner ? boundaryId3(normalizedOwner) : null).map(secretRefFromRow);
   }
   attachGrantConstraint(input, capabilityGrants) {
     const grantId = requireText(input.grant_id, "grant_id");
     const secretRefId = requireText(input.secret_ref_id, "secret_ref_id");
-    const authorityBoundary = normalizeBoundary2(input.authority_boundary);
+    const authorityBoundary = normalizeBoundary3(input.authority_boundary);
     const purposes = normalizeTextSet(input.purposes, "purpose", true);
     const ref = this.getSecretRef(secretRefId);
     if (!ref)
@@ -65262,19 +66766,19 @@ var SqliteSecretRefStore = class {
     const grant = capabilityGrants.getGrant(grantId);
     if (!grant)
       throw new SecretAccessDeniedError("grant_not_found");
-    if (!sameBoundary(grant.boundary, authorityBoundary)) {
+    if (!sameBoundary2(grant.boundary, authorityBoundary)) {
       throw new SecretAccessDeniedError("grant_boundary_mismatch");
     }
     if (!hasExactGrantTarget(grant, "secret_ref", secretRefId)) {
       throw new SecretAccessDeniedError("grant_secret_ref_target_mismatch");
     }
-    inSavepoint(this.db, "secret_grant_constraint", () => {
+    inSavepoint2(this.db, "secret_grant_constraint", () => {
       this.db.prepare(`
         INSERT INTO secret_grant_constraints (
           grant_id, secret_ref_id, authority_boundary_kind, authority_boundary_id
         )
         VALUES (?, ?, ?, ?)
-      `).run(grantId, secretRefId, authorityBoundary.kind, boundaryId2(authorityBoundary));
+      `).run(grantId, secretRefId, authorityBoundary.kind, boundaryId3(authorityBoundary));
       const purposeStatement = this.db.prepare(`
         INSERT INTO secret_grant_constraint_purposes (grant_id, purpose) VALUES (?, ?)
       `);
@@ -65311,7 +66815,7 @@ var SqliteSecretRefStore = class {
         resource_kind, resource_id, purpose,
         operation_id, started_at, completed_at
       ) VALUES (?, ?, 'started', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-    `).run(auditId, action, request.secret_ref_id, request.grant_id, request.principal_id, request.authority_boundary.kind, boundaryId2(request.authority_boundary), request.resource.kind, request.resource.id, request.purpose, request.operation_id, startedAt);
+    `).run(auditId, action, request.secret_ref_id, request.grant_id, request.principal_id, request.authority_boundary.kind, boundaryId3(request.authority_boundary), request.resource.kind, request.resource.id, request.purpose, request.operation_id, startedAt);
     return this.requireAudit(auditId);
   }
   recordDeniedAudit(request, action, reason) {
@@ -65324,7 +66828,7 @@ var SqliteSecretRefStore = class {
         resource_kind, resource_id, purpose,
         operation_id, started_at, completed_at
       ) VALUES (?, ?, 'denied', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(auditId, action, reason, request.secret_ref_id, request.grant_id, request.principal_id, request.authority_boundary.kind, boundaryId2(request.authority_boundary), request.resource.kind, request.resource.id, request.purpose, request.operation_id, now3, now3);
+    `).run(auditId, action, reason, request.secret_ref_id, request.grant_id, request.principal_id, request.authority_boundary.kind, boundaryId3(request.authority_boundary), request.resource.kind, request.resource.id, request.purpose, request.operation_id, now3, now3);
     return this.requireAudit(auditId);
   }
   finishAudit(auditId, outcome, reason) {
@@ -65340,7 +66844,7 @@ var SqliteSecretRefStore = class {
   }
   commitBinding(secretRefId, expectedGeneration, expectedBinding, nextBinding, auditId) {
     const updatedAt = validTimestamp("updated_at", this.now()).iso;
-    inSavepoint(this.db, "secret_binding", () => {
+    inSavepoint2(this.db, "secret_binding", () => {
       const result = this.db.prepare(`
         UPDATE secret_refs
         SET resolution = 'resolved', broker_id = ?, broker_locator = ?,
@@ -65362,7 +66866,7 @@ var SqliteSecretRefStore = class {
   }
   commitUnresolved(secretRefId, expectedGeneration, expectedBinding, auditId) {
     const updatedAt = validTimestamp("updated_at", this.now()).iso;
-    inSavepoint(this.db, "secret_unbind", () => {
+    inSavepoint2(this.db, "secret_unbind", () => {
       const result = this.db.prepare(`
         UPDATE secret_refs
         SET resolution = 'unresolved', broker_id = NULL, broker_locator = NULL,
@@ -65383,7 +66887,7 @@ var SqliteSecretRefStore = class {
     return this.requireSecretRef(secretRefId);
   }
   listAudit(authorityBoundary) {
-    const boundary = normalizeBoundary2(authorityBoundary);
+    const boundary = normalizeBoundary3(authorityBoundary);
     return this.db.prepare(`
       SELECT audit_id, action, outcome, reason_code, secret_ref_id, grant_id,
              principal_id, authority_boundary_kind, authority_boundary_id,
@@ -65392,12 +66896,12 @@ var SqliteSecretRefStore = class {
       FROM secret_access_audit
       WHERE authority_boundary_kind = ? AND authority_boundary_id = ?
       ORDER BY started_at, audit_id
-    `).all(boundary.kind, boundaryId2(boundary)).map(auditFromRow);
+    `).all(boundary.kind, boundaryId3(boundary)).map(auditFromRow);
   }
   importUnresolvedSecretRefs(workspaceId4, refs) {
     const targetWorkspaceId = requireText(workspaceId4, "workspace_id");
     const normalized = refs.map(normalizePortableSecretRef);
-    inSavepoint(this.db, "secret_import", () => {
+    inSavepoint2(this.db, "secret_import", () => {
       for (const ref of normalized) {
         const existing = this.getSecretRef(ref.secret_ref_id);
         if (existing) {
@@ -65733,7 +67237,7 @@ function inspectSecretAccess(request, ref, grant, grantFailure, constraint, opti
     return "grant_not_found";
   if (!ref)
     return "secret_ref_not_found";
-  if (ref.owner.kind === "workspace" && !sameBoundary(ref.owner, request.authority_boundary)) {
+  if (ref.owner.kind === "workspace" && !sameBoundary2(ref.owner, request.authority_boundary)) {
     return "grant_boundary_mismatch";
   }
   if (options.require_unresolved && ref.resolution !== "unresolved")
@@ -65748,7 +67252,7 @@ function inspectSecretAccess(request, ref, grant, grantFailure, constraint, opti
   if (!hasExactGrantTarget(grant, request.resource.kind, request.resource.id)) {
     return "grant_resource_target_mismatch";
   }
-  if (!constraint || !sameBoundary(constraint.authority_boundary, request.authority_boundary) || constraint.secret_ref_id !== request.secret_ref_id) {
+  if (!constraint || !sameBoundary2(constraint.authority_boundary, request.authority_boundary) || constraint.secret_ref_id !== request.secret_ref_id) {
     return "grant_constraint_not_found";
   }
   if (!constraint.purposes.includes(request.purpose))
@@ -65767,7 +67271,7 @@ function validateAccessRequest(request) {
   requireText(request.secret_ref_id, "secret_ref_id");
   requireText(request.grant_id, "grant_id");
   requireText(request.principal_id, "principal_id");
-  normalizeBoundary2(request.authority_boundary);
+  normalizeBoundary3(request.authority_boundary);
   normalizeResource(request.resource);
   requireText(request.purpose, "purpose");
   requireText(request.operation_id, "operation_id");
@@ -65793,7 +67297,7 @@ function copyMaterial(material) {
   return new Uint8Array(material);
 }
 function secretMaterialDigest(material) {
-  return createHash2("sha256").update("floe-credential-material-verification:v1\0", "utf8").update(material).digest();
+  return createHash4("sha256").update("floe-credential-material-verification:v1\0", "utf8").update(material).digest();
 }
 function withoutMaterial(request) {
   return {
@@ -65802,7 +67306,7 @@ function withoutMaterial(request) {
     generation: request.generation
   };
 }
-function normalizeBoundary2(boundary) {
+function normalizeBoundary3(boundary) {
   if (boundary?.kind === "workspace") {
     return { kind: "workspace", workspace_id: requireText(boundary.workspace_id, "Workspace boundary") };
   }
@@ -65811,17 +67315,17 @@ function normalizeBoundary2(boundary) {
   }
   throw new Error("Secret authority boundary is invalid.");
 }
-function boundaryId2(boundary) {
+function boundaryId3(boundary) {
   return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
 }
 function boundaryKey(boundary) {
-  return `${boundary.kind}:${boundaryId2(boundary)}`;
+  return `${boundary.kind}:${boundaryId3(boundary)}`;
 }
 function boundaryFromParts(kind, id) {
   return kind === "workspace" ? { kind: "workspace", workspace_id: id } : { kind: "host", host_id: id };
 }
-function sameBoundary(left, right) {
-  return left.kind === right.kind && boundaryId2(left) === boundaryId2(right);
+function sameBoundary2(left, right) {
+  return left.kind === right.kind && boundaryId3(left) === boundaryId3(right);
 }
 function requireText(value, label) {
   if (typeof value !== "string" || !value.trim() || /[\u0000-\u001f\u007f]/.test(value)) {
@@ -65835,10 +67339,10 @@ function validTimestamp(label, value) {
     throw new Error(`${label} must be an ISO timestamp.`);
   return { iso: value, ms };
 }
-var savepointSequence = 0;
-function inSavepoint(db, prefix, operation) {
-  savepointSequence += 1;
-  const name = `${prefix}_${savepointSequence}`;
+var savepointSequence2 = 0;
+function inSavepoint2(db, prefix, operation) {
+  savepointSequence2 += 1;
+  const name = `${prefix}_${savepointSequence2}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = operation();
@@ -65850,13 +67354,13 @@ function inSavepoint(db, prefix, operation) {
     throw error;
   }
 }
-function isoNow() {
+function isoNow3() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 
 // floe-bus/dist/legacy-auth-credential-source.js
 var import_yaml2 = __toESM(require_dist(), 1);
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 import { readFile } from "node:fs/promises";
 var LegacyAuthCredentialSource = class {
   profilesPath;
@@ -65879,7 +67383,7 @@ var LegacyAuthCredentialSource = class {
       throw new LegacyCredentialSourceError("legacy_source_unavailable");
     }
     try {
-      const actualFingerprint = `sha256:${createHash3("sha256").update(authBytes).digest("hex")}`;
+      const actualFingerprint = `sha256:${createHash5("sha256").update(authBytes).digest("hex")}`;
       if (actualFingerprint !== expectedFingerprint) {
         throw new LegacyCredentialSourceError("legacy_source_changed");
       }
@@ -65908,10 +67412,10 @@ var LegacyCredentialSourceError = class extends Error {
     this.name = "LegacyCredentialSourceError";
   }
 };
-function parseProfiles(text12) {
+function parseProfiles(text15) {
   let value;
   try {
-    value = import_yaml2.default.parse(text12);
+    value = import_yaml2.default.parse(text15);
   } catch {
     throw new LegacyCredentialSourceError("legacy_credential_invalid");
   }
@@ -65969,7 +67473,7 @@ function isRecord(value) {
 }
 
 // floe-bus/dist/credential-ingress.js
-import { createHash as createHash4, randomBytes, randomUUID as randomUUID4, timingSafeEqual as timingSafeEqual2 } from "node:crypto";
+import { createHash as createHash6, randomBytes, randomUUID as randomUUID6, timingSafeEqual as timingSafeEqual2 } from "node:crypto";
 var DEFAULT_TTL_MS = 5 * 6e4;
 var MAX_TTL_MS = 10 * 6e4;
 var MAX_MATERIAL_BYTES = 1024 * 1024;
@@ -65991,7 +67495,7 @@ var CredentialIngressStore = class {
   constructor(dependencies = {}) {
     this.now = dependencies.now ?? (() => /* @__PURE__ */ new Date());
     this.tokenFactory = dependencies.token_factory ?? (() => randomBytes(32).toString("base64url"));
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `credential-ingress:${randomUUID4()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `credential-ingress:${randomUUID6()}`);
   }
   issue(input) {
     const ttlMs = input.ttl_ms ?? DEFAULT_TTL_MS;
@@ -66006,7 +67510,7 @@ var CredentialIngressStore = class {
     const status = Object.freeze({
       ingress_session_id: sessionId,
       secret_ref_id: requireText2(input.secret_ref_id, "secret_ref_id"),
-      authority_boundary: normalizeBoundary3(input.authority_boundary),
+      authority_boundary: normalizeBoundary4(input.authority_boundary),
       principal_id: requireText2(input.principal_id, "principal_id"),
       provider_id: requireText2(input.provider_id, "provider_id"),
       audience: requireAudience(input.audience),
@@ -66016,7 +67520,7 @@ var CredentialIngressStore = class {
     });
     this.sessions.set(sessionId, {
       status,
-      token_hash: digest(token),
+      token_hash: digest3(token),
       material: null
     });
     return { session: status, bearer_token: token };
@@ -66089,7 +67593,7 @@ var CredentialIngressStore = class {
     if (status.secret_ref_id !== input.secret_ref_id) {
       throw new CredentialIngressError("credential_ingress_secret_ref_mismatch");
     }
-    if (!sameBoundary2(status.authority_boundary, input.authority_boundary)) {
+    if (!sameBoundary3(status.authority_boundary, input.authority_boundary)) {
       throw new CredentialIngressError("credential_ingress_boundary_mismatch");
     }
     if (status.principal_id !== input.principal_id) {
@@ -66106,19 +67610,19 @@ var CredentialIngressStore = class {
     }
   }
 };
-function digest(token) {
-  return createHash4("sha256").update(requireText2(token, "bearer token"), "utf8").digest();
+function digest3(token) {
+  return createHash6("sha256").update(requireText2(token, "bearer token"), "utf8").digest();
 }
 function verifyToken(expected, supplied) {
-  const candidate = digest(supplied);
+  const candidate = digest3(supplied);
   if (candidate.byteLength !== expected.byteLength || !timingSafeEqual2(candidate, expected)) {
     throw new CredentialIngressError("credential_ingress_token_invalid");
   }
 }
-function normalizeBoundary3(boundary) {
+function normalizeBoundary4(boundary) {
   return boundary.kind === "workspace" ? Object.freeze({ kind: "workspace", workspace_id: requireText2(boundary.workspace_id, "workspace_id") }) : Object.freeze({ kind: "host", host_id: requireText2(boundary.host_id, "host_id") });
 }
-function sameBoundary2(left, right) {
+function sameBoundary3(left, right) {
   return left.kind === right.kind && (left.kind === "workspace" ? right.kind === "workspace" && left.workspace_id === right.workspace_id : right.kind === "host" && left.host_id === right.host_id);
 }
 function requireAudience(value) {
@@ -66134,633 +67638,17 @@ function requireText2(value, field) {
   return value.trim();
 }
 
-// floe-bus/dist/operations.js
-import { createHash as createHash5, randomUUID as randomUUID5 } from "node:crypto";
-function operationAuthorityBoundaryId(boundary) {
-  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
-}
-function sameOperationAuthorityBoundary(left, right) {
-  return left.kind === right.kind && operationAuthorityBoundaryId(left) === operationAuthorityBoundaryId(right);
-}
-function requireWorkspaceAuthorityId(authority) {
-  if (authority.boundary.kind !== "workspace") {
-    throw new Error("This semantic operation requires Workspace authority.");
-  }
-  return authority.boundary.workspace_id;
-}
-function createOperationAuthorityContext(input) {
-  return {
-    principal_id: input.principal_id,
-    boundary: input.boundary,
-    capability_grant_ids: Object.freeze([...input.capability_grant_ids ?? []]),
-    ...input.session_capability_grant_ids ? {
-      session_capability_grant_ids: Object.freeze([...input.session_capability_grant_ids])
-    } : {},
-    grants: input.grants,
-    interaction: input.interaction
-  };
-}
-var DEFAULT_OPERATION_USAGE = Object.freeze({ "operation.count": 1 });
-var EMPTY_OPERATION_PROVENANCE = Object.freeze({
-  cause_event_id: null,
-  delivery_ids: Object.freeze([]),
-  execution_attempt_id: null,
-  node_execution_id: null,
-  scope_execution_id: null
-});
-var EMPTY_GOVERNANCE_EVIDENCE = Object.freeze({
-  policy_evaluation_id: null,
-  approval_request_ids: Object.freeze([]),
-  approval_receipt_ids: Object.freeze([]),
-  budget_reservation_id: null
-});
-var SemanticOperationRegistry = class {
-  validator;
-  ledger;
-  governance;
-  definitions = /* @__PURE__ */ new Map();
-  currentVersions = /* @__PURE__ */ new Map();
-  executionOwnerId = `operation_owner_${process.pid}_${randomUUID5()}`;
-  constructor(validator, ledger, governance) {
-    this.validator = validator;
-    this.ledger = ledger;
-    this.governance = governance;
-  }
-  register(definition2, options = {}) {
-    assertDefinition(definition2);
-    const versions = this.definitions.get(definition2.operation_id) ?? /* @__PURE__ */ new Map();
-    if (versions.has(definition2.operation_version)) {
-      throw new Error(`Operation '${definition2.operation_id}@${definition2.operation_version}' is already registered.`);
-    }
-    versions.set(definition2.operation_version, definition2);
-    this.definitions.set(definition2.operation_id, versions);
-    if (options.current !== false)
-      this.currentVersions.set(definition2.operation_id, definition2.operation_version);
-    return this;
-  }
-  /**
-   * Projects the current registry identities for a trusted authority issuer.
-   * The caller must still apply an explicit session-purpose policy; this does
-   * not imply that every registered operation belongs in every session.
-   */
-  listCurrentOperationIds(input) {
-    const operationIds = [];
-    for (const [operationId, version] of this.currentVersions) {
-      const definition2 = this.definitions.get(operationId)?.get(version);
-      if (!definition2)
-        continue;
-      if (!definition2.interaction_constraints.allowed_modes.includes(input.interaction_mode))
-        continue;
-      if (input.boundary_kind && !definition2.authority_boundary_kinds.includes(input.boundary_kind))
-        continue;
-      operationIds.push(operationId);
-    }
-    return operationIds.sort((left, right) => left.localeCompare(right));
-  }
-  /**
-   * Canonical, non-authority-specific metadata for trusted diagnostics and
-   * contract inventories. Availability still requires project() with an
-   * authenticated principal and optional selected resource.
-   */
-  listCurrentOperationMetadata(input) {
-    const operations = [];
-    for (const [operationId, version] of this.currentVersions) {
-      const definition2 = this.definitions.get(operationId)?.get(version);
-      if (!definition2)
-        continue;
-      if (!definition2.interaction_constraints.allowed_modes.includes(input.interaction_mode))
-        continue;
-      if (input.boundary_kind && !definition2.authority_boundary_kinds.includes(input.boundary_kind))
-        continue;
-      operations.push({
-        operation_id: definition2.operation_id,
-        operation_version: definition2.operation_version,
-        category: definition2.category,
-        title: definition2.title,
-        effects: definition2.effects
-      });
-    }
-    return operations.sort((left, right) => left.operation_id.localeCompare(right.operation_id));
-  }
-  async project(request) {
-    const queryTokens = [...new Set((request.query ?? "").toLowerCase().split(/\s+/).filter((token) => token.length >= 2))];
-    const category = request.category?.toLowerCase();
-    const descriptors = [];
-    for (const [operationId, version] of this.currentVersions) {
-      const definition2 = this.definitions.get(operationId)?.get(version);
-      if (!definition2)
-        continue;
-      if (!definition2.authority_boundary_kinds.includes(request.authority.boundary.kind))
-        continue;
-      if (category && definition2.category.toLowerCase() !== category)
-        continue;
-      if (request.target && !definition2.target.resource_kinds.includes(request.target.ref.kind))
-        continue;
-      const haystack = `${definition2.operation_id} ${definition2.category} ${definition2.title} ${definition2.description}`.toLowerCase();
-      if (queryTokens.length > 0 && !queryTokens.some((token) => haystack.includes(token)))
-        continue;
-      descriptors.push({
-        operation_id: definition2.operation_id,
-        operation_version: definition2.operation_version,
-        authority_boundary_kinds: definition2.authority_boundary_kinds,
-        category: definition2.category,
-        title: definition2.title,
-        description: definition2.description,
-        effects: definition2.effects,
-        required_grants: definition2.required_grants,
-        interaction_constraints: definition2.interaction_constraints,
-        target: definition2.target,
-        input: definition2.input,
-        result: definition2.result,
-        availability: await this.evaluateAvailability(definition2, {
-          authority: request.authority,
-          target: request.target ?? null
-        })
-      });
-    }
-    if (queryTokens.length === 0)
-      return descriptors;
-    const ranked = descriptors.map((descriptor) => {
-      const id = descriptor.operation_id.toLowerCase();
-      const title = descriptor.title.toLowerCase();
-      const haystack = `${id} ${descriptor.category} ${title} ${descriptor.description}`.toLowerCase();
-      return { descriptor, rank: [
-        Number(id === queryTokens.join(".") || id === queryTokens.join(" ")),
-        queryTokens.filter((token) => haystack.includes(token)).length,
-        queryTokens.filter((token) => id.includes(token)).length,
-        queryTokens.filter((token) => title.includes(token)).length
-      ] };
-    });
-    ranked.sort((left, right) => {
-      for (let index = 0; index < left.rank.length; index++) {
-        const difference = right.rank[index] - left.rank[index];
-        if (difference)
-          return difference;
-      }
-      return 0;
-    });
-    return ranked.map((item) => item.descriptor);
-  }
-  async invoke(environment, request) {
-    if (!request.idempotency_key.trim()) {
-      return {
-        kind: "rejected",
-        refusal: refusal("idempotency_key_required", "An idempotency key is required for every operation invocation.", true, requiredAction("supply_idempotency_key", "Retry safely", "Retry with one stable idempotency key for this intended operation."))
-      };
-    }
-    const definition2 = this.definitions.get(request.operation_id)?.get(request.operation_version);
-    if (!definition2) {
-      return {
-        kind: "rejected",
-        refusal: refusal("operation_version_not_found", `Operation '${request.operation_id}@${request.operation_version}' is not registered.`, false, requiredAction("rediscover_operation", "Refresh available actions", "Discover the current operation contract before trying again."), { operation_id: request.operation_id, operation_version: request.operation_version })
-      };
-    }
-    const ledgerKey = invocationLedgerKey(environment.authority, request);
-    const requestDigest = digest2(request);
-    const invocationId = `opinv_${digest2({ ledger_key: ledgerKey }).slice(0, 32)}`;
-    const startedAt = (environment.now ?? isoNow2)();
-    const runningReceipt = {
-      receipt_id: invocationId,
-      invocation_id: invocationId,
-      operation_id: definition2.operation_id,
-      operation_version: definition2.operation_version,
-      principal_id: environment.authority.principal_id,
-      authority_boundary: environment.authority.boundary,
-      target: request.target ?? null,
-      expected_resource_revision: request.expected_resource_revision ?? null,
-      idempotency_key: request.idempotency_key,
-      request_digest: requestDigest,
-      provenance: environment.provenance ?? EMPTY_OPERATION_PROVENANCE,
-      state: "running",
-      result_schema_version: definition2.result.version,
-      result: null,
-      refusal: null,
-      changed_refs: [],
-      progress_ref: { kind: "operation_invocation", id: invocationId, revision: null },
-      cancel_ref: null,
-      audit_ref: null,
-      governance: EMPTY_GOVERNANCE_EVIDENCE,
-      execution_owner_id: this.executionOwnerId,
-      started_at: startedAt,
-      updated_at: startedAt,
-      completed_at: null
-    };
-    const existing = await this.ledger.begin(ledgerKey, requestDigest, runningReceipt);
-    if (existing) {
-      if (existing.request_digest !== requestDigest) {
-        return {
-          kind: "conflict",
-          refusal: refusal("idempotency_key_reused", "This idempotency key already identifies a different invocation request.", false, requiredAction("new_idempotency_key", "Use a new idempotency key", "Keep the existing key for the original intent and use a new key for this different request."), { existing_receipt_id: existing.receipt.receipt_id }),
-          existing_receipt: existing.receipt
-        };
-      }
-      if (existing.receipt.state === "running" && ownerMayStillBeRunning(existing.receipt.execution_owner_id, this.executionOwnerId)) {
-        return { kind: "receipt", replayed: true, receipt: existing.receipt };
-      }
-      if (existing.receipt.state === "running") {
-        await this.governance.recover({
-          invocation_id: invocationId,
-          definition: definition2,
-          authority: environment.authority,
-          provenance: existing.receipt.provenance,
-          target: null,
-          request,
-          request_digest: requestDigest,
-          input: request.input,
-          pre_effect_refusal: null,
-          prior_evidence: existing.receipt.governance,
-          receipt: existing.receipt
-        });
-        const recoveredAt = (environment.now ?? isoNow2)();
-        const recovered = {
-          ...existing.receipt,
-          state: "outcome_unknown",
-          refusal: refusal("operation_outcome_unknown", "The Bus restarted or lost ownership while this operation might have been causing effects.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the target and retained audit evidence before deciding whether another operation is safe."), { invocation_id: invocationId }),
-          progress_ref: null,
-          execution_owner_id: null,
-          updated_at: recoveredAt,
-          completed_at: recoveredAt
-        };
-        await this.ledger.update(ledgerKey, recovered);
-        return { kind: "receipt", replayed: true, receipt: recovered };
-      }
-      if (existing.receipt.state === "outcome_unknown") {
-        try {
-          await this.governance.recover({
-            invocation_id: invocationId,
-            definition: definition2,
-            authority: environment.authority,
-            provenance: existing.receipt.provenance,
-            target: null,
-            request,
-            request_digest: requestDigest,
-            input: request.input,
-            pre_effect_refusal: null,
-            prior_evidence: existing.receipt.governance,
-            receipt: existing.receipt
-          });
-        } catch {
-        }
-        return { kind: "receipt", replayed: true, receipt: existing.receipt };
-      }
-      if (existing.receipt.state !== "awaiting_approval") {
-        return { kind: "receipt", replayed: true, receipt: existing.receipt };
-      }
-    }
-    const baseReceipt = existing?.receipt ?? runningReceipt;
-    const completeRefusal = async (operationRefusal4, target2 = request.target ?? null) => {
-      const completedAt2 = (environment.now ?? isoNow2)();
-      const receipt2 = {
-        ...baseReceipt,
-        target: target2,
-        state: "refused",
-        refusal: operationRefusal4,
-        progress_ref: null,
-        execution_owner_id: null,
-        updated_at: completedAt2,
-        completed_at: completedAt2
-      };
-      await this.ledger.update(ledgerKey, receipt2);
-      return { kind: "receipt", replayed: false, receipt: receipt2 };
-    };
-    if (!definition2.authority_boundary_kinds.includes(environment.authority.boundary.kind)) {
-      return completeRefusal(refusal("operation_authority_boundary_not_supported", `Operation '${definition2.operation_id}' cannot run with '${environment.authority.boundary.kind}' authority.`, false, requiredAction("use_supported_authority", "Use the correct authority", "Discover and invoke this operation through one of its declared authority boundaries."), { allowed_boundary_kinds: definition2.authority_boundary_kinds }));
-    }
-    let target = null;
-    if (definition2.target.resource_kinds.length > 0) {
-      if (!request.target) {
-        return completeRefusal(refusal("operation_target_required", "This operation requires a target resource.", false, requiredAction("select_resource", "Select a target", "Select the resource this operation should act on."), { resource_kinds: definition2.target.resource_kinds }));
-      }
-      if (!definition2.target.resource_kinds.includes(request.target.kind)) {
-        return completeRefusal(refusal("operation_target_invalid", `Operation '${definition2.operation_id}' does not support resource kind '${request.target.kind}'.`, false, requiredAction("select_resource", "Select a supported target", "Select a resource supported by the current operation contract."), { resource_kinds: definition2.target.resource_kinds }));
-      }
-      target = await environment.resolve_resource(request.target);
-      if (!target || target.ref.kind !== request.target.kind || target.ref.id !== request.target.id) {
-        return completeRefusal(refusal("operation_target_not_found", `Target '${request.target.kind}:${request.target.id}' was not found in the authenticated authority boundary.`, false, requiredAction("refresh_resource", "Refresh the Workspace", "Refresh current state and select an available resource.")));
-      }
-    } else if (request.target) {
-      return completeRefusal(refusal("operation_target_not_supported", `Operation '${definition2.operation_id}' does not accept a target resource.`, false, requiredAction("remove_target", "Remove the target", "Retry the operation without a target resource.")));
-    }
-    const targetRef = target?.ref ?? null;
-    const revisionRefusal = validateExpectedRevision(definition2, request, target);
-    if (revisionRefusal)
-      return completeRefusal(revisionRefusal, targetRef);
-    if (request.input_schema_version !== definition2.input.version) {
-      return completeRefusal(refusal("operation_input_schema_version_mismatch", `Input schema version '${request.input_schema_version}' is not accepted by '${definition2.operation_id}@${definition2.operation_version}'.`, false, requiredAction("rediscover_operation", "Refresh available actions", "Discover the current operation contract and rebuild the request from its input schema."), { expected: definition2.input.version, received: request.input_schema_version }));
-    }
-    const inputValidation = this.validator.validate(definition2.input.schema, request.input);
-    if (!inputValidation.valid) {
-      return completeRefusal(refusal("operation_input_invalid", "The operation input does not match its discovered schema.", false, requiredAction("correct_input", "Correct the input", "Use the exact versioned input schema returned by operation discovery."), { issues: inputValidation.issues }), targetRef);
-    }
-    const availability3 = await this.evaluateAvailability(definition2, {
-      authority: environment.authority,
-      target
-    });
-    let preEffectRefusal = availability3.available ? null : availability3.refusal;
-    const confirmation = definition2.interaction_constraints.confirmation;
-    if (!preEffectRefusal && confirmation?.required && !environment.authority.interaction.confirmed_prompts.has(confirmation.prompt_id)) {
-      preEffectRefusal = refusal("operation_confirmation_required", confirmation.description, true, requiredAction("confirm", confirmation.title, confirmation.description, {
-        operation_id: definition2.operation_id,
-        operation_version: definition2.operation_version,
-        target: request.target ?? null
-      }), { prompt_id: confirmation.prompt_id });
-    }
-    const governanceInvocation = {
-      invocation_id: invocationId,
-      definition: definition2,
-      authority: environment.authority,
-      // A retry resumes the same retained intent. Its new authenticated
-      // transport/Delivery is not a replacement for that intent's causal origin.
-      // Authority, current target, roles, Policy and exact inputs are still
-      // revalidated below and by governance before any handler runs.
-      provenance: existing?.receipt.state === "awaiting_approval" ? existing.receipt.provenance : environment.provenance ?? EMPTY_OPERATION_PROVENANCE,
-      target,
-      request,
-      request_digest: requestDigest,
-      input: request.input,
-      pre_effect_refusal: preEffectRefusal,
-      prior_evidence: existing?.receipt.governance ?? null
-    };
-    let preparation;
-    try {
-      preparation = await this.governance.prepare(governanceInvocation);
-    } catch {
-      return completeRefusal(refusal("operation_governance_unavailable", "Floe could not establish the canonical Policy, approval, Budget, and audit decision for this operation.", true, requiredAction("inspect_governance", "Inspect governance", "Inspect retained governance state before retrying this exact idempotent invocation."), { invocation_id: invocationId }), targetRef);
-    }
-    if (preparation.state !== "authorized") {
-      const completedAt2 = (environment.now ?? isoNow2)();
-      const receipt2 = {
-        ...baseReceipt,
-        target: targetRef,
-        state: preparation.state,
-        refusal: preparation.refusal,
-        governance: preparation.evidence,
-        audit_ref: preparation.audit_ref,
-        provenance: preparation.canonical_provenance,
-        progress_ref: null,
-        execution_owner_id: null,
-        updated_at: completedAt2,
-        completed_at: preparation.state === "refused" ? completedAt2 : null
-      };
-      await this.ledger.update(ledgerKey, receipt2);
-      return { kind: "receipt", replayed: false, receipt: receipt2 };
-    }
-    const authorizedReceipt = {
-      ...baseReceipt,
-      target: targetRef,
-      state: "running",
-      refusal: null,
-      governance: preparation.evidence,
-      audit_ref: preparation.audit_ref,
-      provenance: preparation.canonical_provenance,
-      progress_ref: { kind: "operation_invocation", id: invocationId, revision: null },
-      execution_owner_id: this.executionOwnerId,
-      updated_at: (environment.now ?? isoNow2)(),
-      completed_at: null
-    };
-    await this.ledger.update(ledgerKey, authorizedReceipt);
-    const settle = async (input) => {
-      const targetAfter = request.target ? await environment.resolve_resource(request.target) : null;
-      await this.governance.settle({
-        ...governanceInvocation,
-        preparation,
-        state: input.state,
-        result: input.result ?? null,
-        refusal: input.refusal ?? null,
-        changed_refs: input.changed_refs ?? [],
-        target_after: targetAfter,
-        actual_usage: input.actual_usage ?? null
-      });
-      return targetAfter;
-    };
-    const completeUnknown = async (operationRefusal4, result = null, changedRefs = []) => {
-      try {
-        await settle({ state: "outcome_unknown", result, refusal: operationRefusal4, changed_refs: changedRefs });
-      } catch {
-      }
-      const completedAt2 = (environment.now ?? isoNow2)();
-      const receipt2 = {
-        ...authorizedReceipt,
-        state: "outcome_unknown",
-        result,
-        refusal: operationRefusal4,
-        changed_refs: changedRefs,
-        progress_ref: null,
-        execution_owner_id: null,
-        updated_at: completedAt2,
-        completed_at: completedAt2
-      };
-      await this.ledger.update(ledgerKey, receipt2);
-      return { kind: "receipt", replayed: false, receipt: receipt2 };
-    };
-    let outcome;
-    try {
-      outcome = await definition2.handler({
-        authority: environment.authority,
-        target,
-        invocation_id: invocationId,
-        idempotency_key: request.idempotency_key,
-        expected_resource_revision: request.expected_resource_revision ?? null,
-        provenance: preparation.canonical_provenance,
-        governance: preparation.evidence
-      }, request.input);
-    } catch {
-      return completeUnknown(refusal("operation_outcome_unknown", "The operation handler stopped without proving whether its effects completed.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the target and invocation evidence before deciding whether a new operation is safe."), { invocation_id: invocationId }));
-    }
-    if (outcome.state === "refused") {
-      await settle({ state: "refused", refusal: outcome.refusal });
-      const completedAt2 = (environment.now ?? isoNow2)();
-      const receipt2 = {
-        ...authorizedReceipt,
-        state: "refused",
-        refusal: outcome.refusal,
-        progress_ref: null,
-        execution_owner_id: null,
-        updated_at: completedAt2,
-        completed_at: completedAt2
-      };
-      await this.ledger.update(ledgerKey, receipt2);
-      return { kind: "receipt", replayed: false, receipt: receipt2 };
-    }
-    const resultValidation = this.validator.validate(definition2.result.schema, outcome.result);
-    if (!resultValidation.valid) {
-      return completeUnknown(refusal("operation_result_invalid", "The operation handler returned a result that violates its published result schema.", false, requiredAction("inspect_contract", "Inspect the operation contract", "The Bus operation implementation and its published result schema must be corrected together."), { issues: resultValidation.issues, invocation_id: invocationId }), null, outcome.changed_refs ?? []);
-    }
-    if (outcome.state === "accepted" && !outcome.progress_ref) {
-      return completeUnknown(refusal("operation_progress_ref_required", "An accepted asynchronous operation must return an inspectable progress reference.", false, requiredAction("inspect_contract", "Inspect the operation contract", "The handler must expose progress for accepted asynchronous work."), { invocation_id: invocationId }), outcome.result, outcome.changed_refs ?? []);
-    }
-    let actualUsage = DEFAULT_OPERATION_USAGE;
-    try {
-      if (definition2.resource_accounting?.measure) {
-        const measured = await definition2.resource_accounting.measure({ authority: environment.authority, target }, request.input, outcome.result);
-        actualUsage = normalizeResourceUsage({ ...DEFAULT_OPERATION_USAGE, ...measured });
-      }
-      await settle({
-        state: outcome.state,
-        result: outcome.result,
-        changed_refs: outcome.changed_refs ?? [],
-        actual_usage: actualUsage
-      });
-    } catch {
-      return completeUnknown(refusal("operation_governance_outcome_unknown", "The operation completed its handler, but Floe could not prove its final governance records.", false, requiredAction("inspect_state", "Inspect current state", "Inspect the operation receipt, target, Budget, and audit evidence before retrying."), { invocation_id: invocationId }), outcome.result, outcome.changed_refs ?? []);
-    }
-    const completedAt = (environment.now ?? isoNow2)();
-    const receipt = {
-      ...authorizedReceipt,
-      target: targetRef,
-      state: outcome.state,
-      result: outcome.result,
-      changed_refs: outcome.changed_refs ?? [],
-      progress_ref: outcome.progress_ref ?? null,
-      cancel_ref: outcome.cancel_ref ?? null,
-      audit_ref: preparation.audit_ref ?? outcome.audit_ref ?? null,
-      execution_owner_id: null,
-      updated_at: completedAt,
-      completed_at: outcome.state === "completed" ? completedAt : null
-    };
-    await this.ledger.update(ledgerKey, receipt);
-    return { kind: "receipt", replayed: false, receipt };
-  }
-  async evaluateAvailability(definition2, context) {
-    const missingGrants = definition2.required_grants.filter((grant) => !context.authority.grants.has(grant));
-    if (missingGrants.length > 0) {
-      return unavailable(refusal("operation_grant_required", "The current principal is not authorised to use this operation.", false, requiredAction("request_grant", "Request access", "Request the narrow grants required for this operation."), { missing_grants: missingGrants }));
-    }
-    if (!definition2.interaction_constraints.allowed_modes.includes(context.authority.interaction.mode)) {
-      return unavailable(refusal("operation_interaction_not_supported", `This operation cannot run in '${context.authority.interaction.mode}' interaction mode.`, false, requiredAction("change_interaction", "Use a supported interaction", "Run this operation through a client that can satisfy its declared interaction constraints."), { allowed_modes: definition2.interaction_constraints.allowed_modes }));
-    }
-    const broker = definition2.interaction_constraints.broker;
-    if (broker && context.authority.interaction.broker_id !== broker.broker_id) {
-      return unavailable(refusal("operation_broker_required", `This operation requires the trusted '${broker.broker_id}' broker.`, false, requiredAction("use_broker", "Open the trusted broker", broker.purpose), { broker_id: broker.broker_id }));
-    }
-    if (definition2.target.resource_kinds.length > 0 && !context.target) {
-      return unavailable(refusal("operation_target_required", "Select a target resource to determine whether this operation is available.", false, requiredAction("select_resource", "Select a target", "Select the resource this operation should act on."), { resource_kinds: definition2.target.resource_kinds }));
-    }
-    if (!definition2.availability)
-      return { available: true };
-    try {
-      return await definition2.availability(context);
-    } catch {
-      return unavailable(refusal("operation_availability_unknown", "Floe could not determine whether this operation is currently safe and available.", true, requiredAction("refresh_resource", "Refresh current state", "Refresh the target and try discovery again.")));
-    }
-  }
-};
-function validateExpectedRevision(definition2, request, target) {
-  const policy = definition2.target.expected_revision;
-  const expected = request.expected_resource_revision ?? null;
-  const current = target?.ref.revision ?? null;
-  if (policy === "not_applicable") {
-    return expected === null ? null : refusal("operation_revision_not_supported", "This operation does not accept an expected resource revision.", false, requiredAction("remove_expected_revision", "Remove the revision", "Retry without an expected resource revision."));
-  }
-  if (policy === "required" && expected === null) {
-    return refusal("operation_expected_revision_required", "The current resource revision is required before this operation can change it.", true, requiredAction("refresh_resource", "Refresh the resource", "Read the current resource and retry with its exact revision."), { current_revision: current });
-  }
-  if (expected !== null && current !== expected) {
-    return refusal("operation_resource_revision_conflict", "The target changed after this operation was prepared.", true, requiredAction("refresh_resource", "Review the latest version", "Refresh the resource, review the change, and create a new invocation."), { expected_revision: expected, current_revision: current });
-  }
-  return null;
-}
-function unavailable(operationRefusal4) {
-  return { available: false, refusal: operationRefusal4 };
-}
-function refusal(code, message, retryable, requiredActionValue, details = {}) {
-  return {
-    code,
-    message,
-    retryable,
-    required_action: requiredActionValue,
-    details
-  };
-}
-function requiredAction(code, title, description, operation = null) {
-  return { code, title, description, operation };
-}
-function assertDefinition(definition2) {
-  for (const [label, value] of [
-    ["operation_id", definition2.operation_id],
-    ["operation_version", definition2.operation_version],
-    ["input schema version", definition2.input.version],
-    ["result schema version", definition2.result.version]
-  ]) {
-    if (!value.trim())
-      throw new Error(`Semantic operation ${label} must not be empty.`);
-  }
-  if (definition2.interaction_constraints.allowed_modes.length === 0) {
-    throw new Error(`Operation '${definition2.operation_id}' must allow at least one interaction mode.`);
-  }
-  if (definition2.interaction_constraints.approval) {
-    throw new Error(`Operation '${definition2.operation_id}' declares a session approval. Approval must be a canonical bound Policy decision.`);
-  }
-  if (definition2.authority_boundary_kinds.length === 0) {
-    throw new Error(`Operation '${definition2.operation_id}' must allow at least one authority boundary kind.`);
-  }
-  const boundaryKinds = new Set(definition2.authority_boundary_kinds);
-  if (boundaryKinds.size !== definition2.authority_boundary_kinds.length || [...boundaryKinds].some((kind) => kind !== "workspace" && kind !== "host")) {
-    throw new Error(`Operation '${definition2.operation_id}' declares invalid authority boundary kinds.`);
-  }
-}
-function invocationLedgerKey(authority, request) {
-  return canonicalJson2({
-    authority_boundary: authority.boundary,
-    principal_id: authority.principal_id,
-    operation_id: request.operation_id,
-    idempotency_key: request.idempotency_key
-  });
-}
-function digest2(value) {
-  return createHash5("sha256").update(canonicalJson2(value)).digest("hex");
-}
-function canonicalJson2(value) {
-  return JSON.stringify(canonicalize(value));
-}
-function canonicalize(value) {
-  if (Array.isArray(value))
-    return value.map(canonicalize);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => [key, canonicalize(entry)]));
-  }
-  return value;
-}
-function isoNow2() {
-  return (/* @__PURE__ */ new Date()).toISOString();
-}
-function ownerMayStillBeRunning(existingOwnerId, currentOwnerId) {
-  if (!existingOwnerId)
-    return false;
-  if (existingOwnerId === currentOwnerId)
-    return true;
-  const match = /^operation_owner_(\d+)_/.exec(existingOwnerId);
-  if (!match)
-    return false;
-  const pid = Number(match[1]);
-  if (!Number.isInteger(pid) || pid <= 0)
-    return false;
-  if (pid === process.pid)
-    return true;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function normalizeResourceUsage(input) {
-  const normalized = {};
-  for (const [metric, amount] of Object.entries(input)) {
-    const name = metric.trim();
-    if (!name || !Number.isFinite(amount) || amount < 0) {
-      throw new Error("Operation resource accounting returned an invalid metric or amount.");
-    }
-    normalized[name] = amount;
-  }
-  return Object.freeze(Object.fromEntries(Object.entries(normalized).sort(([left], [right]) => left.localeCompare(right))));
-}
-
 // floe-bus/dist/credential-operations.js
 var BIND_CREDENTIAL_OPERATION_ID = "credential.bind";
 var HEALTH_CREDENTIAL_OPERATION_ID = "credential.health";
 var ROTATE_CREDENTIAL_OPERATION_ID = "credential.rotate";
 var REVOKE_CREDENTIAL_OPERATION_ID = "credential.revoke";
+var OPERATOR_CREDENTIAL_OPERATION_IDS = Object.freeze([
+  BIND_CREDENTIAL_OPERATION_ID,
+  HEALTH_CREDENTIAL_OPERATION_ID,
+  ROTATE_CREDENTIAL_OPERATION_ID,
+  REVOKE_CREDENTIAL_OPERATION_ID
+]);
 var USE_CREDENTIAL_OPERATION_ID = "credential.use";
 var REFRESH_CREDENTIAL_OPERATION_ID = "credential.refresh";
 var RUNTIME_CREDENTIAL_PURPOSE = "runtime-provider-authentication";
@@ -67183,7 +68071,7 @@ function runtimeCredentialAccessOperations(deps) {
         try {
           const existing = deps.grants.listActiveGrantsForPrincipalBoundary(actor.actor_id, { kind: "workspace", workspace_id: actor.workspace_id }).find((grant2) => {
             const constraint = deps.refs.getGrantConstraint(grant2.grant_id);
-            return Date.parse(grant2.expires_at) >= Date.parse(input.expires_at) && grant2.operation_ids.length === 2 && grant2.operation_ids.includes("credential.use") && grant2.operation_ids.includes("credential.refresh") && grant2.targets.length === 2 && grant2.targets.some((target) => target.kind === "secret_ref" && target.id === ref.secret_ref_id) && grant2.targets.some((target) => target.kind === ref.resource.kind && target.id === ref.resource.id) && constraint?.secret_ref_id === ref.secret_ref_id && constraint.purposes.length === 1 && constraint.purposes[0] === RUNTIME_CREDENTIAL_PURPOSE;
+            return expiryMs(grant2.expires_at) >= Date.parse(input.expires_at) && grant2.operation_ids.length === 2 && grant2.operation_ids.includes("credential.use") && grant2.operation_ids.includes("credential.refresh") && grant2.targets.length === 2 && grant2.targets.some((target) => target.kind === "secret_ref" && target.id === ref.secret_ref_id) && grant2.targets.some((target) => target.kind === ref.resource.kind && target.id === ref.resource.id) && constraint?.secret_ref_id === ref.secret_ref_id && constraint.purposes.length === 1 && constraint.purposes[0] === RUNTIME_CREDENTIAL_PURPOSE;
           });
           const grant = existing ?? deps.grants.issueGrant({
             principal_id: actor.actor_id,
@@ -67233,7 +68121,7 @@ var grantSchema = {
     operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
     targets,
     issued_at: text3,
-    expires_at: text3,
+    expires_at: { oneOf: [text3, { type: "null" }], description: "Null means until revoked." },
     revoked_at: { oneOf: [text3, { type: "null" }] },
     issuer_id: text3,
     evidence: { type: "array", items: {
@@ -67263,7 +68151,7 @@ function capabilityGrantOperations(deps) {
     operation_id: "capability.grant.delegate",
     required_grants: ["capability.grant.delegate"],
     title: "Delegate permitted access",
-    description: "Issue one Actor its own grant containing only the requested subset of one of your session's grants. Requires explicit delegation permission for that Actor. Source and delegation permission remain live dependencies; revoking either removes delegated access. Account purpose constraints are preserved. For an unpublished Actor, omit expected_resource_revision; otherwise supply its exact current_definition_revision_id. Add the returned grant ID to the recipient's Actor definition before publishing it; never copy another Actor's grant IDs.",
+    description: "Issue one Actor its own grant containing only the requested subset of one of your session's grants. Requires explicit delegation permission for that Actor. Source and delegation permission remain live dependencies; revoking either removes delegated access. Account purpose constraints are preserved. For an unpublished Actor, omit expected_resource_revision; otherwise supply its exact current_definition_revision_id. Choose the lifetime explicitly: until_revoked, or expires_at; it may not outlive the source or delegation permission. Add the returned grant ID to the recipient's Actor definition before publishing it; never copy another Actor's grant IDs.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "reference" },
     target: { resource_kinds: ["actor"], expected_revision: "optional" },
     result: resultSchema({ grant: grantSchema, delegation: {
@@ -67280,7 +68168,8 @@ function capabilityGrantOperations(deps) {
         source_grant_id: text3,
         operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
         targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
-        expires_at: { ...text3, description: "Optional earlier expiry. Otherwise uses the earlier source or delegation-permission expiry." },
+        until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
+        expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
         delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
       }
     } },
@@ -67293,10 +68182,15 @@ function capabilityGrantOperations(deps) {
       if (context.expected_resource_revision !== actor.current_definition_revision_id) {
         return { state: "refused", refusal: refusal("delegation_actor_changed", "The Actor changed. Inspect it before delegating access.", true, null) };
       }
+      if (input.until_revoked === true === (input.expires_at !== void 0)) {
+        return { state: "refused", refusal: refusal("delegation_lifetime_required", "Choose exactly one lifetime: until_revoked, or expires_at.", false, null) };
+      }
+      const { until_revoked: _untilRevoked, ...request } = input;
       deps.actors.db.exec("SAVEPOINT delegate_capability");
       try {
         const grant = deps.grants.delegateGrant({
-          ...input,
+          ...request,
+          expires_at: input.expires_at ?? null,
           authority: context.authority,
           principal_id: actor.actor_id,
           recipient: { kind: "actor", id: actor.actor_id },
@@ -67403,779 +68297,6 @@ function resolveActorApprovalPolicy(definition2, policies) {
     return { ok: false, reason: `Approval policy revision '${ref.revision}' has budget limits; bind budget policies instead.` };
   }
   return { ok: true, policy_revision_id: revision.policy_revision_id };
-}
-
-// floe-bus/dist/capability-grants.js
-import { createHash as createHash6, randomUUID as randomUUID6 } from "node:crypto";
-
-// floe-bus/dist/workspace-paths.js
-import path from "node:path";
-function canonicalAbsolutePath(realPath) {
-  const slashed = realPath.split(path.sep).join("/");
-  return slashed.length > 1 && slashed.endsWith("/") && !/^[A-Za-z]:\/$/.test(slashed) ? slashed.slice(0, -1) : slashed;
-}
-function isAbsoluteCanonicalPath(value) {
-  return value.startsWith("/") || /^[A-Za-z]:\//.test(value);
-}
-function pathUnder(folder, candidate) {
-  const insensitive = /^[A-Za-z]:\//.test(folder);
-  const base = insensitive ? folder.toLowerCase() : folder;
-  const value = insensitive ? candidate.toLowerCase() : candidate;
-  if (value === base)
-    return ".";
-  const prefix = base.endsWith("/") ? base : `${base}/`;
-  return value.startsWith(prefix) ? candidate.slice(prefix.length) : null;
-}
-
-// floe-bus/dist/capability-grants.js
-var FILESYSTEM_PATH_TARGET_KIND = "filesystem_path";
-var EXECUTABLE_TARGET_KIND = "executable";
-var NETWORK_DOMAIN_TARGET_KIND = "network_domain";
-function applyCapabilityGrantSchema(db) {
-  const existingColumns = db.prepare("PRAGMA table_info(capability_grants)").all();
-  if (existingColumns.length > 0) {
-    const names = new Set(existingColumns.map((column) => column.name));
-    if (!names.has("boundary_kind") || names.has("workspace_id")) {
-      migrateCapabilityGrantsToCanonical(db, names.has("boundary_kind"));
-    }
-  }
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS capability_grants (
-      grant_id TEXT PRIMARY KEY,
-      principal_id TEXT NOT NULL,
-      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
-      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
-      issued_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      revoked_at TEXT,
-      issuer_id TEXT NOT NULL,
-      evidence_json TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_operations (
-      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      operation_id TEXT NOT NULL,
-      PRIMARY KEY (grant_id, operation_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_targets (
-      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      target_kind TEXT NOT NULL,
-      target_id TEXT,
-      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_delegations (
-      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      source_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
-      authority_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
-      CHECK (grant_id != source_grant_id AND grant_id != authority_grant_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_delegation_only (
-      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_grant_target_identity
-      ON capability_grant_targets(grant_id, target_kind, COALESCE(target_id, ''));
-
-    CREATE INDEX IF NOT EXISTS idx_capability_grant_principal_boundary
-      ON capability_grants(principal_id, boundary_kind, boundary_id, expires_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_capability_grant_active_expiry
-      ON capability_grants(expires_at)
-      WHERE revoked_at IS NULL;
-
-    CREATE TABLE IF NOT EXISTS host_capability_policy_revisions (
-      host_policy_id TEXT NOT NULL,
-      policy_revision TEXT NOT NULL,
-      purpose TEXT NOT NULL,
-      host_id TEXT NOT NULL,
-      principal_id TEXT NOT NULL,
-      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id),
-      supersedes_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
-      superseded_by_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
-      activated_at TEXT NOT NULL,
-      superseded_at TEXT,
-      UNIQUE(host_policy_id, policy_revision),
-      CHECK (superseded_by_grant_id IS NULL OR superseded_at IS NOT NULL)
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_host_capability_policy_active
-      ON host_capability_policy_revisions(host_policy_id)
-      WHERE superseded_at IS NULL;
-
-    CREATE INDEX IF NOT EXISTS idx_host_capability_policy_history
-      ON host_capability_policy_revisions(host_policy_id, activated_at DESC);
-  `);
-}
-function migrateCapabilityGrantsToCanonical(db, hasBoundaryKind) {
-  inSavepoint2(db, () => {
-    const hasSecretConstraints = tableExists2(db, "secret_grant_constraints");
-    const hasSecretPurposes = tableExists2(db, "secret_grant_constraint_purposes");
-    if (hasSecretConstraints) {
-      db.exec(`
-      CREATE TEMP TABLE floe_capability_secret_constraints AS
-      SELECT grant_id, secret_ref_id, workspace_id FROM secret_grant_constraints;
-    `);
-    }
-    if (hasSecretPurposes) {
-      db.exec(`
-      CREATE TEMP TABLE floe_capability_secret_purposes AS
-      SELECT grant_id, purpose FROM secret_grant_constraint_purposes;
-    `);
-    }
-    if (hasSecretPurposes)
-      db.exec("DROP TABLE secret_grant_constraint_purposes;");
-    if (hasSecretConstraints)
-      db.exec("DROP TABLE secret_grant_constraints;");
-    db.exec(`
-    CREATE TABLE capability_grants_next (
-      grant_id TEXT PRIMARY KEY,
-      principal_id TEXT NOT NULL,
-      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
-      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
-      issued_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      revoked_at TEXT,
-      issuer_id TEXT NOT NULL,
-      evidence_json TEXT NOT NULL
-    );
-    CREATE TABLE capability_grant_operations_next (
-      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
-      operation_id TEXT NOT NULL,
-      PRIMARY KEY (grant_id, operation_id)
-    );
-    CREATE TABLE capability_grant_targets_next (
-      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
-      target_kind TEXT NOT NULL,
-      target_id TEXT,
-      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
-    );
-    INSERT INTO capability_grants_next (
-      grant_id, principal_id, boundary_kind, boundary_id,
-      issued_at, expires_at, revoked_at, issuer_id, evidence_json
-    )
-    SELECT grant_id, principal_id,
-           ${hasBoundaryKind ? "boundary_kind, boundary_id" : "'workspace', workspace_id"},
-           issued_at, expires_at, revoked_at, issuer_id, evidence_json
-    FROM capability_grants;
-    INSERT INTO capability_grant_operations_next
-      SELECT grant_id, operation_id FROM capability_grant_operations;
-    INSERT INTO capability_grant_targets_next
-      SELECT grant_id, target_kind, target_id FROM capability_grant_targets;
-    DROP TABLE capability_grant_targets;
-    DROP TABLE capability_grant_operations;
-    DROP TABLE capability_grants;
-    ALTER TABLE capability_grants_next RENAME TO capability_grants;
-    ALTER TABLE capability_grant_operations_next RENAME TO capability_grant_operations;
-    ALTER TABLE capability_grant_targets_next RENAME TO capability_grant_targets;
-  `);
-    if (hasSecretConstraints) {
-      db.exec(`
-      CREATE TABLE secret_grant_constraints (
-        grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-        secret_ref_id TEXT NOT NULL,
-        workspace_id TEXT NOT NULL,
-        FOREIGN KEY (workspace_id, secret_ref_id)
-          REFERENCES secret_refs(workspace_id, secret_ref_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_secret_grant_constraints_ref
-        ON secret_grant_constraints(workspace_id, secret_ref_id);
-      INSERT INTO secret_grant_constraints (grant_id, secret_ref_id, workspace_id)
-      SELECT grant_id, secret_ref_id, workspace_id FROM floe_capability_secret_constraints;
-      DROP TABLE floe_capability_secret_constraints;
-    `);
-    }
-    if (hasSecretPurposes) {
-      db.exec(`
-      CREATE TABLE secret_grant_constraint_purposes (
-        grant_id TEXT NOT NULL REFERENCES secret_grant_constraints(grant_id) ON DELETE CASCADE,
-        purpose TEXT NOT NULL,
-        PRIMARY KEY (grant_id, purpose)
-      );
-      INSERT INTO secret_grant_constraint_purposes (grant_id, purpose)
-      SELECT grant_id, purpose FROM floe_capability_secret_purposes;
-      DROP TABLE floe_capability_secret_purposes;
-    `);
-    }
-  });
-}
-function tableExists2(db, name) {
-  return Boolean(db.prepare(`
-    SELECT 1 AS present FROM sqlite_schema WHERE type = 'table' AND name = ?
-  `).get(name));
-}
-var SqliteCapabilityGrantStore = class {
-  db;
-  now;
-  grantIdFactory;
-  onRevoked;
-  constructor(db, dependencies = {}) {
-    this.db = db;
-    this.now = dependencies.now ?? isoNow3;
-    this.grantIdFactory = dependencies.grant_id_factory ?? (() => `capgrant_${randomUUID6()}`);
-    this.onRevoked = dependencies.on_revoked ?? null;
-  }
-  issueGrant(input) {
-    assertNonEmpty("principal_id", input.principal_id);
-    const boundary = normalizeBoundary4(input.boundary);
-    assertNonEmpty("issuer_id", input.issuer_id);
-    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? []);
-    const evidence = normalizeEvidence(input.evidence);
-    const issuedAt = this.now();
-    const issuedAtMs = parseTimestamp("issued_at", issuedAt);
-    const expiresAtMs = parseTimestamp("expires_at", input.expires_at);
-    if (expiresAtMs <= issuedAtMs) {
-      throw new Error("CapabilityGrant expiry must be after its issue time.");
-    }
-    const grantId = input.grant_id ?? this.grantIdFactory();
-    assertNonEmpty("grant_id", grantId);
-    inSavepoint2(this.db, () => {
-      this.db.prepare(`
-        INSERT INTO capability_grants (
-          grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
-          revoked_at, issuer_id, evidence_json
-        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
-      `).run(grantId, input.principal_id, boundary.kind, boundaryId3(boundary), issuedAt, input.expires_at, input.issuer_id, JSON.stringify(evidence));
-      const insertOperation = this.db.prepare(`
-        INSERT INTO capability_grant_operations (grant_id, operation_id)
-        VALUES (?, ?)
-      `);
-      for (const operationId of operationIds)
-        insertOperation.run(grantId, operationId);
-      const insertTarget = this.db.prepare(`
-        INSERT INTO capability_grant_targets (grant_id, target_kind, target_id)
-        VALUES (?, ?, ?)
-      `);
-      for (const target of targets2)
-        insertTarget.run(grantId, target.kind, target.id);
-      if (input.delegation_only) {
-        this.db.prepare("INSERT INTO capability_grant_delegation_only (grant_id) VALUES (?)").run(grantId);
-      }
-    });
-    return this.requireGrant(grantId);
-  }
-  /** Delegate only pinned, current authority. Parent revocation also removes child authority. */
-  delegateGrant(input) {
-    const authority = input.authority;
-    const source = this.requireActiveSessionGrantIds({
-      principal_id: authority.principal_id,
-      boundary: authority.boundary,
-      grant_ids: [input.source_grant_id]
-    })[0];
-    if (!(authority.session_capability_grant_ids ?? []).includes(source)) {
-      throw new Error("The source grant is not part of this authenticated session.");
-    }
-    const parent = this.requireGrant(source);
-    const permission = this.inspectSessionGrantIds({
-      principal_id: authority.principal_id,
-      boundary: authority.boundary,
-      grant_ids: authority.capability_grant_ids ?? []
-    }).active_grants.filter((grant) => grant.operation_ids.includes("capability.grant.delegate") && grantAppliesToTarget(grant, input.recipient)).sort((a, b) => b.expires_at.localeCompare(a.expires_at) || a.grant_id.localeCompare(b.grant_id))[0];
-    if (!permission || !authority.grants.has("capability.grant.delegate")) {
-      throw new Error("Delegating access requires a current delegation grant for this recipient.");
-    }
-    const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? parent.targets);
-    if (operations.some((id) => !parent.operation_ids.includes(id))) {
-      throw new Error("Delegated operations must be a subset of the source grant.");
-    }
-    if (parent.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !parent.targets.some((allowed) => targetContains(allowed, target))))) {
-      throw new Error("Delegated targets must be contained in the source grant.");
-    }
-    const limit = Math.min(Date.parse(parent.expires_at), Date.parse(permission.expires_at));
-    const expiry = input.expires_at ?? new Date(limit).toISOString();
-    if (parseTimestamp("expires_at", expiry) > limit) {
-      throw new Error("Delegated access cannot outlive its source or delegation permission.");
-    }
-    return inSavepoint2(this.db, () => {
-      const grant = this.issueGrant({
-        principal_id: input.principal_id,
-        boundary: authority.boundary,
-        operation_ids: operations,
-        targets: targets2,
-        expires_at: expiry,
-        issuer_id: authority.principal_id,
-        evidence: [{ kind: "operation_invocation", ref: input.invocation_id }],
-        delegation_only: input.delegation_only === true
-      });
-      this.db.prepare(`INSERT INTO capability_grant_delegations (grant_id, source_grant_id, authority_grant_id)
-        VALUES (?, ?, ?)`).run(grant.grant_id, parent.grant_id, permission.grant_id);
-      return grant;
-    });
-  }
-  getDelegation(grantId) {
-    return this.db.prepare(`SELECT source_grant_id, authority_grant_id FROM capability_grant_delegations WHERE grant_id = ?`).get(grantId) ?? null;
-  }
-  delegationIsActive(grantId, nowMs, path3 = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
-    if (memo.has(grantId))
-      return memo.get(grantId);
-    if (path3.has(grantId))
-      return false;
-    path3.add(grantId);
-    const delegation = this.getDelegation(grantId);
-    if (!delegation) {
-      memo.set(grantId, true);
-      return true;
-    }
-    const child = this.requireGrant(grantId);
-    const active = [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].every((id) => {
-      const parent = this.getGrant(id);
-      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path3), memo);
-    });
-    memo.set(grantId, active);
-    return active;
-  }
-  /**
-   * Activates one immutable host-policy revision. Repeating the exact revision
-   * is idempotent. Any semantic change requires a new revision and atomically
-   * revokes/supersedes the previous grant; revoked history is never revived.
-   */
-  activateHostPolicyGrant(input) {
-    const hostId = assertNonEmpty("host_id", input.host_id);
-    const principalId = assertNonEmpty("principal_id", input.principal_id);
-    const purpose = assertNonEmpty("policy purpose", input.purpose);
-    const policyRevision = assertNonEmpty("policy_revision", input.policy_revision);
-    const issuerId = assertNonEmpty("issuer_id", input.issuer_id);
-    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? []);
-    const evidence = normalizeEvidence(input.evidence);
-    const policyId = hostCapabilityPolicyId(hostId, purpose);
-    const grantId = hostCapabilityPolicyGrantId(policyId, policyRevision);
-    const existingPolicy = this.getHostPolicyRevision(policyId, policyRevision);
-    if (existingPolicy) {
-      const existingGrant = this.requireGrant(existingPolicy.grant_id);
-      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets2) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
-      if (!exact) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' already identifies different authority.`);
-      }
-      if (existingGrant.revoked_at !== null || existingPolicy.superseded_at !== null) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has been superseded and cannot be reactivated.`);
-      }
-      if (parseTimestamp("expires_at", existingGrant.expires_at) <= parseTimestamp("now", this.now())) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has expired and cannot be reactivated.`);
-      }
-      return { replayed: true, policy: existingPolicy, grant: existingGrant };
-    }
-    const activePolicy = this.getActiveHostPolicyRevision(policyId);
-    const activatedAt = this.now();
-    let grant;
-    inSavepoint2(this.db, () => {
-      if (activePolicy) {
-        this.db.prepare(`
-          UPDATE host_capability_policy_revisions
-          SET superseded_at = ?
-          WHERE grant_id = ? AND superseded_at IS NULL
-        `).run(activatedAt, activePolicy.grant_id);
-      }
-      grant = this.issueGrant({
-        grant_id: grantId,
-        principal_id: principalId,
-        boundary: { kind: "host", host_id: hostId },
-        operation_ids: operationIds,
-        targets: targets2,
-        expires_at: input.expires_at,
-        issuer_id: issuerId,
-        evidence
-      });
-      this.db.prepare(`
-        INSERT INTO host_capability_policy_revisions (
-          host_policy_id, policy_revision, purpose, host_id, principal_id,
-          grant_id, supersedes_grant_id, superseded_by_grant_id,
-          activated_at, superseded_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
-      `).run(policyId, policyRevision, purpose, hostId, principalId, grant.grant_id, activePolicy?.grant_id ?? null, activatedAt);
-      if (activePolicy) {
-        this.db.prepare(`
-          UPDATE host_capability_policy_revisions
-          SET superseded_by_grant_id = ?
-          WHERE grant_id = ?
-        `).run(grant.grant_id, activePolicy.grant_id);
-        this.db.prepare(`
-          UPDATE capability_grants
-          SET revoked_at = ?
-          WHERE grant_id = ? AND revoked_at IS NULL
-        `).run(activatedAt, activePolicy.grant_id);
-      }
-    });
-    return {
-      replayed: false,
-      policy: this.requireHostPolicyRevision(policyId, policyRevision),
-      grant
-    };
-  }
-  getHostPolicyRevision(policyId, policyRevision) {
-    const row = this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ? AND policy_revision = ?
-    `).get(policyId, policyRevision);
-    return row ? rowToHostCapabilityPolicy(row) : null;
-  }
-  getActiveHostPolicyRevision(policyId) {
-    const row = this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ? AND superseded_at IS NULL
-    `).get(policyId);
-    return row ? rowToHostCapabilityPolicy(row) : null;
-  }
-  listHostPolicyHistory(hostId, purpose) {
-    const policyId = hostCapabilityPolicyId(hostId, purpose);
-    return this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ?
-      ORDER BY activated_at DESC, policy_revision DESC
-    `).all(policyId).map(rowToHostCapabilityPolicy);
-  }
-  getGrant(grantId) {
-    const row = this.db.prepare(`
-      SELECT grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
-             revoked_at, issuer_id, evidence_json
-      FROM capability_grants
-      WHERE grant_id = ?
-    `).get(grantId);
-    if (!row)
-      return null;
-    const operationIds = this.db.prepare(`
-      SELECT operation_id
-      FROM capability_grant_operations
-      WHERE grant_id = ?
-      ORDER BY operation_id
-    `).all(grantId).map((item) => item.operation_id);
-    if (operationIds.length === 0) {
-      throw new Error(`Stored CapabilityGrant '${grantId}' has no semantic operations.`);
-    }
-    const targets2 = this.db.prepare(`
-      SELECT target_kind, target_id
-      FROM capability_grant_targets
-      WHERE grant_id = ?
-      ORDER BY target_kind, target_id
-    `).all(grantId).map((target) => ({
-      kind: target.target_kind,
-      id: target.target_id
-    }));
-    return {
-      grant_id: row.grant_id,
-      principal_id: row.principal_id,
-      boundary: boundaryFromRow(row.boundary_kind, row.boundary_id),
-      operation_ids: operationIds,
-      targets: targets2,
-      issued_at: row.issued_at,
-      expires_at: row.expires_at,
-      revoked_at: row.revoked_at,
-      issuer_id: row.issuer_id,
-      evidence: parseEvidence(row.evidence_json),
-      delegation_only: Boolean(this.db.prepare("SELECT 1 AS present FROM capability_grant_delegation_only WHERE grant_id = ?").get(grantId))
-    };
-  }
-  revokeGrant(grantId, revokedAt = this.now()) {
-    assertNonEmpty("grant_id", grantId);
-    const revokedAtMs = parseTimestamp("revoked_at", revokedAt);
-    const grant = this.getGrant(grantId);
-    if (!grant || grant.revoked_at !== null)
-      return false;
-    if (revokedAtMs < parseTimestamp("issued_at", grant.issued_at)) {
-      throw new Error("CapabilityGrant revocation cannot predate its issue time.");
-    }
-    const result = this.db.prepare(`
-      UPDATE capability_grants
-      SET revoked_at = ?
-      WHERE grant_id = ? AND revoked_at IS NULL
-    `).run(revokedAt, grantId);
-    const revoked = Number(result.changes) === 1;
-    if (revoked)
-      this.onRevoked?.(this.getGrant(grantId));
-    return revoked;
-  }
-  /** The grant and every grant delegated from it or under its authority, at any depth. */
-  dependentGrantIds(grantId) {
-    return this.db.prepare(`
-      WITH RECURSIVE lost(grant_id) AS (
-        SELECT ?
-        UNION
-        SELECT delegation.grant_id FROM capability_grant_delegations delegation
-        JOIN lost ON delegation.source_grant_id = lost.grant_id OR delegation.authority_grant_id = lost.grant_id
-      )
-      SELECT grant_id FROM lost ORDER BY grant_id
-    `).all(grantId).map((row) => row.grant_id);
-  }
-  listActiveGrantsForPrincipalBoundary(principalId, boundaryValue) {
-    assertNonEmpty("principal_id", principalId);
-    const boundary = normalizeBoundary4(boundaryValue);
-    const now3 = new Date(parseTimestamp("now", this.now())).toISOString();
-    const ids = this.db.prepare(`
-      SELECT grant_id
-      FROM capability_grants
-      WHERE principal_id = ?
-        AND boundary_kind = ?
-        AND boundary_id = ?
-        AND revoked_at IS NULL
-        AND issued_at <= ?
-        AND expires_at > ?
-      ORDER BY issued_at DESC, grant_id
-    `).all(principalId, boundary.kind, boundaryId3(boundary), now3, now3);
-    return ids.filter(({ grant_id }) => this.delegationIsActive(grant_id, Date.parse(now3))).map(({ grant_id }) => this.requireGrant(grant_id)).filter((grant) => !grant.delegation_only);
-  }
-  /**
-   * Checks that every ID is a current grant for the exact session principal and
-   * authority boundary. Session issuance should refuse any unavailable reference.
-   */
-  inspectSessionGrantIds(session) {
-    assertNonEmpty("session principal_id", session.principal_id);
-    normalizeBoundary4(session.boundary);
-    const grantIds = normalizeNonEmptySet(session.grant_ids, "session grant_id", false);
-    const nowMs = parseTimestamp("now", this.now());
-    const activeGrants = [];
-    const delegableGrants = [];
-    const unavailableGrants = [];
-    for (const grantId of grantIds) {
-      const grant = this.getGrant(grantId);
-      const code = grantReferenceFailure(grant, session, nowMs) ?? (this.delegationIsActive(grantId, nowMs) ? null : "grant_dependency_unavailable");
-      if (code === null && grant)
-        (grant.delegation_only ? delegableGrants : activeGrants).push(grant);
-      else
-        unavailableGrants.push({ grant_id: grantId, code: code ?? "grant_not_found" });
-    }
-    return { active_grants: activeGrants, delegable_grants: delegableGrants, unavailable_grants: unavailableGrants };
-  }
-  /**
-   * Assertion helper for trusted session issuance. Stored sessions should keep
-   * the returned opaque IDs, never a copied list of operation strings.
-   */
-  requireActiveSessionGrantIds(session) {
-    const inspection = this.inspectSessionGrantIds(session);
-    const live = [...inspection.active_grants, ...inspection.delegable_grants];
-    if (live.length === 0 || inspection.unavailable_grants.length > 0) {
-      throw new CapabilityGrantReferenceError(inspection.unavailable_grants);
-    }
-    const liveIds = new Set(live.map((grant) => grant.grant_id));
-    return normalizeNonEmptySet(session.grant_ids, "session grant_id", false).filter((id) => liveIds.has(id));
-  }
-  /**
-   * Resolves an existing session at request time. Revoked, expired, missing, or
-   * mismatched grants contribute no operations. Resource-bound grants only
-   * contribute for their exact target.
-   */
-  resolveSessionAuthority(session, target) {
-    assertNonEmpty("interaction session_id", session.interaction.session_id);
-    const inspection = this.inspectSessionGrantIds(session);
-    const applicableGrants = inspection.active_grants.filter((grant) => grantAppliesToTarget(grant, target));
-    const operationIds = /* @__PURE__ */ new Set();
-    for (const grant of applicableGrants) {
-      for (const operationId of grant.operation_ids)
-        operationIds.add(operationId);
-    }
-    return {
-      authority: createOperationAuthorityContext({
-        principal_id: session.principal_id,
-        boundary: session.boundary,
-        capability_grant_ids: applicableGrants.map((grant) => grant.grant_id),
-        // Delegation-only grants stay pinned to the session so they can be a
-        // delegation source, but they never contribute operations above.
-        session_capability_grant_ids: [...inspection.active_grants, ...inspection.delegable_grants].map((grant) => grant.grant_id),
-        grants: operationIds,
-        interaction: {
-          mode: session.interaction.mode,
-          session_id: session.interaction.session_id,
-          broker_id: session.interaction.broker_id ?? null,
-          confirmed_prompts: new Set(session.interaction.confirmed_prompts),
-          approval_refs: new Set(session.interaction.approval_refs)
-        }
-      }),
-      active_grant_ids: inspection.active_grants.map((grant) => grant.grant_id),
-      applicable_grant_ids: applicableGrants.map((grant) => grant.grant_id),
-      unavailable_grants: inspection.unavailable_grants
-    };
-  }
-  requireGrant(grantId) {
-    const grant = this.getGrant(grantId);
-    if (!grant)
-      throw new Error(`CapabilityGrant '${grantId}' was not persisted.`);
-    return grant;
-  }
-  requireHostPolicyRevision(policyId, policyRevision) {
-    const policy = this.getHostPolicyRevision(policyId, policyRevision);
-    if (!policy) {
-      throw new Error(`Host capability policy '${policyId}@${policyRevision}' was not persisted.`);
-    }
-    return policy;
-  }
-};
-var CapabilityGrantReferenceError = class extends Error {
-  failures;
-  constructor(failures) {
-    super(failures.length === 0 ? "An authority session must reference at least one active CapabilityGrant." : failures.map((failure) => `CapabilityGrant '${failure.grant_id}': ${failure.code}.`).join(" "));
-    this.failures = failures;
-    this.name = "CapabilityGrantReferenceError";
-  }
-};
-function grantReferenceFailure(grant, session, nowMs) {
-  if (!grant)
-    return "grant_not_found";
-  if (grant.principal_id !== session.principal_id)
-    return "grant_principal_mismatch";
-  if (!sameBoundary3(grant.boundary, session.boundary))
-    return "grant_boundary_mismatch";
-  if (grant.revoked_at !== null)
-    return "grant_revoked";
-  if (parseTimestamp("issued_at", grant.issued_at) > nowMs)
-    return "grant_not_yet_active";
-  if (parseTimestamp("expires_at", grant.expires_at) <= nowMs)
-    return "grant_expired";
-  return null;
-}
-function grantAppliesToTarget(grant, target) {
-  if (grant.targets.length === 0)
-    return true;
-  if (target === null)
-    return false;
-  return grant.targets.some((candidate) => candidate.kind === target.kind && (candidate.id === null || candidate.id === target.id));
-}
-function targetContains(allowed, child) {
-  if (allowed.kind !== child.kind)
-    return false;
-  if (allowed.id === null || allowed.id === child.id)
-    return true;
-  if (child.id === null)
-    return false;
-  if (allowed.kind === FILESYSTEM_PATH_TARGET_KIND) {
-    if (allowed.id === ".")
-      return !isAbsoluteCanonicalPath(child.id);
-    return child.id.startsWith(`${allowed.id}/`);
-  }
-  if (allowed.kind === EXECUTABLE_TARGET_KIND)
-    return allowed.id.toLowerCase() === child.id.toLowerCase();
-  if (allowed.kind === NETWORK_DOMAIN_TARGET_KIND) {
-    const domain = allowed.id.toLowerCase();
-    const host = child.id.toLowerCase();
-    return host === domain || host.endsWith(`.${domain}`);
-  }
-  return false;
-}
-function normalizeTargets(targets2) {
-  const normalized = /* @__PURE__ */ new Map();
-  for (const target of targets2) {
-    assertNonEmpty("target kind", target.kind);
-    if (target.id !== null)
-      assertNonEmpty("target id", target.id);
-    const value = { kind: target.kind, id: target.id };
-    normalized.set(JSON.stringify([value.kind, value.id]), value);
-  }
-  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || (left.id ?? "").localeCompare(right.id ?? ""));
-}
-function normalizeBoundary4(boundary) {
-  if (boundary.kind === "workspace") {
-    assertNonEmpty("boundary workspace_id", boundary.workspace_id);
-    return { kind: "workspace", workspace_id: boundary.workspace_id };
-  }
-  if (boundary.kind === "host") {
-    assertNonEmpty("boundary host_id", boundary.host_id);
-    return { kind: "host", host_id: boundary.host_id };
-  }
-  throw new Error("CapabilityGrant boundary kind is invalid.");
-}
-function boundaryId3(boundary) {
-  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
-}
-function sameBoundary3(left, right) {
-  return left.kind === right.kind && boundaryId3(left) === boundaryId3(right);
-}
-function boundaryFromRow(kind, id) {
-  if (kind === "workspace")
-    return { kind: "workspace", workspace_id: id };
-  if (kind === "host")
-    return { kind: "host", host_id: id };
-  throw new Error("Stored CapabilityGrant authority boundary is invalid.");
-}
-function hostCapabilityPolicyId(hostId, purpose) {
-  assertNonEmpty("host_id", hostId);
-  assertNonEmpty("policy purpose", purpose);
-  return `host_policy_${digest3(`${hostId}\0${purpose}`).slice(0, 32)}`;
-}
-function hostCapabilityPolicyGrantId(policyId, policyRevision) {
-  assertNonEmpty("host_policy_id", policyId);
-  assertNonEmpty("policy_revision", policyRevision);
-  return `capgrant_host_policy_${digest3(`${policyId}\0${policyRevision}`).slice(0, 32)}`;
-}
-function rowToHostCapabilityPolicy(row) {
-  return {
-    host_policy_id: row.host_policy_id,
-    policy_revision: row.policy_revision,
-    purpose: row.purpose,
-    host_id: row.host_id,
-    principal_id: row.principal_id,
-    grant_id: row.grant_id,
-    supersedes_grant_id: row.supersedes_grant_id,
-    superseded_by_grant_id: row.superseded_by_grant_id,
-    activated_at: row.activated_at,
-    superseded_at: row.superseded_at
-  };
-}
-function normalizeEvidence(evidence) {
-  if (evidence.length === 0)
-    throw new Error("CapabilityGrant evidence must not be empty.");
-  const normalized = /* @__PURE__ */ new Map();
-  for (const item of evidence) {
-    assertNonEmpty("evidence kind", item.kind);
-    assertNonEmpty("evidence ref", item.ref);
-    const value = { kind: item.kind, ref: item.ref };
-    normalized.set(JSON.stringify([value.kind, value.ref]), value);
-  }
-  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.ref.localeCompare(right.ref));
-}
-function parseEvidence(value) {
-  const parsed = JSON.parse(value);
-  if (!Array.isArray(parsed))
-    throw new Error("Stored CapabilityGrant evidence is invalid.");
-  return normalizeEvidence(parsed.map((item) => {
-    if (!item || typeof item !== "object")
-      throw new Error("Stored CapabilityGrant evidence is invalid.");
-    const candidate = item;
-    if (typeof candidate.kind !== "string" || typeof candidate.ref !== "string") {
-      throw new Error("Stored CapabilityGrant evidence is invalid.");
-    }
-    return { kind: candidate.kind, ref: candidate.ref };
-  }));
-}
-function normalizeNonEmptySet(values, label, requireValue) {
-  if (requireValue && values.length === 0)
-    throw new Error(`CapabilityGrant ${label} list must not be empty.`);
-  for (const value of values)
-    assertNonEmpty(label, value);
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
-function assertNonEmpty(label, value) {
-  if (!value.trim())
-    throw new Error(`CapabilityGrant ${label} must not be empty.`);
-  return value;
-}
-function digest3(value) {
-  return createHash6("sha256").update(value, "utf8").digest("hex");
-}
-function parseTimestamp(label, value) {
-  const timestamp2 = Date.parse(value);
-  if (!Number.isFinite(timestamp2))
-    throw new Error(`CapabilityGrant ${label} must be an ISO timestamp.`);
-  return timestamp2;
-}
-var savepointSequence2 = 0;
-function inSavepoint2(db, action) {
-  savepointSequence2 += 1;
-  const name = `capability_grant_${savepointSequence2}`;
-  db.exec(`SAVEPOINT ${name}`);
-  try {
-    const result = action();
-    db.exec(`RELEASE SAVEPOINT ${name}`);
-    return result;
-  } catch (error) {
-    db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
-    db.exec(`RELEASE SAVEPOINT ${name}`);
-    throw error;
-  }
-}
-function isoNow3() {
-  return (/* @__PURE__ */ new Date()).toISOString();
 }
 
 // floe-bus/dist/tool-policy.js
@@ -68325,6 +68446,275 @@ function shellAmbiguity(facts) {
 function deny(code, reason) {
   return { allowed: false, code, reason };
 }
+
+// floe-bus/dist/actor-authority-adoption.js
+import { createHash as createHash7 } from "node:crypto";
+var FLOE_ISSUED_EVIDENCE = /* @__PURE__ */ new Set(["workspace_configuration_import_policy", "local_product_policy"]);
+var AUTOMATIC_ADOPTION_PRINCIPAL = "system:actor-access-adoption:v0.4.0";
+var ActorAccessAdoption = class {
+  deps;
+  constructor(deps) {
+    this.deps = deps;
+  }
+  /** The active authorities in a Workspace. Exactly one means its owner is not in doubt. */
+  activeAuthorities(workspaceId4) {
+    return this.deps.db.prepare(`
+      SELECT authority_id FROM identity_workspace_authorities
+      WHERE workspace_id = ? AND status = 'active' ORDER BY issued_at, authority_id
+    `).all(workspaceId4).map((row) => this.deps.authorities.get(row.authority_id)).filter((record) => this.deps.grants.isActiveGrant(this.deps.authorities.rootGrant(record)));
+  }
+  /** The Actor's live access that Floe issued on nobody's behalf and that no person's root carries yet. */
+  movableGrants(actorId) {
+    const definition2 = this.deps.actors.getCurrentDefinition(actorId);
+    if (!definition2)
+      return [];
+    return definition2.content.capability_grant_ids.map((id) => this.deps.grants.getGrant(id)).filter((grant) => grant !== null && this.deps.grants.getDelegation(grant.grant_id) === null && grant.evidence.some((item) => FLOE_ISSUED_EVIDENCE.has(item.kind)) && this.deps.grants.isActiveGrant(grant));
+  }
+  /**
+   * Move an Actor's Floe-issued access onto a person's root. When the Actor
+   * holds no live access at all and `give_default` is set, it gets the default
+   * Actor access from that root instead. Returns null when nothing changed.
+   */
+  adopt(input) {
+    const actor = this.deps.actors.getActor(input.actor_id);
+    const definition2 = this.deps.actors.getCurrentDefinition(input.actor_id);
+    if (!actor || actor.status !== "active" || !definition2 || actor.workspace_id !== input.authority.workspace_id)
+      return null;
+    const root = this.deps.authorities.rootGrant(input.authority);
+    const movable = this.movableGrants(input.actor_id);
+    const hasLiveAccess = definition2.content.capability_grant_ids.some((id) => {
+      const grant = this.deps.grants.getGrant(id);
+      return grant !== null && this.deps.grants.isActiveGrant(grant);
+    });
+    const plans = movable.length > 0 ? movable.map((grant) => ({ from: grant.grant_id, operation_ids: grant.operation_ids, targets: grant.targets })) : !hasLiveAccess && input.give_default ? [{ from: null, operation_ids: this.deps.default_actor_operation_ids(), targets: [] }] : [];
+    if (plans.length === 0)
+      return null;
+    return inSavepoint(this.deps.db, () => {
+      const issued = [];
+      const dropped = /* @__PURE__ */ new Set();
+      for (const plan of plans) {
+        const kept = plan.operation_ids.filter((id) => root.operation_ids.includes(id));
+        for (const id of plan.operation_ids)
+          if (!kept.includes(id))
+            dropped.add(id);
+        if (kept.length === 0)
+          continue;
+        const grant = this.deps.grants.issueDependentGrant({
+          grant_id: `capgrant_adopted_${digest4([input.actor_id, plan.from ?? "default", root.grant_id])}`,
+          source_grant_id: root.grant_id,
+          principal_id: input.actor_id,
+          operation_ids: kept,
+          targets: plan.targets,
+          evidence: [plan.from ? { kind: "actor_access_adoption", ref: plan.from } : { kind: "actor_access_default", ref: input.authority.authority_id }]
+        });
+        issued.push(grant.grant_id);
+      }
+      const movedIds = movable.map((grant) => grant.grant_id);
+      const draft = this.deps.actors.createDraft({
+        actor_id: input.actor_id,
+        created_by_principal_id: input.changed_by,
+        definition: { ...definition2.content, capability_grant_ids: [
+          ...definition2.content.capability_grant_ids.filter((id) => !movedIds.includes(id)),
+          ...issued
+        ] }
+      });
+      const published = this.deps.actors.publishDraft({
+        actor_definition_revision_id: draft.actor_definition_revision_id,
+        expected_current_revision_id: definition2.actor_definition_revision_id,
+        changed_by_principal_id: input.changed_by
+      });
+      for (const id of movedIds)
+        this.deps.grants.revokeGrant(id);
+      this.deps.accept_authority_only_revision(input.actor_id, published.actor_definition_revision_id);
+      const move = {
+        actor_id: input.actor_id,
+        workspace_id: actor.workspace_id,
+        identity_id: input.authority.identity_id,
+        moved_grant_ids: movedIds,
+        issued_grant_ids: issued,
+        dropped_operation_ids: [...dropped].sort(),
+        actor_definition_revision_id: published.actor_definition_revision_id
+      };
+      this.recordMove(move, definition2.content.label, input.changed_by, movable.length > 0);
+      return move;
+    });
+  }
+  /**
+   * Startup migration. In a Workspace with exactly one person, that person is
+   * the real owner of its Actors' Floe-issued access, so it moves onto their
+   * root now. Elsewhere nothing moves; a person adopts it. Idempotent: access
+   * already carried by a root is never moved again.
+   */
+  migrate() {
+    const moves = [];
+    for (const workspaceId4 of this.workspaceIds()) {
+      const authorities = this.activeAuthorities(workspaceId4);
+      if (authorities.length === 1) {
+        for (const actor of this.deps.actors.listActors(workspaceId4)) {
+          if (this.movableGrants(actor.actor_id).length === 0)
+            continue;
+          const move = this.adopt({
+            actor_id: actor.actor_id,
+            authority: authorities[0],
+            changed_by: AUTOMATIC_ADOPTION_PRINCIPAL,
+            give_default: false
+          });
+          if (move)
+            moves.push(move);
+        }
+      }
+      this.noteLapses(workspaceId4);
+    }
+    return moves;
+  }
+  /**
+   * Keep one standing notice per Actor whose access ends on a date, naming the
+   * date and what a person can do. Written as soon as the ending is known,
+   * which is when the access is issued or found, so it always comes well
+   * before the lapse.
+   */
+  noteLapses(workspaceId4) {
+    for (const actor of this.deps.actors.listActors(workspaceId4))
+      this.noteLapse(actor.actor_id);
+  }
+  noteLapse(actorId) {
+    const actor = this.deps.actors.getActor(actorId);
+    if (!actor || actor.status !== "active")
+      return;
+    const definition2 = this.deps.actors.getCurrentDefinition(actorId);
+    if (!definition2)
+      return;
+    const ending = this.deps.grants.listActiveGrantsForPrincipalBoundary(actorId, { kind: "workspace", workspace_id: actor.workspace_id }).map((grant) => ({ grant, ends: this.deps.grants.effectiveExpiry(grant.grant_id) })).filter((item) => item.ends !== null).sort((a, b) => Date.parse(a.ends) - Date.parse(b.ends))[0];
+    if (!ending) {
+      this.deps.access.removeStandingNotice(`notice:actor-access-lapse:${actorId}`);
+      return;
+    }
+    const date = ending.ends.slice(0, 10);
+    const floeIssued = ending.grant.evidence.some((item) => FLOE_ISSUED_EVIDENCE.has(item.kind)) && this.deps.grants.getDelegation(ending.grant.grant_id) === null;
+    this.deps.access.recordStandingNotice({
+      record_id: `notice:actor-access-lapse:${actorId}`,
+      workspace_id: actor.workspace_id,
+      kind: "actor_access_lapsing",
+      summary: floeIssued ? `${definition2.content.label} loses its access to this workspace on ${date}, unless a person here adopts it.` : `${definition2.content.label} loses some of its access to this workspace on ${date}, when the access it was given ends.`,
+      principal_id: "system:actor-access-lapse"
+    });
+  }
+  recordMove(move, label, changedBy, moved) {
+    const person = this.deps.identity_name(move.identity_id);
+    const summary2 = moved ? `${label} now acts with ${person}'s access in this workspace. Nothing was added, and it no longer expires.` : `${label} was given access to this workspace by ${person}. It lasts until ${person}'s access is revoked.`;
+    this.deps.access.recordStandingNotice({
+      record_id: `notice:actor-access-moved:${move.actor_id}:${move.actor_definition_revision_id}`,
+      workspace_id: move.workspace_id,
+      kind: "actor_access_moved",
+      summary: move.dropped_operation_ids.length > 0 ? `${summary2} ${person}'s own access does not include ${move.dropped_operation_ids.join(", ")}, so ${label} no longer has them.` : summary2,
+      principal_id: changedBy
+    });
+  }
+  workspaceIds() {
+    return this.deps.db.prepare("SELECT DISTINCT workspace_id FROM actors WHERE status = 'active' ORDER BY workspace_id").all().map((row) => row.workspace_id);
+  }
+};
+function digest4(parts) {
+  return createHash7("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
+}
+
+// floe-bus/dist/local-product-policy.js
+import { createHash as createHash8 } from "node:crypto";
+var DEFAULT_ACTOR_OPERATIONS_V1 = Object.freeze([
+  ...CAPABILITY_GRANT_OPERATION_IDS,
+  "actor.create",
+  "actor.definition.draft.create",
+  "actor.definition.draft.replace",
+  "actor.definition.get",
+  "actor.definition.publish",
+  "actor.definition.rollback",
+  "actor.inspect",
+  "actor.list",
+  "actor.reactivate",
+  "actor.retire",
+  "actor.runtime-binding.create",
+  "actor.runtime-binding.get",
+  "actor.runtime-binding.inspect",
+  "actor.runtime-binding.replace",
+  "approval.inspect",
+  "approval.list",
+  "approval.request",
+  "approval.response.configure",
+  "artefact.create",
+  "artefact.inspect",
+  "artefact.search",
+  "artefact.version.publish",
+  "artefact.version.export",
+  "connector.inspect",
+  "context.archive",
+  "context.communication.emit",
+  "context.create",
+  "context.get",
+  "context.inspect",
+  "context.list",
+  "context.participant.remove",
+  "context.participant.set_access",
+  "context.restore",
+  "extension.inspect",
+  "extension.list",
+  "extension.package.get",
+  "extension.schema.discover",
+  "runtime-profile.create",
+  "runtime-profile.draft.create",
+  "runtime-profile.draft.replace",
+  "runtime-profile.inspect",
+  "runtime-profile.list",
+  "runtime-profile.publish",
+  "runtime-profile.reactivate",
+  "runtime-profile.retire",
+  "runtime-profile.revision.get",
+  "runtime-profile.rollback",
+  "scope.create",
+  "scope.list",
+  "scope.composition.draft.create",
+  "scope.composition.draft.replace",
+  "scope.composition.clone",
+  "scope.composition.compare",
+  "scope.composition.export",
+  "scope.composition.impact.inspect",
+  "scope.composition.import",
+  "scope.composition.publish",
+  "scope.composition.rollback",
+  "scope.composition.simulate",
+  "scope.composition.validate",
+  "scope.execution.inspect",
+  "scope.execution.pause",
+  "scope.execution.redo",
+  "scope.execution.resume",
+  "scope.execution.start",
+  "scope.execution.stop",
+  "scope.node-execution.retry",
+  "scope.node-output.publish",
+  "scope.plan.inspect",
+  "workspace.inspect",
+  // Engine built-ins are unrestricted by default; a person may choose limits.
+  ...Object.values(ENGINE_TOOL_OPERATIONS)
+]);
+var localProductWorkspacePolicy = (input) => {
+  if (!input.init_authorized || !["created", "legacy_retained"].includes(input.creation_kind ?? ""))
+    return null;
+  const root = input.sole_person_root;
+  if (!root)
+    return null;
+  const operations = DEFAULT_ACTOR_OPERATIONS_V1.filter((id) => root.operation_ids.includes(id));
+  if (operations.length === 0)
+    return null;
+  const assignments = input.inventory.actors.map((actor) => ({ source_actor_id: actor.source_actor_id, operation_ids: operations }));
+  const digest11 = createHash8("sha256").update(JSON.stringify({ workspace_id: input.workspace_id, assignments, root: root.grant_id })).digest("hex").slice(0, 24);
+  return {
+    policy_revision: `person-delegated-actor-access-v1:${root.grant_id}:${digest11}`,
+    actor_operation_authority: assignments,
+    expires_at: null,
+    issuer_id: root.principal_id,
+    import_principal_id: "system:workspace-configuration-import",
+    delegation_source_grant_id: root.grant_id
+  };
+};
 
 // floe-bus/dist/tool-approvals.js
 var TOOL_APPROVAL_TARGET_KIND = "runtime_delivery";
@@ -68488,6 +68878,14 @@ function applyWorkspaceAccessSchema(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_workspace_access_records_workspace
       ON workspace_access_records(workspace_id, host_id, recorded_at);
+    CREATE TABLE IF NOT EXISTS workspace_notice_acknowledgements (
+      record_id TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      record_recorded_at TEXT NOT NULL,
+      acknowledged_at TEXT NOT NULL,
+      PRIMARY KEY (record_id, principal_id)
+    );
   `);
 }
 function realFolder(locator) {
@@ -68523,9 +68921,15 @@ var WorkspaceAccessStore = class {
         added_at: row.added_at
       });
     }
+    const seen = /* @__PURE__ */ new Map();
+    for (const row of this.db.prepare(`SELECT a.record_id, a.principal_id FROM workspace_notice_acknowledgements a
+      JOIN workspace_access_records r ON r.record_id = a.record_id AND r.recorded_at = a.record_recorded_at
+      WHERE r.workspace_id = ? AND r.host_id = ? ORDER BY a.acknowledged_at, a.principal_id`).all(workspaceId4, this.dependencies.host_id)) {
+      seen.set(row.record_id, [...seen.get(row.record_id) ?? [], row.principal_id]);
+    }
     const records = this.db.prepare(`SELECT record_id, kind, summary, path, principal_id, recorded_at
       FROM workspace_access_records WHERE workspace_id = ? AND host_id = ?
-      ORDER BY recorded_at DESC, record_id DESC LIMIT ?`).all(workspaceId4, this.dependencies.host_id, RECORD_LIMIT).map((row) => ({ ...row }));
+      ORDER BY recorded_at DESC, record_id DESC LIMIT ?`).all(workspaceId4, this.dependencies.host_id, RECORD_LIMIT).map((row) => ({ ...row, seen_by: seen.get(row.record_id) ?? [] }));
     return { workspace_id: workspaceId4, folders, system_access: this.systemAccess(workspaceId4), records };
   }
   toolBoundary(workspaceId4) {
@@ -68577,16 +68981,102 @@ var WorkspaceAccessStore = class {
     this.record(input.workspace_id, input.enabled ? "system_access_turned_on" : "system_access_turned_off", input.enabled ? "System access turned on: file tools may reach anywhere on this machine." : "System access turned off: file tools are limited to this Workspace's folders.", null, input.principal_id, at);
     return this.inspect(input.workspace_id);
   }
+  /**
+   * Gives a new Workspace the extra folders and System access of the
+   * Workspace it was copied or forked from on this machine, keeping who
+   * first chose each one, and records a notice saying what came across.
+   */
+  carryAccess(input) {
+    const host = this.dependencies.host_id;
+    const folders = this.db.prepare(`SELECT locator, added_at, added_by_principal_id FROM workspace_folders
+      WHERE workspace_id = ? AND host_id = ? ORDER BY added_at, folder_id`).all(input.source_workspace_id, host);
+    const system = this.db.prepare(`SELECT changed_at, changed_by_principal_id FROM workspace_system_access
+      WHERE workspace_id = ? AND host_id = ? AND enabled = 1`).get(input.source_workspace_id, host);
+    if (folders.length === 0 && !system)
+      return;
+    for (const folder of folders) {
+      this.db.prepare(`INSERT INTO workspace_folders (folder_id, workspace_id, host_id, locator, added_at, added_by_principal_id)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(`folder_${randomUUID7()}`, input.workspace_id, host, folder.locator, folder.added_at, folder.added_by_principal_id);
+    }
+    if (system) {
+      this.db.prepare(`INSERT INTO workspace_system_access (workspace_id, host_id, enabled, changed_at, changed_by_principal_id)
+        VALUES (?, ?, 1, ?, ?)`).run(input.workspace_id, host, system.changed_at, system.changed_by_principal_id);
+    }
+    this.record(input.workspace_id, "access_carried", carriedSummary(input.how, folders.map((folder) => folder.locator), Boolean(system)), null, input.principal_id, this.now());
+  }
+  /** The extra folders and System access this machine holds for a Workspace. */
+  hostAccess(workspaceId4) {
+    return { folder_locators: this.folderRows(workspaceId4).map((row) => row.locator), system_access: this.systemAccess(workspaceId4) };
+  }
+  /**
+   * Tells a restored Workspace what its package left behind. Restoring the
+   * same package again changes nothing.
+   */
+  recordLeftBehind(workspaceId4, leftBehind) {
+    const parts = [
+      ...leftBehind.folder_names.length > 0 ? [`${leftBehind.folder_names.length === 1 ? "the folder" : `${leftBehind.folder_names.length} folders`} ${leftBehind.folder_names.join(", ")}, which you can add again`] : [],
+      ...leftBehind.system_access ? ["System access, which was on where it came from and is off here until you turn it on"] : []
+    ];
+    return this.recordStandingNotice({
+      record_id: `notice:left-behind:${workspaceId4}`,
+      workspace_id: workspaceId4,
+      kind: "access_left_behind",
+      summary: `This Workspace was restored from a package, which does not carry machine access. Left behind: ${parts.join("; ")}.`,
+      principal_id: "system:workspace-restore"
+    });
+  }
   /** Records the tool access notice once per Workspace; true when it was recorded now. */
   recordToolAccessNotice(workspaceId4, principalId) {
     const result = this.db.prepare(`INSERT OR IGNORE INTO workspace_access_records
       (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at)
       VALUES (?, ?, ?, 'tool_access_given', NULL, ?, ?, ?)`).run(`notice:tool-access:${workspaceId4}`, workspaceId4, this.dependencies.host_id, TOOL_ACCESS_NOTICE, principalId, this.now());
-    return Number(result.changes) > 0;
+    return this.noticed(workspaceId4, Number(result.changes) > 0);
+  }
+  /**
+   * Keeps one standing notice under a stable id. A changed summary replaces
+   * the old one and counts as new; the same summary again changes nothing.
+   * True when the notice was recorded or changed now.
+   */
+  recordStandingNotice(input) {
+    const result = this.db.prepare(`INSERT INTO workspace_access_records
+      (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at)
+      VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
+      ON CONFLICT(record_id) DO UPDATE SET kind = excluded.kind, summary = excluded.summary,
+        principal_id = excluded.principal_id, recorded_at = excluded.recorded_at
+      WHERE workspace_access_records.summary <> excluded.summary OR workspace_access_records.kind <> excluded.kind`).run(input.record_id, input.workspace_id, this.dependencies.host_id, input.kind, input.summary, input.principal_id, this.now());
+    return this.noticed(input.workspace_id, Number(result.changes) > 0);
+  }
+  /**
+   * Marks a record seen by one person, as it now reads. False when it was
+   * already seen; throws when the Workspace has no such record.
+   */
+  acknowledge(input) {
+    const record = this.db.prepare(`SELECT recorded_at FROM workspace_access_records
+      WHERE record_id = ? AND workspace_id = ? AND host_id = ?`).get(input.record_id, input.workspace_id, this.dependencies.host_id);
+    if (!record)
+      throw new WorkspaceFolderError("notice_not_found", "This Workspace has no notice with that id.");
+    return Number(this.db.prepare(`INSERT INTO workspace_notice_acknowledgements
+      (record_id, principal_id, workspace_id, record_recorded_at, acknowledged_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(record_id, principal_id) DO UPDATE SET record_recorded_at = excluded.record_recorded_at,
+        acknowledged_at = excluded.acknowledged_at
+      WHERE workspace_notice_acknowledgements.record_recorded_at <> excluded.record_recorded_at`).run(input.record_id, input.principal_id, input.workspace_id, record.recorded_at, this.now()).changes) > 0;
+  }
+  removeStandingNotice(recordId) {
+    const row = this.db.prepare("SELECT workspace_id FROM workspace_access_records WHERE record_id = ? AND host_id = ?").get(recordId, this.dependencies.host_id);
+    if (!row)
+      return false;
+    this.db.prepare("DELETE FROM workspace_notice_acknowledgements WHERE record_id = ?").run(recordId);
+    this.db.prepare("DELETE FROM workspace_access_records WHERE record_id = ? AND host_id = ?").run(recordId, this.dependencies.host_id);
+    return this.noticed(row.workspace_id, true);
+  }
+  noticed(workspaceId4, changed) {
+    if (changed)
+      this.dependencies.notice_changed?.(workspaceId4);
+    return changed;
   }
   /** Removes everything held for a deleted Workspace. */
   forgetWorkspace(workspaceId4) {
-    for (const table of ["workspace_folders", "workspace_system_access", "workspace_access_records"]) {
+    for (const table of ["workspace_folders", "workspace_system_access", "workspace_access_records", "workspace_notice_acknowledgements"]) {
       this.db.prepare(`DELETE FROM ${table} WHERE workspace_id = ?`).run(workspaceId4);
     }
   }
@@ -68603,6 +69093,13 @@ var WorkspaceAccessStore = class {
       (record_id, workspace_id, host_id, kind, path, summary, principal_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(`access_${randomUUID7()}`, workspaceId4, this.dependencies.host_id, kind, recordPath, summary2, principalId, at);
   }
 };
+function carriedSummary(how, folders, systemAccess) {
+  const parts = [
+    ...folders.length > 0 ? [`the folder${folders.length === 1 ? "" : "s"} ${folders.join(", ")}`] : [],
+    ...systemAccess ? ["System access (file tools may reach anywhere on this machine)"] : []
+  ];
+  return `This Workspace was ${how} with ${parts.join(" and ")}.`;
+}
 function classifyToolPaths(reported, boundary) {
   const paths = [];
   let outside = 0;
@@ -69131,7 +69628,7 @@ var ScopeGraphStore = class {
 };
 
 // floe-bus/dist/scope-compositions.js
-import { createHash as createHash7, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID11 } from "node:crypto";
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -69196,7 +69693,7 @@ function canonicalJson3(value) {
   return JSON.stringify(value);
 }
 function scopeCompositionDigest(content) {
-  return createHash7("sha256").update(canonicalJson3(normalizeCompositionContent(content))).digest("hex");
+  return createHash9("sha256").update(canonicalJson3(normalizeCompositionContent(content))).digest("hex");
 }
 function normalizeCompositionContent(content) {
   return {
@@ -69622,9 +70119,9 @@ function applyScopeCompositionSchema(db) {
     const revision = retained.getRevision(revisionId);
     if (!revision)
       continue;
-    const digest9 = scopeCompositionDigest(contentOf(revision));
-    if (digest9 !== revision.semantic_digest) {
-      db.prepare(`UPDATE scope_composition_revisions SET semantic_digest = ? WHERE revision_id = ?`).run(digest9, revisionId);
+    const digest11 = scopeCompositionDigest(contentOf(revision));
+    if (digest11 !== revision.semantic_digest) {
+      db.prepare(`UPDATE scope_composition_revisions SET semantic_digest = ? WHERE revision_id = ?`).run(digest11, revisionId);
     }
   }
 }
@@ -69715,6 +70212,7 @@ var ScopeCompositionStore = class {
       "queued",
       "active",
       "waiting_external",
+      "pausing",
       "paused",
       "blocked"
     ];
@@ -69735,7 +70233,7 @@ var ScopeCompositionStore = class {
     };
     return {
       ...impactWithoutDigest,
-      impact_digest: createHash7("sha256").update(canonicalJson3(impactWithoutDigest)).digest("hex")
+      impact_digest: createHash9("sha256").update(canonicalJson3(impactWithoutDigest)).digest("hex")
     };
   }
   /**
@@ -69811,8 +70309,8 @@ var ScopeCompositionStore = class {
       throw new ScopeCompositionInvalidError("unsupported portable Scope composition format");
     }
     validateScopeComposition(input.portable.content, input.portable.routing_mode);
-    const digest9 = scopeCompositionDigest(input.portable.content);
-    if (digest9 !== input.portable.semantic_digest) {
+    const digest11 = scopeCompositionDigest(input.portable.content);
+    if (digest11 !== input.portable.semantic_digest) {
       throw new ScopeCompositionInvalidError("portable Scope composition digest does not match its content");
     }
     return this.createDraft({
@@ -70218,6 +70716,27 @@ function applyScopeExecutionSchema(db) {
       prior_state TEXT NOT NULL,
       PRIMARY KEY (pause_id, queue_id)
     );
+
+    CREATE TABLE IF NOT EXISTS node_execution_state_outbox (
+      node_execution_id TEXT NOT NULL,
+      state_revision INTEGER NOT NULL,
+      workspace_id TEXT NOT NULL,
+      scope_id TEXT NOT NULL,
+      scope_execution_id TEXT NOT NULL,
+      composition_revision_id TEXT NOT NULL,
+      node_id TEXT NOT NULL,
+      from_status TEXT,
+      to_status TEXT NOT NULL,
+      attempt_id TEXT,
+      delivery_id TEXT,
+      failure_json TEXT,
+      changed_at TEXT NOT NULL,
+      push_sequence INTEGER,
+      PRIMARY KEY (node_execution_id, state_revision)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_node_execution_state_outbox_pending
+      ON node_execution_state_outbox(push_sequence, changed_at, node_execution_id);
   `);
   addColumnIfMissing3(db, "node_executions", "actor_definition_revision_id", "TEXT");
   addColumnIfMissing3(db, "node_executions", "runtime_profile_revision_id", "TEXT");
@@ -70236,6 +70755,14 @@ function applyScopeExecutionSchema(db) {
   addColumnIfMissing3(db, "node_execution_inputs", "state", "TEXT NOT NULL DEFAULT 'received'");
   addColumnIfMissing3(db, "node_execution_inputs", "supersedes_input_id", "TEXT");
   addColumnIfMissing3(db, "node_execution_inputs", "reason_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing3(db, "scope_execution_pauses", "status", "TEXT NOT NULL DEFAULT 'paused'");
+  addColumnIfMissing3(db, "scope_execution_pauses", "deadline_at", "TEXT");
+  addColumnIfMissing3(db, "scope_execution_pauses", "completed_at", "TEXT");
+  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "delivery_id", "TEXT");
+  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "attempt_id", "TEXT");
+  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "cancellation_state", "TEXT NOT NULL DEFAULT 'not_required'");
+  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "outcome_unknown", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing3(db, "scope_execution_pause_deliveries", "interruption_json", "TEXT NOT NULL DEFAULT '{}'");
   db.exec(`
     UPDATE node_execution_inputs
     SET input_identity = CASE
@@ -70405,16 +70932,12 @@ var ScopeExecutionStore = class {
     `).run(status, json2(terminal), status, timestamp2, status, timestamp2, executionId);
     return this.getExecution(executionId);
   }
-  /**
-   * Pause is a durable scheduling barrier. Work already owned by a runtime is
-   * refused because the Bus cannot claim that an external effect is paused.
-   */
   pauseExecution(input) {
     const execution = this.getExecution(input.execution_id);
     if (!execution) {
       throw new ScopeExecutionReferenceError(`ScopeExecution '${input.execution_id}' does not exist`);
     }
-    if (execution.status === "paused") {
+    if (execution.status === "paused" || execution.status === "pausing") {
       const active = this.activePause(execution.execution_id);
       if (!active) {
         throw new ScopeExecutionReferenceError(`ScopeExecution '${execution.execution_id}' is paused without a retained pause record`);
@@ -70424,23 +70947,15 @@ var ScopeExecutionStore = class {
     if (!["queued", "active", "waiting_external", "blocked"].includes(execution.status)) {
       throw new ScopeExecutionTransitionError(`ScopeExecution '${execution.execution_id}' cannot pause while '${execution.status}'`);
     }
-    const unsettledAttempts = this.db.prepare(`
-      SELECT ea.attempt_id
-      FROM execution_attempts ea
-      JOIN node_executions n ON n.node_execution_id = ea.node_execution_id
-      WHERE n.execution_id = ? AND ea.status IN ('pending', 'running')
-      ORDER BY ea.created_at, ea.attempt_id
-    `).all(execution.execution_id);
     const hasQueue = tableExists3(this.db, "event_queue");
-    const activeDeliveries = hasQueue ? this.db.prepare(`
-          SELECT queue_id FROM event_queue
-          WHERE scope_execution_id = ?
-            AND state IN ('reserved', 'delivered_to_bridge', 'injected_to_runtime')
-          ORDER BY created_at, queue_id
+    const activeDeliveries = hasQueue && tableExists3(this.db, "delivery_bundles") ? this.db.prepare(`
+          SELECT q.queue_id, q.state, q.delivery_id, b.execution_attempt_id AS attempt_id
+          FROM event_queue q
+          LEFT JOIN delivery_bundles b ON b.delivery_id = q.delivery_id
+          WHERE q.scope_execution_id = ?
+            AND q.state IN ('reserved', 'delivered_to_bridge', 'injected_to_runtime')
+          ORDER BY q.created_at, q.queue_id
         `).all(execution.execution_id) : [];
-    if (unsettledAttempts.length > 0 || activeDeliveries.length > 0) {
-      throw new ScopeExecutionTransitionError(`ScopeExecution '${execution.execution_id}' has runtime-owned work and cannot be represented as paused`);
-    }
     const nodes = this.listNodeExecutions(execution.execution_id).filter((node) => ![
       "completed",
       "failed",
@@ -70454,12 +70969,14 @@ var ScopeExecutionStore = class {
         `).all(execution.execution_id) : [];
     const pauseId = `pause_${randomUUID12()}`;
     const timestamp2 = nowIso5();
+    const deadlineAt = new Date(Date.parse(timestamp2) + Math.max(1, input.deadline_ms ?? 1e4)).toISOString();
     this.transaction(() => {
       this.db.prepare(`
         INSERT INTO scope_execution_pauses (
-          pause_id, execution_id, prior_status, prior_terminal_json, reason, paused_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `).run(pauseId, execution.execution_id, execution.status, json2(execution.terminal), input.reason?.trim() || null, timestamp2);
+          pause_id, execution_id, prior_status, prior_terminal_json, reason,
+          paused_at, status, deadline_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'pausing', ?)
+      `).run(pauseId, execution.execution_id, execution.status, json2(execution.terminal), input.reason?.trim() || null, timestamp2, deadlineAt);
       const insertNode = this.db.prepare(`
         INSERT INTO scope_execution_pause_nodes (
           pause_id, node_execution_id, prior_status, prior_failure_json
@@ -70467,19 +70984,18 @@ var ScopeExecutionStore = class {
       `);
       for (const node of nodes) {
         insertNode.run(pauseId, node.node_execution_id, node.status, json2(node.failure));
-        if (node.status !== "paused") {
-          this.db.prepare(`
-            UPDATE node_executions SET status = 'paused', state_revision = state_revision + 1
-            WHERE node_execution_id = ?
-          `).run(node.node_execution_id);
-        }
       }
       const insertDelivery = this.db.prepare(`
-        INSERT INTO scope_execution_pause_deliveries (pause_id, queue_id, prior_state)
-        VALUES (?, ?, ?)
+        INSERT INTO scope_execution_pause_deliveries (
+          pause_id, queue_id, prior_state, delivery_id, attempt_id,
+          cancellation_state, outcome_unknown
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       for (const delivery of deliveries) {
-        insertDelivery.run(pauseId, delivery.queue_id, delivery.state);
+        insertDelivery.run(pauseId, delivery.queue_id, delivery.state, null, null, "not_required", 0);
+      }
+      for (const delivery of activeDeliveries) {
+        insertDelivery.run(pauseId, delivery.queue_id, delivery.state, delivery.delivery_id, delivery.attempt_id, "requested", delivery.state === "injected_to_runtime" ? 1 : 0);
       }
       if (hasQueue) {
         this.db.prepare(`
@@ -70489,11 +71005,77 @@ var ScopeExecutionStore = class {
       }
       this.db.prepare(`
         UPDATE scope_executions
-        SET status = 'paused', terminal_json = ?, state_revision = state_revision + 1
+        SET status = 'pausing', terminal_json = ?, state_revision = state_revision + 1
         WHERE execution_id = ?
-      `).run(json2({ code: "operator_paused", reason: input.reason?.trim() || null }), execution.execution_id);
+      `).run(json2({ code: "operator_pausing", reason: input.reason?.trim() || null }), execution.execution_id);
+      if (activeDeliveries.length === 0)
+        this.finalizePause(pauseId, timestamp2);
     });
     return this.pauseResult(this.getExecution(execution.execution_id), pauseId);
+  }
+  recordPauseCancellation(input) {
+    const row = this.db.prepare(`
+      SELECT p.pause_id, p.execution_id
+      FROM scope_execution_pause_deliveries d
+      JOIN scope_execution_pauses p ON p.pause_id = d.pause_id
+      JOIN scope_executions e ON e.execution_id = p.execution_id
+      WHERE d.delivery_id = ? AND e.workspace_id = ?
+        AND p.resumed_at IS NULL AND p.status = 'pausing'
+      ORDER BY p.paused_at DESC
+      LIMIT 1
+    `).get(input.delivery_id, input.workspace_id);
+    if (!row)
+      return null;
+    this.transaction(() => {
+      this.db.prepare(`
+        UPDATE scope_execution_pause_deliveries
+        SET cancellation_state = ?, interruption_json = ?
+        WHERE pause_id = ? AND delivery_id = ?
+          AND cancellation_state IN ('requested', 'force_requested')
+      `).run(input.outcome, json2(input.evidence), row.pause_id, input.delivery_id);
+      if (this.pendingPauseDeliveryIds(row.pause_id).length === 0) {
+        this.finalizePause(row.pause_id, nowIso5());
+      }
+    });
+    const execution = this.getExecution(row.execution_id);
+    return {
+      execution,
+      pause_id: row.pause_id,
+      paused: execution.status === "paused",
+      remaining_delivery_ids: this.pendingPauseDeliveryIds(row.pause_id)
+    };
+  }
+  claimExpiredPauseDeliveryIds(at = nowIso5()) {
+    return this.transaction(() => {
+      const rows = this.db.prepare(`
+        SELECT p.pause_id, p.execution_id, d.delivery_id
+        FROM scope_execution_pauses p
+        JOIN scope_executions e ON e.execution_id = p.execution_id
+        JOIN scope_execution_pause_deliveries d ON d.pause_id = p.pause_id
+        WHERE p.status = 'pausing' AND e.status = 'pausing' AND p.deadline_at <= ?
+          AND d.cancellation_state = 'requested' AND d.delivery_id IS NOT NULL
+        ORDER BY p.deadline_at, p.pause_id, d.delivery_id
+      `).all(at);
+      const mark = this.db.prepare(`
+        UPDATE scope_execution_pause_deliveries SET cancellation_state = 'force_requested'
+        WHERE pause_id = ? AND delivery_id = ? AND cancellation_state = 'requested'
+      `);
+      for (const row of rows)
+        mark.run(row.pause_id, row.delivery_id);
+      return rows;
+    });
+  }
+  nextPauseDeadline() {
+    const row = this.db.prepare(`
+      SELECT MIN(deadline_at) AS deadline_at
+      FROM scope_execution_pauses p
+      JOIN scope_executions e ON e.execution_id = p.execution_id
+      WHERE p.status = 'pausing' AND e.status = 'pausing' AND EXISTS (
+        SELECT 1 FROM scope_execution_pause_deliveries d
+        WHERE d.pause_id = p.pause_id AND d.cancellation_state = 'requested'
+      )
+    `).get();
+    return row.deadline_at;
   }
   resumeExecution(input) {
     const execution = this.getExecution(input.execution_id);
@@ -70518,18 +71100,26 @@ var ScopeExecutionStore = class {
     const timestamp2 = nowIso5();
     this.transaction(() => {
       for (const node of nodeRows) {
-        this.db.prepare(`
-          UPDATE node_executions
-          SET status = ?, failure_json = ?, state_revision = state_revision + 1
-          WHERE node_execution_id = ? AND status = 'paused'
-        `).run(node.prior_status, node.prior_failure_json, node.node_execution_id);
+        const current = this.getNodeExecution(node.node_execution_id);
+        if (!current || current.status !== "paused")
+          continue;
+        const interruption = this.pauseInterruptionEvidence(pause.pause_id, node.node_execution_id);
+        const interrupted = interruption.length > 0;
+        this.setNodeExecutionStatus(node.node_execution_id, interrupted ? "retrying" : node.prior_status, interrupted ? {
+          code: "resumed_after_interruption",
+          prior_failure: parseJson2(node.prior_failure_json, {}),
+          interruption
+        } : parseJson2(node.prior_failure_json, {}));
       }
       if (tableExists3(this.db, "event_queue")) {
         for (const delivery of deliveryRows) {
+          const wasRuntimeOwned = ["reserved", "delivered_to_bridge", "injected_to_runtime"].includes(delivery.prior_state);
           this.db.prepare(`
-            UPDATE event_queue SET state = ?
+            UPDATE event_queue
+            SET state = ?, delivery_id = CASE WHEN ? THEN NULL ELSE delivery_id END,
+                lease_expires_at = NULL, last_error = NULL
             WHERE queue_id = ? AND state = 'held'
-          `).run(delivery.prior_state, delivery.queue_id);
+          `).run(wasRuntimeOwned ? "queued" : delivery.prior_state, wasRuntimeOwned ? 1 : 0, delivery.queue_id);
         }
       }
       this.db.prepare(`
@@ -70589,12 +71179,7 @@ var ScopeExecutionStore = class {
           WHERE queue_id = ?
         `).run(row.queue_id);
       }
-      this.db.prepare(`
-        UPDATE node_executions
-        SET status = 'retrying', failure_json = '{}', completed_at = NULL, cancelled_at = NULL,
-            state_revision = state_revision + 1
-        WHERE node_execution_id = ?
-      `).run(node.node_execution_id);
+      this.setNodeExecutionStatus(node.node_execution_id, "retrying");
       if (execution.status === "failed" || execution.status === "blocked") {
         this.db.prepare(`
           UPDATE scope_executions
@@ -70648,15 +71233,18 @@ var ScopeExecutionStore = class {
     const id = `node_execution_${randomUUID12()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "collecting";
-    this.db.prepare(`
-      INSERT INTO node_executions (
-        node_execution_id, execution_id, revision_id, node_id, activation_key,
-        join_key, context_id, actor_definition_revision_id, runtime_profile_revision_id,
-        actor_runtime_binding_id, command_definition_revision_id, command_worker_binding_id,
-        status, assigned_actor_ids_json,
-        failure_json, created_at, activated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)
-    `).run(id, input.execution_id, input.revision_id, input.node_id, input.activation_key, input.join_key ?? null, input.context_id, pins.actor_definition_revision_id, pins.runtime_profile_revision_id, pins.actor_runtime_binding_id, commandPins.command_definition_revision_id, commandPins.command_worker_binding_id, status, json2(assignedActorIds), timestamp2, ["ready", "active", "waiting_external", "paused", "retrying", "completed"].includes(status) ? timestamp2 : null);
+    this.transaction(() => {
+      this.db.prepare(`
+        INSERT INTO node_executions (
+          node_execution_id, execution_id, revision_id, node_id, activation_key,
+          join_key, context_id, actor_definition_revision_id, runtime_profile_revision_id,
+          actor_runtime_binding_id, command_definition_revision_id, command_worker_binding_id,
+          status, assigned_actor_ids_json,
+          failure_json, created_at, activated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?)
+      `).run(id, input.execution_id, input.revision_id, input.node_id, input.activation_key, input.join_key ?? null, input.context_id, pins.actor_definition_revision_id, pins.runtime_profile_revision_id, pins.actor_runtime_binding_id, commandPins.command_definition_revision_id, commandPins.command_worker_binding_id, status, json2(assignedActorIds), timestamp2, ["ready", "active", "waiting_external", "paused", "retrying", "completed"].includes(status) ? timestamp2 : null);
+      this.appendNodeStateChange(id, 1, null, status, {}, timestamp2);
+    });
     return this.getNodeExecution(id);
   }
   getNodeExecution(nodeExecutionId) {
@@ -70682,14 +71270,20 @@ var ScopeExecutionStore = class {
       return current;
     assertNodeStatusTransition(current.status, status);
     const timestamp2 = nowIso5();
-    this.db.prepare(`
-      UPDATE node_executions
-      SET status = ?, failure_json = ?, state_revision = state_revision + 1,
-          activated_at = CASE WHEN ? IN ('ready', 'active', 'waiting_external', 'paused', 'retrying', 'completed') THEN COALESCE(activated_at, ?) ELSE activated_at END,
-          completed_at = CASE WHEN ? IN ('completed', 'failed', 'superseded') THEN ? ELSE completed_at END,
-          cancelled_at = CASE WHEN ? = 'cancelled' THEN ? ELSE cancelled_at END
-      WHERE node_execution_id = ?
-    `).run(status, json2(failure), status, timestamp2, status, timestamp2, status, timestamp2, nodeExecutionId);
+    this.transaction(() => {
+      this.db.prepare(`
+        UPDATE node_executions
+        SET status = ?, failure_json = ?, state_revision = state_revision + 1,
+            activated_at = CASE WHEN ? IN ('ready', 'active', 'waiting_external', 'paused', 'retrying', 'completed') THEN COALESCE(activated_at, ?) ELSE activated_at END,
+            completed_at = CASE
+              WHEN ? IN ('completed', 'failed', 'superseded') THEN ?
+              WHEN ? IN ('collecting', 'ready', 'active', 'waiting_external', 'paused', 'retrying', 'blocked') THEN NULL
+              ELSE completed_at END,
+            cancelled_at = CASE WHEN ? = 'cancelled' THEN ? WHEN ? <> 'cancelled' THEN NULL ELSE cancelled_at END
+        WHERE node_execution_id = ?
+      `).run(status, json2(failure), status, timestamp2, status, timestamp2, status, status, timestamp2, status, nodeExecutionId);
+      this.appendNodeStateChange(nodeExecutionId, current.state_revision + 1, current.status, status, failure, timestamp2);
+    });
     return this.getNodeExecution(nodeExecutionId);
   }
   acceptInput(input) {
@@ -71200,6 +71794,122 @@ var ScopeExecutionStore = class {
       }))
     };
   }
+  appendNodeStateChange(nodeExecutionId, stateRevision2, fromStatus, toStatus, failure, changedAt) {
+    const identity = this.db.prepare(`
+      SELECT n.execution_id, n.revision_id, n.node_id, e.workspace_id, e.scope_id
+      FROM node_executions n
+      JOIN scope_executions e ON e.execution_id = n.execution_id
+      WHERE n.node_execution_id = ?
+    `).get(nodeExecutionId);
+    if (!identity)
+      throw new ScopeExecutionReferenceError(`NodeExecution '${nodeExecutionId}' does not exist`);
+    const attempt = this.db.prepare(`
+      SELECT attempt_id, delivery_bundle_id
+      FROM execution_attempts
+      WHERE node_execution_id = ?
+      ORDER BY ordinal DESC
+      LIMIT 1
+    `).get(nodeExecutionId);
+    this.db.prepare(`
+      INSERT INTO node_execution_state_outbox (
+        node_execution_id, state_revision, workspace_id, scope_id,
+        scope_execution_id, composition_revision_id, node_id,
+        from_status, to_status, attempt_id, delivery_id, failure_json, changed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(nodeExecutionId, stateRevision2, identity.workspace_id, identity.scope_id, identity.execution_id, identity.revision_id, identity.node_id, fromStatus, toStatus, attempt?.attempt_id ?? null, attempt?.delivery_bundle_id ?? null, Object.keys(failure).length > 0 ? json2(failure) : null, changedAt);
+  }
+  pendingPauseDeliveryIds(pauseId) {
+    return this.db.prepare(`
+      SELECT DISTINCT delivery_id
+      FROM scope_execution_pause_deliveries
+      WHERE pause_id = ? AND cancellation_state IN ('requested', 'force_requested')
+        AND delivery_id IS NOT NULL
+      ORDER BY delivery_id
+    `).all(pauseId).map((row) => row.delivery_id);
+  }
+  pauseInterruptionEvidence(pauseId, nodeExecutionId) {
+    return this.db.prepare(`
+      SELECT d.delivery_id, d.cancellation_state, d.outcome_unknown, d.interruption_json
+      FROM scope_execution_pause_deliveries d
+      JOIN execution_attempts a ON a.attempt_id = d.attempt_id
+      WHERE d.pause_id = ? AND a.node_execution_id = ?
+        AND d.cancellation_state IN ('quiesced', 'session_retired')
+      ORDER BY d.delivery_id
+    `).all(pauseId, nodeExecutionId).map((row) => ({
+      delivery_id: row.delivery_id,
+      outcome: row.cancellation_state,
+      outcome_unknown: Boolean(row.outcome_unknown),
+      evidence: parseJson2(row.interruption_json, {})
+    }));
+  }
+  finalizePause(pauseId, timestamp2) {
+    const pause = this.db.prepare(`
+      SELECT execution_id, reason FROM scope_execution_pauses WHERE pause_id = ?
+    `).get(pauseId);
+    if (!pause)
+      throw new ScopeExecutionReferenceError(`Pause '${pauseId}' does not exist`);
+    const nodeRows = this.db.prepare(`
+      SELECT node_execution_id FROM scope_execution_pause_nodes
+      WHERE pause_id = ? ORDER BY node_execution_id
+    `).all(pauseId);
+    const deliveryRows = this.db.prepare(`
+      SELECT queue_id, delivery_id, attempt_id, outcome_unknown, cancellation_state
+      FROM scope_execution_pause_deliveries
+      WHERE pause_id = ?
+    `).all(pauseId);
+    for (const delivery of deliveryRows) {
+      if (delivery.attempt_id) {
+        const attempt = this.getAttempt(delivery.attempt_id);
+        if (attempt && ["pending", "running"].includes(attempt.status)) {
+          this.finishAttempt({
+            attempt_id: attempt.attempt_id,
+            status: delivery.outcome_unknown ? "outcome_unknown" : "cancelled",
+            error: {
+              code: "scope_paused",
+              delivery_id: delivery.delivery_id,
+              interruption: delivery.cancellation_state,
+              outcome_unknown: Boolean(delivery.outcome_unknown)
+            }
+          });
+        }
+      }
+      if (tableExists3(this.db, "delivery_bundles") && delivery.delivery_id) {
+        this.db.prepare(`
+          UPDATE delivery_bundles
+          SET state = 'cancelled', lease_expires_at = NULL, last_error = 'Scope paused by operator'
+          WHERE delivery_id = ?
+        `).run(delivery.delivery_id);
+      }
+      if (tableExists3(this.db, "event_queue")) {
+        this.db.prepare(`
+          UPDATE event_queue SET state = 'held', lease_expires_at = NULL
+          WHERE queue_id = ?
+        `).run(delivery.queue_id);
+      }
+    }
+    for (const row of nodeRows) {
+      const node = this.getNodeExecution(row.node_execution_id);
+      if (!node || ["completed", "failed", "cancelled", "superseded", "paused"].includes(node.status))
+        continue;
+      const interruption = this.pauseInterruptionEvidence(pauseId, node.node_execution_id);
+      this.setNodeExecutionStatus(node.node_execution_id, "paused", {
+        code: "operator_paused",
+        reason: pause.reason,
+        outcome_unknown: interruption.some((entry) => entry.outcome_unknown === true),
+        interruption
+      });
+    }
+    this.db.prepare(`
+      UPDATE scope_executions
+      SET status = 'paused', terminal_json = ?, state_revision = state_revision + 1
+      WHERE execution_id = ? AND status = 'pausing'
+    `).run(json2({ code: "operator_paused", reason: pause.reason }), pause.execution_id);
+    this.db.prepare(`
+      UPDATE scope_execution_pauses
+      SET status = 'paused', completed_at = ?
+      WHERE pause_id = ? AND status = 'pausing'
+    `).run(timestamp2, pauseId);
+  }
   activePause(executionId) {
     const row = this.db.prepare(`
       SELECT pause_id, prior_status, prior_terminal_json
@@ -71217,14 +71927,26 @@ var ScopeExecutionStore = class {
       SELECT queue_id FROM scope_execution_pause_deliveries
       WHERE pause_id = ? ORDER BY queue_id
     `).all(pauseId).map((row) => row.queue_id);
+    const activeDeliveryIds = this.db.prepare(`
+      SELECT DISTINCT delivery_id FROM scope_execution_pause_deliveries
+      WHERE pause_id = ? AND delivery_id IS NOT NULL ORDER BY delivery_id
+    `).all(pauseId).map((row) => row.delivery_id);
+    const pause = this.db.prepare(`
+      SELECT COALESCE(deadline_at, paused_at) AS deadline_at
+      FROM scope_execution_pauses WHERE pause_id = ?
+    `).get(pauseId);
     return {
       execution,
       pause_id: pauseId,
       node_execution_ids: nodeIds,
-      delivery_ids: deliveryIds
+      delivery_ids: deliveryIds,
+      active_delivery_ids: activeDeliveryIds,
+      deadline_at: pause.deadline_at
     };
   }
   transaction(fn) {
+    if (this.db.isTransaction)
+      return fn();
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = fn();
@@ -71371,11 +72093,12 @@ function hasAllCommandPins(value) {
   return value.command_definition_revision_id !== null && value.command_worker_binding_id !== null;
 }
 var SCOPE_STATUS_TRANSITIONS = {
-  queued: ["active", "paused", "blocked", "failed", "cancelled", "superseded"],
-  active: ["waiting_external", "paused", "blocked", "completed", "failed", "cancelled", "superseded"],
-  waiting_external: ["active", "paused", "blocked", "completed", "failed", "cancelled", "superseded"],
+  queued: ["active", "pausing", "paused", "blocked", "failed", "cancelled", "superseded"],
+  active: ["waiting_external", "pausing", "paused", "blocked", "completed", "failed", "cancelled", "superseded"],
+  waiting_external: ["active", "pausing", "paused", "blocked", "completed", "failed", "cancelled", "superseded"],
+  pausing: ["paused", "failed", "cancelled", "superseded"],
   paused: ["active", "waiting_external", "blocked", "failed", "cancelled", "superseded"],
-  blocked: ["active", "waiting_external", "paused", "failed", "cancelled", "superseded"],
+  blocked: ["active", "waiting_external", "pausing", "paused", "failed", "cancelled", "superseded"],
   completed: [],
   failed: [],
   cancelled: [],
@@ -71388,9 +72111,9 @@ var NODE_STATUS_TRANSITIONS = {
   waiting_external: ["ready", "active", "paused", "retrying", "blocked", "completed", "failed", "cancelled", "superseded"],
   paused: ["collecting", "ready", "active", "waiting_external", "retrying", "blocked", "failed", "cancelled", "superseded"],
   retrying: ["ready", "active", "waiting_external", "paused", "blocked", "completed", "failed", "cancelled", "superseded"],
-  blocked: ["collecting", "ready", "paused", "failed", "cancelled", "superseded"],
+  blocked: ["collecting", "ready", "paused", "retrying", "failed", "cancelled", "superseded"],
   completed: [],
-  failed: [],
+  failed: ["retrying"],
   cancelled: [],
   superseded: []
 };
@@ -71429,7 +72152,7 @@ function tableExists3(db, table) {
 }
 
 // floe-bus/dist/scope-composition-migration.js
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 var STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var LegacyScopeGraphMigrationConflictError = class extends Error {
   revision_id;
@@ -71450,8 +72173,8 @@ function canonicalNodeIds(nodes) {
   return new Map(nodes.map((node, index) => {
     if (STABLE_ID.test(node.node_id))
       return [node.node_id, node.node_id];
-    const digest9 = createHash8("sha256").update(node.node_id).digest("hex").slice(0, 12);
-    return [node.node_id, `legacy-node-${index + 1}-${digest9}`];
+    const digest11 = createHash10("sha256").update(node.node_id).digest("hex").slice(0, 12);
+    return [node.node_id, `legacy-node-${index + 1}-${digest11}`];
   }));
 }
 function nodePlacement(graph, node, nodeId) {
@@ -71521,8 +72244,8 @@ function duplicateEndpointNodes(graph) {
   }
   return new Map([...byEndpoint].filter(([, placements]) => placements.length > 1));
 }
-function migrationRevisionId(graph, digest9) {
-  const identity = createHash8("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest9}`).digest("hex").slice(0, 32);
+function migrationRevisionId(graph, digest11) {
+  const identity = createHash10("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest11}`).digest("hex").slice(0, 32);
   return `legacy-revision-${identity}`;
 }
 function projectLegacyScopeGraph(graph) {
@@ -71639,8 +72362,8 @@ function projectLegacyScopeGraph(graph) {
 }
 function importLegacyScopeGraph(store, graph, options = {}) {
   const projection = projectLegacyScopeGraph(graph);
-  const digest9 = scopeCompositionDigest(projection.content);
-  const revisionId = migrationRevisionId(graph, digest9);
+  const digest11 = scopeCompositionDigest(projection.content);
+  const revisionId = migrationRevisionId(graph, digest11);
   let revision = store.getRevision(revisionId);
   let created = false;
   if (!revision) {
@@ -71662,7 +72385,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
         throw error;
     }
   }
-  if (revision.workspace_id !== graph.workspace_id || revision.scope_id !== graph.scope_id || revision.routing_mode !== "legacy_subscription" || revision.semantic_digest !== digest9) {
+  if (revision.workspace_id !== graph.workspace_id || revision.scope_id !== graph.scope_id || revision.routing_mode !== "legacy_subscription" || revision.semantic_digest !== digest11) {
     throw new LegacyScopeGraphMigrationConflictError(revisionId);
   }
   let publishedNow = false;
@@ -71684,7 +72407,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
 }
 
 // floe-bus/dist/artefacts.js
-import { createHash as createHash9, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
 var SHA256_RE = /^[a-fA-F0-9]{64}$/;
 var EXTENSION_NAMESPACE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 var EXTENSION_LINEAGE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -71804,7 +72527,7 @@ function canonicalJson4(value) {
   return JSON.stringify(value);
 }
 function fingerprint(value) {
-  return createHash9("sha256").update(canonicalJson4(normalizeJsonValue(value))).digest("hex");
+  return createHash11("sha256").update(canonicalJson4(normalizeJsonValue(value))).digest("hex");
 }
 function normalizeDigest(value, label = "digest") {
   if (!value || value.algorithm !== "sha256" || typeof value.value !== "string" || !SHA256_RE.test(value.value)) {
@@ -72673,7 +73396,7 @@ var ArtefactStore = class {
 };
 
 // floe-bus/dist/artefact-content-resolver.js
-import { createHash as createHash10 } from "node:crypto";
+import { createHash as createHash12 } from "node:crypto";
 import { readFileSync as readFileSync2, statSync as statSync2 } from "node:fs";
 import { extname } from "node:path";
 
@@ -72840,7 +73563,7 @@ function resolveWorkspaceArtefactContent(input) {
   if (contentRef.size_bytes != null && contentRef.size_bytes !== bytes.length) {
     throw new ArtefactContentMismatchError("size");
   }
-  const actualDigest = createHash10("sha256").update(bytes).digest("hex");
+  const actualDigest = createHash12("sha256").update(bytes).digest("hex");
   if (actualDigest !== contentRef.digest.value) {
     throw new ArtefactContentMismatchError("digest");
   }
@@ -72885,30 +73608,7 @@ var MEDIA_TYPE_BY_EXTENSION = /* @__PURE__ */ new Map([
 ]);
 
 // floe-bus/dist/actor-definitions.js
-import { createHash as createHash11, randomUUID as randomUUID14 } from "node:crypto";
-function canonicalActorScopePath(value) {
-  const segments = [];
-  const text12 = value.trim().replace(/\\/g, "/");
-  if (!text12 || text12.startsWith("/") || /^[a-z]:/i.test(text12))
-    return null;
-  for (const segment of text12.split("/")) {
-    if (segment === "" || segment === ".")
-      continue;
-    if (segment === "..")
-      return null;
-    segments.push(segment);
-  }
-  return segments.length ? segments.join("/") : ".";
-}
-var ActorDefinitionValidationError = class extends Error {
-  reason;
-  code = "E_ACTOR_DEFINITION_INVALID";
-  constructor(reason) {
-    super(`Invalid Actor definition: ${reason}`);
-    this.reason = reason;
-    this.name = "ActorDefinitionValidationError";
-  }
-};
+import { createHash as createHash13, randomUUID as randomUUID14 } from "node:crypto";
 var ActorNotFoundError = class extends Error {
   actor_id;
   code = "E_ACTOR_NOT_FOUND";
@@ -72964,51 +73664,15 @@ var ActorDefinitionDraftConflictError = class extends Error {
 };
 function actorDefinitionDigest(content) {
   validateActorDefinition(content);
-  return createHash11("sha256").update(canonicalJson5(content)).digest("hex");
-}
-function validateActorDefinition(content) {
-  nonEmpty("label", content.label);
-  nonEmpty("charter", content.charter);
-  nonEmpty("instructions", content.instructions);
-  unique(content.responsibilities.map((item) => item.responsibility_id), "responsibility id");
-  for (const responsibility of content.responsibilities) {
-    nonEmpty("responsibility title", responsibility.title);
-    nonEmpty("responsibility description", responsibility.description);
-  }
-  unique(content.capability_grant_ids, "CapabilityGrant id");
-  unique(content.escalation_rules.map((item) => item.rule_id), "escalation rule id");
-  for (const ref of content.knowledge_refs)
-    validateRef(ref, "knowledge reference");
-  for (const [name, ref] of Object.entries(content.policy_refs)) {
-    if (ref)
-      validateRef(ref, `${name} policy reference`);
-  }
-  if (content.scope !== void 0) {
-    if (!content.scope || !Array.isArray(content.scope.paths) || content.scope.paths.length === 0) {
-      throw new ActorDefinitionValidationError("scope.paths must list at least one workspace-relative folder");
-    }
-    for (const path3 of content.scope.paths) {
-      if (typeof path3 !== "string" || canonicalActorScopePath(path3) !== path3) {
-        throw new ActorDefinitionValidationError(`scope path '${String(path3)}' must be canonical and stay within the Workspace (for example '.' or 'src/app')`);
-      }
-    }
-    unique(content.scope.paths, "scope path");
-  }
-  for (const rule of content.escalation_rules) {
-    nonEmpty("escalation condition", rule.when);
-    if (rule.action === "delegate" && !rule.target_actor_id?.trim()) {
-      throw new ActorDefinitionValidationError(`delegation rule '${rule.rule_id}' must name a target Actor`);
-    }
-    if (rule.action !== "delegate" && rule.target_actor_id != null) {
-      throw new ActorDefinitionValidationError(`only delegation rule '${rule.rule_id}' may name a target Actor`);
-    }
-  }
+  return createHash13("sha256").update(canonicalJson5(content)).digest("hex");
 }
 function applyActorDefinitionSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS actors (
       actor_id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL,
+      created_in_context_id TEXT,
+      created_in_scope_execution_id TEXT,
       status TEXT NOT NULL CHECK (status IN ('active', 'retired')),
       current_definition_revision_id TEXT,
       created_at TEXT NOT NULL,
@@ -73050,12 +73714,30 @@ function applyActorDefinitionSchema(db) {
 
     CREATE INDEX IF NOT EXISTS idx_actor_definition_head_changes_actor
       ON actor_definition_head_changes(actor_id, changed_at, head_change_id);
+
+    CREATE TABLE IF NOT EXISTS actor_lifecycle_push_outbox (
+      outbox_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workspace_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      changed_at TEXT NOT NULL,
+      push_sequence INTEGER
+    );
+  `);
+  addColumnIfMissing4(db, "actors", "created_in_context_id", "TEXT");
+  addColumnIfMissing4(db, "actors", "created_in_scope_execution_id", "TEXT");
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_actors_creation_context
+      ON actors(workspace_id, created_in_context_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_actors_creation_scope_execution
+      ON actors(workspace_id, created_in_scope_execution_id, created_at);
   `);
 }
 var ActorDefinitionStore = class {
   db;
   now;
   validateHead;
+  lifecyclePushReady = null;
   constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead) {
     this.db = db;
     this.now = now3;
@@ -73073,10 +73755,11 @@ var ActorDefinitionStore = class {
     transaction(this.db, () => {
       this.db.prepare(`
         INSERT INTO actors (
-          actor_id, workspace_id, status, current_definition_revision_id,
+          actor_id, workspace_id, created_in_context_id, created_in_scope_execution_id,
+          status, current_definition_revision_id,
           created_at, updated_at, retired_at
-        ) VALUES (?, ?, 'active', NULL, ?, ?, NULL)
-      `).run(actorId, input.workspace_id, at, at);
+        ) VALUES (?, ?, ?, ?, 'active', NULL, ?, ?, NULL)
+      `).run(actorId, input.workspace_id, input.created_in_context_id ?? null, input.created_in_scope_execution_id ?? null, at, at);
       draft = this.insertDraft({
         actor_id: actorId,
         workspace_id: input.workspace_id,
@@ -73084,7 +73767,13 @@ var ActorDefinitionStore = class {
         created_by_principal_id: input.created_by_principal_id,
         definition: input.definition
       });
+      const actor = this.requireActor(actorId);
+      this.queueLifecyclePush("actor_created", {
+        workspace_id: actor.workspace_id,
+        actor
+      }, at);
     });
+    this.notifyLifecyclePushReady();
     return { actor: this.requireActor(actorId), draft };
   }
   createDraft(input) {
@@ -73129,13 +73818,22 @@ var ActorDefinitionStore = class {
       }
       throw new ActorDefinitionImmutableError(revision.actor_definition_revision_id);
     }
-    transaction(this.db, () => this.moveHead({
-      revision,
-      expected_current_revision_id: input.expected_current_revision_id,
-      changed_by_principal_id: input.changed_by_principal_id,
-      reason: "publish",
-      publish_at: this.now()
-    }));
+    transaction(this.db, () => {
+      this.moveHead({
+        revision,
+        expected_current_revision_id: input.expected_current_revision_id,
+        changed_by_principal_id: input.changed_by_principal_id,
+        reason: "publish",
+        publish_at: this.now()
+      });
+      const actor = this.requireActor(revision.actor_id);
+      this.queueLifecyclePush("actor_definition_published", {
+        workspace_id: actor.workspace_id,
+        actor,
+        revision: this.requireRevision(revision.actor_definition_revision_id)
+      }, actor.updated_at);
+    });
+    this.notifyLifecyclePushReady();
     return this.requireRevision(revision.actor_definition_revision_id);
   }
   rollback(input) {
@@ -73171,9 +73869,20 @@ var ActorDefinitionStore = class {
       throw new ActorDefinitionConflictError(actor.actor_id, input.expected_current_definition_revision_id, actor.current_definition_revision_id);
     }
     const at = this.now();
-    this.db.prepare(`
-      UPDATE actors SET status = ?, retired_at = ?, updated_at = ? WHERE actor_id = ?
-    `).run(input.status, input.status === "retired" ? at : null, at, actor.actor_id);
+    transaction(this.db, () => {
+      this.db.prepare(`
+        UPDATE actors SET status = ?, retired_at = ?, updated_at = ? WHERE actor_id = ?
+      `).run(input.status, input.status === "retired" ? at : null, at, actor.actor_id);
+      if (input.status === "retired") {
+        const retired = this.requireActor(actor.actor_id);
+        this.queueLifecyclePush("actor_retired", {
+          workspace_id: retired.workspace_id,
+          actor: retired
+        }, at);
+      }
+    });
+    if (input.status === "retired")
+      this.notifyLifecyclePushReady();
     return this.requireActor(actor.actor_id);
   }
   getActor(actorId) {
@@ -73187,8 +73896,18 @@ var ActorDefinitionStore = class {
     return actor;
   }
   listActors(workspaceId4, options = {}) {
-    const rows = options.include_retired ? this.db.prepare(`SELECT * FROM actors WHERE workspace_id = ? ORDER BY created_at, actor_id`).all(workspaceId4) : this.db.prepare(`SELECT * FROM actors WHERE workspace_id = ? AND status = 'active' ORDER BY created_at, actor_id`).all(workspaceId4);
+    const rows = this.db.prepare(`
+      SELECT * FROM actors
+      WHERE workspace_id = ?
+        AND (? = 1 OR status = 'active')
+        AND (? IS NULL OR created_in_context_id = ?)
+        AND (? IS NULL OR created_in_scope_execution_id = ?)
+      ORDER BY created_at, actor_id
+    `).all(workspaceId4, options.include_retired ? 1 : 0, options.created_in_context_id ?? null, options.created_in_context_id ?? null, options.created_in_scope_execution_id ?? null, options.created_in_scope_execution_id ?? null);
     return rows.map(rowToActor);
+  }
+  setLifecyclePushReady(notify) {
+    this.lifecyclePushReady = notify;
   }
   getRevision(revisionId) {
     const row = this.db.prepare(`
@@ -73271,11 +73990,23 @@ var ActorDefinitionStore = class {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(`actor_head_change_${randomUUID14()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
+  queueLifecyclePush(type, payload, at) {
+    this.db.prepare(`
+      INSERT INTO actor_lifecycle_push_outbox (
+        workspace_id, event_type, payload_json, changed_at, push_sequence
+      ) VALUES (?, ?, ?, ?, NULL)
+    `).run(String(payload.workspace_id), type, JSON.stringify(payload), at);
+  }
+  notifyLifecyclePushReady() {
+    queueMicrotask(() => this.lifecyclePushReady?.());
+  }
 };
 function rowToActor(row) {
   return {
     actor_id: String(row.actor_id),
     workspace_id: String(row.workspace_id),
+    created_in_context_id: row.created_in_context_id == null ? null : String(row.created_in_context_id),
+    created_in_scope_execution_id: row.created_in_scope_execution_id == null ? null : String(row.created_in_scope_execution_id),
     status: String(row.status),
     current_definition_revision_id: row.current_definition_revision_id == null ? null : String(row.current_definition_revision_id),
     created_at: String(row.created_at),
@@ -73300,24 +74031,15 @@ function rowToRevision(row) {
     withdrawn_at: row.withdrawn_at == null ? null : String(row.withdrawn_at)
   };
 }
-function validateRef(ref, label) {
-  nonEmpty(`${label} kind`, ref.kind);
-  nonEmpty(`${label} id`, ref.id);
-  if (ref.revision !== null)
-    nonEmpty(`${label} revision`, ref.revision);
-}
-function unique(values, label) {
-  const seen = /* @__PURE__ */ new Set();
-  for (const value of values) {
-    nonEmpty(label, value);
-    if (seen.has(value))
-      throw new ActorDefinitionValidationError(`duplicate ${label} '${value}'`);
-    seen.add(value);
-  }
-}
 function nonEmpty(label, value) {
   if (typeof value !== "string" || !value.trim()) {
     throw new ActorDefinitionValidationError(`${label} must not be empty`);
+  }
+}
+function addColumnIfMissing4(db, table, column, definition2) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
   }
 }
 function canonicalJson5(value) {
@@ -73342,7 +74064,7 @@ function transaction(db, action) {
 }
 
 // floe-bus/dist/command-definitions.js
-import { createHash as createHash12, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID15 } from "node:crypto";
 var CommandDefinitionValidationError = class extends Error {
   reason;
   code = "E_COMMAND_DEFINITION_INVALID";
@@ -73407,19 +74129,19 @@ var CommandDefinitionDraftConflictError = class extends Error {
 };
 function commandDefinitionDigest(content) {
   validateCommandDefinition(content);
-  return createHash12("sha256").update(canonicalJson6(content)).digest("hex");
+  return createHash14("sha256").update(canonicalJson6(content)).digest("hex");
 }
 function validateCommandDefinition(content) {
   nonEmpty2("label", content.label);
   nonEmpty2("description", content.description);
   validateVersionedSchema(content.input, "input");
   validateVersionedSchema(content.output, "output");
-  unique2(content.side_effects.map((effect) => effect.effect_id), "side-effect id");
+  unique(content.side_effects.map((effect) => effect.effect_id), "side-effect id");
   for (const effect of content.side_effects) {
     nonEmpty2("side-effect title", effect.title);
-    unique2(effect.resource_kinds, `side-effect '${effect.effect_id}' resource kind`);
+    unique(effect.resource_kinds, `side-effect '${effect.effect_id}' resource kind`);
   }
-  unique2(content.permissions.map((permission) => permission.permission_id), "permission id");
+  unique(content.permissions.map((permission) => permission.permission_id), "permission id");
   for (const permission of content.permissions) {
     nonEmpty2("permission operation_id", permission.operation_id);
     nonEmpty2("permission purpose", permission.purpose);
@@ -73780,7 +74502,7 @@ function validateOwner(owner) {
 function sameOwner(left, right) {
   return left.kind === right.kind && left.id === right.id;
 }
-function unique2(values, label) {
+function unique(values, label) {
   const seen = /* @__PURE__ */ new Set();
   for (const value of values) {
     nonEmpty2(label, value);
@@ -74461,7 +75183,7 @@ function registerCommandOperations(registry, store) {
 }
 
 // floe-bus/dist/command-runtime.js
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 var CommandRuntimeContractError = class extends Error {
   reason;
   code = "E_COMMAND_RUNTIME_CONTRACT_INVALID";
@@ -74512,7 +75234,7 @@ var CommandWorkerBindingStore = class {
     const existing = this.getForWorkspace(workspaceId4, hostId);
     if (existing)
       return existing;
-    const suffix = createHash13("sha256").update(`${hostId}\0${workspaceId4}`).digest("hex").slice(0, 32);
+    const suffix = createHash15("sha256").update(`${hostId}\0${workspaceId4}`).digest("hex").slice(0, 32);
     const bindingId = `command_worker_binding_${suffix}`;
     const endpointId = `command_worker_endpoint_${suffix}`;
     const principalId = `command_worker_principal_${suffix}`;
@@ -74586,11 +75308,11 @@ var CommandProcessingContractStore = class {
   }
   persist(contract) {
     const withoutDigest = JSON.parse(JSON.stringify(contract));
-    const digest9 = sha256(canonicalJson7(withoutDigest));
-    const complete = Object.freeze({ ...withoutDigest, semantic_digest: digest9 });
+    const digest11 = sha256(canonicalJson7(withoutDigest));
+    const complete = Object.freeze({ ...withoutDigest, semantic_digest: digest11 });
     const existing = this.get(contract.execution_attempt.attempt_id);
     if (existing) {
-      if (existing.semantic_digest !== digest9) {
+      if (existing.semantic_digest !== digest11) {
         throw new CommandRuntimeContractError(`ExecutionAttempt '${contract.execution_attempt.attempt_id}' already has another processing contract`);
       }
       return existing;
@@ -74601,7 +75323,7 @@ var CommandProcessingContractStore = class {
         command_definition_revision_id, command_worker_binding_id,
         contract_json, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(contract.execution_attempt.attempt_id, contract.processing_contract_id, digest9, contract.command.definition.command_definition_revision_id, contract.worker.command_worker_binding_id, JSON.stringify(complete), this.now());
+    `).run(contract.execution_attempt.attempt_id, contract.processing_contract_id, digest11, contract.command.definition.command_definition_revision_id, contract.worker.command_worker_binding_id, JSON.stringify(complete), this.now());
     return complete;
   }
   get(attemptId) {
@@ -74733,7 +75455,7 @@ function canonicalJson7(value) {
   return JSON.stringify(value);
 }
 function sha256(value) {
-  return `sha256:${createHash13("sha256").update(value).digest("hex")}`;
+  return `sha256:${createHash15("sha256").update(value).digest("hex")}`;
 }
 
 // floe-bus/dist/isolated-command-host.js
@@ -75406,7 +76128,7 @@ function resolveActorRoleAuthorityResource(store, workspaceId4, target) {
 }
 
 // floe-bus/dist/runtime-profiles.js
-import { createHash as createHash14, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID17 } from "node:crypto";
 var CLIENT_ADAPTER_ID = "client";
 var RuntimeProfileValidationError = class extends Error {
   reason;
@@ -75473,8 +76195,8 @@ var ActorRuntimeBindingConflictError = class extends Error {
 function validateRuntimeProfile(content) {
   nonEmpty3("label", content.label);
   nonEmpty3("adapter_id", content.adapter_id);
-  unique3(content.secret_ref_ids, "SecretRef id");
-  unique3(content.required_capability_ids, "capability id");
+  unique2(content.secret_ref_ids, "SecretRef id");
+  unique2(content.required_capability_ids, "capability id");
   if (content.checkpoint_policy.mode === "required" && !content.checkpoint_policy.schema_ref?.trim()) {
     throw new RuntimeProfileValidationError("a required checkpoint policy must name its schema");
   }
@@ -75488,7 +76210,7 @@ function validateRuntimeProfile(content) {
 }
 function runtimeProfileDigest(content) {
   validateRuntimeProfile(content);
-  return createHash14("sha256").update(canonicalJson8(content)).digest("hex");
+  return createHash16("sha256").update(canonicalJson8(content)).digest("hex");
 }
 function applyRuntimeProfileSchema(db) {
   db.exec(`
@@ -75919,7 +76641,7 @@ function assertJsonData(value, path3) {
   }
   throw new RuntimeProfileValidationError(`${path3} must contain JSON data only`);
 }
-function unique3(values, label) {
+function unique2(values, label) {
   const seen = /* @__PURE__ */ new Set();
   for (const value of values) {
     nonEmpty3(label, value);
@@ -75955,7 +76677,7 @@ function transaction3(db, action) {
 }
 
 // floe-bus/dist/connectors.js
-import { createHash as createHash15, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID18 } from "node:crypto";
 var ConnectorValidationError = class extends Error {
   reason;
   code = "E_CONNECTOR_INVALID";
@@ -76235,7 +76957,7 @@ var ConnectorStore = class {
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
     const revisionId = `connector_definition_revision_${randomUUID18()}`;
     const at = this.now();
-    const digest9 = connectorDefinitionDigest(input.content);
+    const digest11 = connectorDefinitionDigest(input.content);
     transaction4(this.db, "connector_definition_create", () => {
       this.db.prepare(`
         INSERT INTO connector_definitions (
@@ -76249,7 +76971,7 @@ var ConnectorStore = class {
           based_on_revision_id, semantic_digest, content_json,
           created_by_principal_id, created_at, published_at
         ) VALUES (?, ?, 1, NULL, ?, ?, ?, ?, ?)
-      `).run(revisionId, definitionId, digest9, JSON.stringify(input.content), principalId, at, at);
+      `).run(revisionId, definitionId, digest11, JSON.stringify(input.content), principalId, at, at);
       this.insertHeadChange("connector_definition", definitionId, owner, null, revisionId, principalId, at);
     });
     return {
@@ -77251,16 +77973,16 @@ function normalizeInvocationProvenance(value) {
   };
 }
 function requireTimestamp(value, label) {
-  const text12 = requireText4(value, label);
-  if (!Number.isFinite(Date.parse(text12)))
+  const text15 = requireText4(value, label);
+  if (!Number.isFinite(Date.parse(text15)))
     throw new ConnectorValidationError(`${label} must be an ISO timestamp`);
-  return text12;
+  return text15;
 }
 function requireDigest(value, label) {
-  const text12 = requireText4(value, label, 64).toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(text12))
+  const text15 = requireText4(value, label, 64).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(text15))
     throw new ConnectorValidationError(`${label} must be a SHA-256 digest`);
-  return text12;
+  return text15;
 }
 function normalizeJson(value, label = "JSON value") {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -77297,7 +78019,7 @@ function canonicalJson9(value) {
   return JSON.stringify(value);
 }
 function sha2562(value) {
-  return createHash15("sha256").update(value).digest("hex");
+  return createHash17("sha256").update(value).digest("hex");
 }
 function transaction4(db, label, action) {
   const savepoint = label.replace(/[^a-z0-9_]/gi, "_");
@@ -77480,7 +78202,7 @@ function rowToActionReconciliation(row) {
 }
 
 // floe-bus/dist/approvals.js
-import { createHash as createHash16, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID19 } from "node:crypto";
 var ApprovalValidationError = class extends Error {
   reason;
   code = "E_APPROVAL_INVALID";
@@ -77796,10 +78518,10 @@ function migrateLegacyApprovalState(db) {
       }
     };
     const policyJson = canonicalJson10(policy);
-    const policyDigest = digest4("floe-approval-decision-policy:v1", policy);
+    const policyDigest = digest5("floe-approval-decision-policy:v1", policy);
     let decisions = [];
     if (row.decision_outcome && row.decided_by_principal_id && row.decision_event_id && row.decision_reason && row.decided_at) {
-      const decisionId = `approval_decision_legacy_${createHash16("sha256").update(`${row.approval_request_id}\0${row.decision_event_id}`).digest("hex").slice(0, 32)}`;
+      const decisionId = `approval_decision_legacy_${createHash18("sha256").update(`${row.approval_request_id}\0${row.decision_event_id}`).digest("hex").slice(0, 32)}`;
       const provisional = {
         approval_decision_id: decisionId,
         approval_request_id: row.approval_request_id,
@@ -77873,7 +78595,7 @@ var ApprovalStore = class {
     const decisionPolicy = normalizeApprovalDecisionPolicy(input.decision_policy ?? legacyDecisionPolicy());
     const decisionBindingJson = canonicalJson10(decisionBinding);
     const decisionPolicyJson = canonicalJson10(decisionPolicy);
-    const decisionPolicyDigest = digest4("floe-approval-decision-policy:v1", decisionPolicy);
+    const decisionPolicyDigest = digest5("floe-approval-decision-policy:v1", decisionPolicy);
     const decisionSetDigest = approvalDecisionSetDigest([]);
     const actionJson = canonicalJson10(action);
     const actionDigest = approvalActionDigest(action);
@@ -78353,10 +79075,10 @@ var ApprovalStore = class {
   }
 };
 function approvalActionDigest(action) {
-  return createHash16("sha256").update("floe-approval-action:v1\0", "utf8").update(canonicalJson10(normalizeApprovalAction(action)), "utf8").digest("hex");
+  return createHash18("sha256").update("floe-approval-action:v1\0", "utf8").update(canonicalJson10(normalizeApprovalAction(action)), "utf8").digest("hex");
 }
 function approvalReceiptStateRevision(receipt) {
-  return createHash16("sha256").update("floe-approval-receipt-state:v1\0", "utf8").update(canonicalJson10({
+  return createHash18("sha256").update("floe-approval-receipt-state:v1\0", "utf8").update(canonicalJson10({
     approval_receipt_id: receipt.approval_receipt_id,
     action_digest: receipt.action_digest,
     decision_set_digest: receipt.decision_set_digest,
@@ -78462,11 +79184,18 @@ function normalizeApprovalDecisionPolicy(policy) {
   }
   throw new ApprovalValidationError("decision_policy.approvers mode is invalid");
 }
+var STANDS_IN_FOR_ROLE_PREFIX = "stands_in_for:";
+function creditedPrincipalId(item) {
+  const standIn = item.role_evidence.find((evidence) => evidence.role.startsWith(STANDS_IN_FOR_ROLE_PREFIX));
+  return standIn ? standIn.role.slice(STANDS_IN_FOR_ROLE_PREFIX.length) : item.principal_id;
+}
 function eligibleDecisionAuthority(policy, principalId, authority) {
   const selector = policy.approvers;
-  const named = selector.principal_ids.includes(principalId);
+  const directlyNamed = selector.principal_ids.includes(principalId);
+  const standsIn = directlyNamed ? [] : authority.role_evidence.filter((item) => item.role.startsWith(STANDS_IN_FOR_ROLE_PREFIX) && selector.principal_ids.includes(item.role.slice(STANDS_IN_FOR_ROLE_PREFIX.length)));
+  const named = directlyNamed || standsIn.length > 0;
   const permittedRoles = selector.mode === "all_named" ? [] : selector.roles;
-  const roleEvidence = authority.role_evidence.filter((item) => permittedRoles.includes(item.role)).map((item) => ({
+  const roleEvidence = authority.role_evidence.filter((item) => permittedRoles.includes(item.role) || standsIn.includes(item)).map((item) => ({
     role: requireText5(item.role, "role_evidence.role"),
     authority_ref: requireText5(item.authority_ref, "role_evidence.authority_ref")
   })).sort((left, right) => `${left.role}\0${left.authority_ref}`.localeCompare(`${right.role}\0${right.authority_ref}`));
@@ -78484,7 +79213,7 @@ function resolveApprovalDecisionPolicy(policy, active) {
   const negative = active.find((item) => item.decision !== "approved");
   if (negative)
     return negative.decision;
-  const approvals = new Set(active.filter((item) => item.decision === "approved").map((item) => item.principal_id));
+  const approvals = new Set(active.filter((item) => item.decision === "approved").map(creditedPrincipalId));
   const selector = policy.approvers;
   if (selector.mode === "any")
     return approvals.size >= 1 ? "approved" : null;
@@ -78494,7 +79223,7 @@ function resolveApprovalDecisionPolicy(policy, active) {
 }
 function approvalProgress(policy, decisions, resolution) {
   const active = activeApprovalDecisions(decisions);
-  const approvedPrincipals = new Set(active.filter((item) => item.decision === "approved").map((item) => item.principal_id));
+  const approvedPrincipals = new Set(active.filter((item) => item.decision === "approved").map(creditedPrincipalId));
   const selector = policy.approvers;
   const required = selector.mode === "quorum" ? selector.quorum : selector.mode === "all_named" ? selector.principal_ids.length : 1;
   return {
@@ -78506,7 +79235,7 @@ function approvalProgress(policy, decisions, resolution) {
   };
 }
 function approvalDecisionSetDigest(decisions) {
-  return digest4("floe-approval-decision-set:v1", decisions.map((item) => ({
+  return digest5("floe-approval-decision-set:v1", decisions.map((item) => ({
     approval_decision_id: item.approval_decision_id,
     approval_request_id: item.approval_request_id,
     workspace_id: item.workspace_id,
@@ -78714,8 +79443,8 @@ function parseTextArray(value, label) {
     throw new ApprovalValidationError(`stored ${label} is invalid`);
   }
 }
-function digest4(domain, value) {
-  return createHash16("sha256").update(`${domain}\0`, "utf8").update(canonicalJson10(value), "utf8").digest("hex");
+function digest5(domain, value) {
+  return createHash18("sha256").update(`${domain}\0`, "utf8").update(canonicalJson10(value), "utf8").digest("hex");
 }
 function canonicalJson10(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -78747,7 +79476,7 @@ function inSavepoint3(db, label, action) {
 }
 
 // floe-bus/dist/policies.js
-import { createHash as createHash17, randomUUID as randomUUID20 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID20 } from "node:crypto";
 var PolicyValidationError = class extends Error {
   reason;
   code = "E_POLICY_INVALID";
@@ -78991,13 +79720,13 @@ var PolicyStore = class {
       throw new PolicyConflictError(revision.policy_id, "the draft changed before this edit was applied");
     }
     const content = normalizePolicyContent(input.content);
-    const digest9 = policyContentDigest(content);
+    const digest11 = policyContentDigest(content);
     const result = this.db.prepare(`
       UPDATE policy_revisions
       SET content_json = ?, semantic_digest = ?
       WHERE policy_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
         AND semantic_digest = ?
-    `).run(JSON.stringify(content), digest9, revision.policy_revision_id, input.expected_semantic_digest);
+    `).run(JSON.stringify(content), digest11, revision.policy_revision_id, input.expected_semantic_digest);
     if (Number(result.changes) !== 1) {
       throw new PolicyConflictError(revision.policy_id, "the draft changed while it was being replaced");
     }
@@ -79192,7 +79921,7 @@ var PolicyStore = class {
     }));
     const decision = denials.length > 0 ? "deny" : approvals.length > 0 ? "require_approval" : "allow";
     const evaluatedAt = this.now();
-    const factsDigest = createHash17("sha256").update(canonicalJson11(facts)).digest("hex");
+    const factsDigest = createHash19("sha256").update(canonicalJson11(facts)).digest("hex");
     const evaluation = {
       evaluation_id: `policy_evaluation_${randomUUID20()}`,
       workspace_id: facts.workspace_id,
@@ -79330,7 +80059,7 @@ var PolicyStore = class {
   }
 };
 function policyContentDigest(content) {
-  return createHash17("sha256").update(canonicalJson11(normalizePolicyContent(content))).digest("hex");
+  return createHash19("sha256").update(canonicalJson11(normalizePolicyContent(content))).digest("hex");
 }
 function normalizePolicyContent(content) {
   const label = requiredText2(content.label, "label");
@@ -80472,7 +81201,7 @@ var POLICY_OPERATION_SCHEMAS = Object.freeze({
 });
 
 // floe-bus/dist/budgets.js
-import { createHash as createHash18, randomUUID as randomUUID21 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID21 } from "node:crypto";
 var BudgetValidationError = class extends Error {
   reason;
   code = "E_BUDGET_INVALID";
@@ -80623,7 +81352,7 @@ var BudgetStore = class {
     const estimates = normalizeUsage(input.estimates, "estimate");
     if (input.evaluation.budget_limits.length === 0)
       return null;
-    const requestDigest = digest5({
+    const requestDigest = digest6({
       source,
       policy_evaluation_id: input.evaluation.evaluation_id,
       facts,
@@ -80706,7 +81435,7 @@ var BudgetStore = class {
   commit(input) {
     const reservation = this.requireReservationForWorkspace(input.reservation_id, input.workspace_id);
     const actual = normalizeUsage(input.actual_usage, "actual usage");
-    const actualDigest = digest5(actual);
+    const actualDigest = digest6(actual);
     if (reservation.state === "committed" || reservation.state === "exceeded") {
       if (reservation.actual_usage_digest !== actualDigest) {
         throw new BudgetConflictError(reservation.source, "actual usage changed after it was committed");
@@ -81128,8 +81857,8 @@ function requiredText3(value, field) {
     throw new BudgetValidationError(`${field} is required`);
   return value.trim();
 }
-function digest5(value) {
-  return createHash18("sha256").update(canonicalJson12(value)).digest("hex");
+function digest6(value) {
+  return createHash20("sha256").update(canonicalJson12(value)).digest("hex");
 }
 function canonicalJson12(value) {
   if (Array.isArray(value))
@@ -81155,7 +81884,7 @@ function inSavepoint5(db, label, action) {
 }
 
 // floe-bus/dist/audit.js
-import { createHash as createHash19, randomUUID as randomUUID22 } from "node:crypto";
+import { createHash as createHash21, randomUUID as randomUUID22 } from "node:crypto";
 var AuditConflictError = class extends Error {
   invocation_id;
   reason;
@@ -81245,7 +81974,7 @@ var AuditStore = class {
       request_digest: "",
       started_at: input.started_at ?? this.now()
     });
-    const requestDigest = digest6(requestDigestContent(normalized));
+    const requestDigest = digest7(requestDigestContent(normalized));
     const record = { ...normalized, request_digest: requestDigest };
     const existing = this.getByInvocationId(record.invocation_id)?.request ?? null;
     if (existing) {
@@ -81279,7 +82008,7 @@ var AuditStore = class {
   complete(input) {
     const request = this.require(input.audit_id).request;
     const outcome = normalizeOutcome({ ...input, completed_at: input.completed_at ?? this.now() });
-    const outcomeDigest = digest6(outcome);
+    const outcomeDigest = digest7(outcome);
     const existing = this.getOutcome(request.audit_id);
     if (existing) {
       const row = this.db.prepare("SELECT outcome_digest FROM audit_outcomes WHERE audit_id = ?").get(request.audit_id);
@@ -81358,7 +82087,7 @@ var AuditStore = class {
   }
 };
 function auditValueDigest(value) {
-  return digest6(value);
+  return digest7(value);
 }
 function normalizeRequest(record) {
   const boundary = record.authority_boundary.kind === "workspace" ? { kind: "workspace", workspace_id: requiredText4(record.authority_boundary.workspace_id, "workspace_id") } : { kind: "host", host_id: requiredText4(record.authority_boundary.host_id, "host_id") };
@@ -81487,10 +82216,10 @@ function safeJsonObject(value, field) {
   return value;
 }
 function validTime(value, field) {
-  const text12 = requiredText4(value, field);
-  if (!Number.isFinite(Date.parse(text12)))
+  const text15 = requiredText4(value, field);
+  if (!Number.isFinite(Date.parse(text15)))
     throw new AuditValidationError(`${field} must be a timestamp`);
-  return text12;
+  return text15;
 }
 function nullableText5(value) {
   return value == null ? null : requiredText4(value, "audit field");
@@ -81499,10 +82228,10 @@ function uniqueText2(values) {
   return [...new Set(values.map((value) => requiredText4(value, "audit reference")))].sort();
 }
 function requiredDigest(value, field) {
-  const text12 = requiredText4(value, field);
-  if (!/^[a-f0-9]{64}$/.test(text12))
+  const text15 = requiredText4(value, field);
+  if (!/^[a-f0-9]{64}$/.test(text15))
     throw new AuditValidationError(`${field} must be a SHA-256 digest`);
-  return text12;
+  return text15;
 }
 function requiredText4(value, field) {
   if (typeof value !== "string" || !value.trim())
@@ -81512,8 +82241,8 @@ function requiredText4(value, field) {
 function boundaryId4(boundary) {
   return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
 }
-function digest6(value) {
-  return createHash19("sha256").update(canonicalJson13(value)).digest("hex");
+function digest7(value) {
+  return createHash21("sha256").update(canonicalJson13(value)).digest("hex");
 }
 function canonicalJson13(value) {
   if (Array.isArray(value))
@@ -81998,7 +82727,7 @@ function resolveAuditOperationResource(store, boundary, target) {
 }
 
 // floe-bus/dist/extensions.js
-import { createHash as createHash20, randomUUID as randomUUID23 } from "node:crypto";
+import { createHash as createHash22, randomUUID as randomUUID23 } from "node:crypto";
 var ExtensionValidationError = class extends Error {
   reason;
   code = "E_EXTENSION_INVALID";
@@ -82762,15 +83491,15 @@ function validatePackageDefinition(definition2) {
     }
   }
   nonEmpty4("floe_version_range", definition2.compatibility.floe_version_range);
-  unique4(definition2.compatibility.operation_contract_versions, "operation contract version");
+  unique3(definition2.compatibility.operation_contract_versions, "operation contract version");
   validatePermissions(definition2.permissions);
   validateContributions(definition2.contributions);
-  unique4(definition2.entry_points.map((entry) => entry.entry_point_id), "entry point id");
+  unique3(definition2.entry_points.map((entry) => entry.entry_point_id), "entry point id");
   for (const entry of definition2.entry_points) {
     nonEmpty4("entry_point_id", entry.entry_point_id);
     validateRelativePackagePath(entry.package_path, "entry point package_path");
   }
-  unique4(definition2.test_evidence.map((evidence) => evidence.evidence_id), "test evidence id");
+  unique3(definition2.test_evidence.map((evidence) => evidence.evidence_id), "test evidence id");
   for (const evidence of definition2.test_evidence) {
     validateDigest(evidence.subject_content_digest, "test evidence subject digest");
     if (evidence.subject_content_digest !== definition2.content_digest) {
@@ -82797,7 +83526,7 @@ function validatePermissions(permissions) {
     ...permissions.data.map((item) => item.permission_id),
     ...permissions.actions.map((item) => item.permission_id)
   ];
-  unique4(allIds, "permission id");
+  unique3(allIds, "permission id");
   for (const item of permissions.network) {
     assertExactKeys(item, ["permission_id", "origin", "methods"], "network permission");
     nonEmpty4("network permission id", item.permission_id);
@@ -82810,7 +83539,7 @@ function validatePermissions(permissions) {
     if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || url.origin !== item.origin) {
       throw new ExtensionValidationError("network origin must be an exact HTTP(S) origin without credentials or a path");
     }
-    unique4(item.methods, "network method");
+    unique3(item.methods, "network method");
   }
   for (const item of permissions.filesystem) {
     assertExactKeys(item, ["permission_id", "scope", "relative_pattern", "access"], "filesystem permission");
@@ -82835,17 +83564,17 @@ function validatePermissions(permissions) {
   }
 }
 function validateContributions(contributions) {
-  unique4(contributions.capabilities.map((item) => item.capability_id), "contributed capability id");
+  unique3(contributions.capabilities.map((item) => item.capability_id), "contributed capability id");
   for (const capability of contributions.capabilities) {
     nonEmpty4("capability id", capability.capability_id);
-    unique4(capability.operation_ids, "capability operation id");
+    unique3(capability.operation_ids, "capability operation id");
   }
-  unique4(contributions.connectors.map((item) => item.connector_id), "contributed connector id");
+  unique3(contributions.connectors.map((item) => item.connector_id), "contributed connector id");
   for (const connector of contributions.connectors) {
     nonEmpty4("connector id", connector.connector_id);
     nonEmpty4("connector definition schema reference", connector.definition_schema_ref);
   }
-  unique4(contributions.schemas.map((item) => `${item.schema_id}@${item.schema_version}`), "contributed schema version");
+  unique3(contributions.schemas.map((item) => `${item.schema_id}@${item.schema_version}`), "contributed schema version");
   for (const schema of contributions.schemas) {
     nonEmpty4("schema id", schema.schema_id);
     nonEmpty4("schema version", schema.schema_version);
@@ -82854,14 +83583,14 @@ function validateContributions(contributions) {
     if (actual !== schema.schema_digest)
       throw new ExtensionValidationError(`schema '${schema.schema_id}' digest does not match its content`);
   }
-  unique4(contributions.product_surfaces.map((item) => `${item.surface_id}@${item.surface_version}`), "product surface version");
+  unique3(contributions.product_surfaces.map((item) => `${item.surface_id}@${item.surface_version}`), "product surface version");
   for (const surface of contributions.product_surfaces) {
     nonEmpty4("product surface id", surface.surface_id);
     nonEmpty4("product surface version", surface.surface_version);
     nonEmpty4("product surface title", surface.title);
     nonEmpty4("product surface projection operation id", surface.projection_operation_id);
     nonEmpty4("product surface presentation schema reference", surface.presentation_schema_ref);
-    unique4(surface.action_operation_ids, "product surface action operation id");
+    unique3(surface.action_operation_ids, "product surface action operation id");
     if (/(component|module|javascript|script):/i.test(surface.presentation_schema_ref)) {
       throw new ExtensionValidationError("product surfaces must bind declaratively to canonical APIs, not executable UI code");
     }
@@ -82901,7 +83630,7 @@ function validateDigest(value, label) {
     throw new ExtensionValidationError(`${label} must be a lowercase sha256 content digest`);
   }
 }
-function unique4(values, label) {
+function unique3(values, label) {
   const seen = /* @__PURE__ */ new Set();
   for (const value of values) {
     nonEmpty4(label, value);
@@ -82929,7 +83658,7 @@ function canonicalJson14(value) {
   return JSON.stringify(value);
 }
 function sha2563(value) {
-  return `sha256:${createHash20("sha256").update(value).digest("hex")}`;
+  return `sha256:${createHash22("sha256").update(value).digest("hex")}`;
 }
 function dedupeUnresolved(bindings) {
   const byKey = /* @__PURE__ */ new Map();
@@ -83027,7 +83756,7 @@ function mapInstallationChange(row) {
 }
 
 // floe-bus/dist/extension-activation-authority.js
-import { createHash as createHash21 } from "node:crypto";
+import { createHash as createHash23 } from "node:crypto";
 var ExtensionActivationAttemptConflictError = class extends Error {
   invocation_id;
   code = "E_EXTENSION_ACTIVATION_ATTEMPT_CONFLICT";
@@ -83287,7 +84016,7 @@ function canonicalJson15(value) {
   return JSON.stringify(value);
 }
 function hash(value) {
-  return createHash21("sha256").update(value, "utf8").digest("hex");
+  return createHash23("sha256").update(value, "utf8").digest("hex");
 }
 function inSavepoint6(db, label, action) {
   db.exec(`SAVEPOINT ${label}`);
@@ -84236,10 +84965,10 @@ function copyPort(port) {
 }
 
 // floe-bus/dist/database-upgrade.js
-import { createHash as createHash22 } from "node:crypto";
+import { createHash as createHash24 } from "node:crypto";
 import { existsSync as existsSync4, mkdirSync as mkdirSync2 } from "node:fs";
 import { basename, dirname as dirname4, join as join3 } from "node:path";
-var CURRENT_BUS_SCHEMA_VERSION = 15;
+var CURRENT_BUS_SCHEMA_VERSION = 16;
 function computeSchemaFingerprint(db) {
   const rows = db.prepare(`
     SELECT type, name, sql
@@ -84249,7 +84978,7 @@ function computeSchemaFingerprint(db) {
       AND sql IS NOT NULL
     ORDER BY type, name
   `).all();
-  const hash2 = createHash22("sha256");
+  const hash2 = createHash24("sha256");
   for (const row of rows) {
     hash2.update(`${row.type}\0${row.name}\0${row.sql}`);
   }
@@ -84309,6 +85038,8 @@ function runDatabaseUpgrade(input) {
   }) : null;
   const beforeFingerprint = computeSchemaFingerprint(input.db);
   const beforeObjects = schemaObjectNames(input.db);
+  if (input.rebuild)
+    runTableRebuild(input.db, input.rebuild);
   input.db.exec("BEGIN IMMEDIATE");
   try {
     input.migrate();
@@ -84344,6 +85075,27 @@ function runDatabaseUpgrade(input) {
     changed: versionRises,
     backup_path: backupPath
   };
+}
+function runTableRebuild(db, rebuild) {
+  const foreignKeysWereOn = Number(db.prepare("PRAGMA foreign_keys").get().foreign_keys) === 1;
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      rebuild();
+      const broken = db.prepare("PRAGMA foreign_key_check").all();
+      if (broken.length > 0) {
+        throw new Error(`Database table rebuild would break ${broken.length} foreign key reference(s).`);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    if (foreignKeysWereOn)
+      db.exec("PRAGMA foreign_keys = ON");
+  }
 }
 function createVerifiedBackup(input) {
   if (input.database_path === ":memory:") {
@@ -85309,7 +86061,7 @@ function parseReceipt(value) {
 }
 
 // floe-bus/dist/operation-authority-sessions.js
-import { createHash as createHash23, randomBytes as randomBytes2, randomUUID as randomUUID27 } from "node:crypto";
+import { createHash as createHash25, randomBytes as randomBytes2, randomUUID as randomUUID27 } from "node:crypto";
 function applyOperationAuthoritySessionSchema(db) {
   const existingColumns = db.prepare("PRAGMA table_info(operation_authority_sessions)").all();
   if (existingColumns.length > 0 && !existingColumns.some((column) => column.name === "grant_ids_json")) {
@@ -85355,12 +86107,14 @@ var SqliteOperationAuthoritySessionStore = class {
   now;
   tokenFactory;
   sessionIdFactory;
+  onRevoked;
   constructor(db, capabilityGrants, dependencies = {}) {
     this.db = db;
     this.capabilityGrants = capabilityGrants;
     this.now = dependencies.now ?? isoNow4;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken;
     this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID27()}`);
+    this.onRevoked = dependencies.on_revoked ?? null;
   }
   issueSession(input) {
     assertNonEmpty2("principal_id", input.principal_id);
@@ -85411,10 +86165,24 @@ var SqliteOperationAuthoritySessionStore = class {
     parseTimestamp2("revoked_at", revokedAt);
     const result = this.db.prepare(`
       UPDATE operation_authority_sessions
-      SET revoked_at = COALESCE(revoked_at, ?)
-      WHERE authority_session_id = ?
+      SET revoked_at = ?
+      WHERE authority_session_id = ? AND revoked_at IS NULL
     `).run(revokedAt, authoritySessionId);
-    return Number(result.changes) === 1;
+    const revoked = Number(result.changes) === 1;
+    if (revoked)
+      this.onRevoked?.(authoritySessionId);
+    return revoked;
+  }
+  /** Revokes every live session minted for one interaction, such as one browser pass. */
+  revokeSessionsForInteraction(interactionSessionId, revokedAt = this.now()) {
+    parseTimestamp2("revoked_at", revokedAt);
+    const rows = this.db.prepare(`
+      SELECT authority_session_id FROM operation_authority_sessions
+      WHERE interaction_session_id = ? AND revoked_at IS NULL
+    `).all(interactionSessionId);
+    for (const row of rows)
+      this.revokeSession(row.authority_session_id, revokedAt);
+    return rows.map((row) => row.authority_session_id);
   }
   getSession(authoritySessionId) {
     const row = this.db.prepare(`
@@ -85596,14 +86364,235 @@ function createBearerToken() {
   return `floe_operation_${randomBytes2(32).toString("base64url")}`;
 }
 function hashBearerToken(bearerToken) {
-  return createHash23("sha256").update("floe-operation-authority-token:v1\0", "utf8").update(bearerToken, "utf8").digest("hex");
+  return createHash25("sha256").update("floe-operation-authority-token:v1\0", "utf8").update(bearerToken, "utf8").digest("hex");
 }
 function isoNow4() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 
 // floe-bus/dist/client-identity-store.js
-import { randomBytes as randomBytes3, randomUUID as randomUUID28 } from "node:crypto";
+import { randomBytes as randomBytes3, randomUUID as randomUUID29 } from "node:crypto";
+
+// floe-bus/dist/identity-workspace-authority.js
+import { randomUUID as randomUUID28 } from "node:crypto";
+var AuthorityLifetimeRequiredError = class extends Error {
+  constructor() {
+    super("Choose a lifetime: until_revoked, or expires_at.");
+    this.name = "AuthorityLifetimeRequiredError";
+  }
+};
+var AuthorityWideningError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AuthorityWideningError";
+  }
+};
+function parseAuthorityLifetime(value) {
+  const untilRevoked = value.until_revoked === true;
+  const hasExpiry = typeof value.expires_at === "string" && value.expires_at.length > 0;
+  if (untilRevoked === hasExpiry || value.until_revoked !== void 0 && value.until_revoked !== true) {
+    throw new AuthorityLifetimeRequiredError();
+  }
+  if (hasExpiry && !Number.isFinite(Date.parse(value.expires_at))) {
+    throw new AuthorityLifetimeRequiredError();
+  }
+  return untilRevoked ? { until_revoked: true } : { expires_at: new Date(Date.parse(value.expires_at)).toISOString() };
+}
+function lifetimeExpiry(lifetime) {
+  return "until_revoked" in lifetime ? null : lifetime.expires_at;
+}
+function identityPrincipalId(identityId) {
+  return `identity:${identityId}`;
+}
+function applyIdentityWorkspaceAuthoritySchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS identity_workspace_authorities (
+      authority_id TEXT PRIMARY KEY,
+      identity_id TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      root_grant_id TEXT NOT NULL UNIQUE REFERENCES capability_grants(grant_id),
+      status TEXT NOT NULL CHECK (status IN ('active', 'revoked')),
+      issued_by TEXT NOT NULL,
+      issued_at TEXT NOT NULL,
+      expires_at TEXT,
+      revoked_at TEXT,
+      revocation_reason TEXT,
+      replaced_by_authority_id TEXT,
+      CHECK ((status = 'active') = (revoked_at IS NULL))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_workspace_authority_active
+      ON identity_workspace_authorities(identity_id, workspace_id)
+      WHERE status = 'active';
+
+    CREATE INDEX IF NOT EXISTS idx_identity_workspace_authority_workspace
+      ON identity_workspace_authorities(workspace_id, identity_id);
+  `);
+}
+var IdentityWorkspaceAuthorityStore = class {
+  db;
+  dependencies;
+  now;
+  constructor(db, dependencies) {
+    this.db = db;
+    this.dependencies = dependencies;
+    this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
+    applyIdentityWorkspaceAuthoritySchema(db);
+  }
+  /** Issue the root grant for a membership. Idempotent: an active authority is returned unchanged. */
+  issue(input) {
+    const existing = this.getActive(input.identity_id, input.workspace_id);
+    if (existing)
+      return existing;
+    return this.changed(this.inTransaction(() => this.insert(input)));
+  }
+  getActive(identityId, workspaceId4) {
+    const row = this.db.prepare(`
+      SELECT * FROM identity_workspace_authorities
+      WHERE identity_id = ? AND workspace_id = ? AND status = 'active'
+    `).get(identityId, workspaceId4);
+    return row ? { ...row } : null;
+  }
+  get(authorityId) {
+    const row = this.db.prepare("SELECT * FROM identity_workspace_authorities WHERE authority_id = ?").get(authorityId);
+    return row ? { ...row } : null;
+  }
+  /** Retained history for one identity in one Workspace, newest first. */
+  history(identityId, workspaceId4) {
+    return this.db.prepare(`
+      SELECT * FROM identity_workspace_authorities
+      WHERE identity_id = ? AND workspace_id = ?
+      ORDER BY issued_at DESC, authority_id
+    `).all(identityId, workspaceId4).map((row) => ({ ...row }));
+  }
+  listActiveForIdentity(identityId) {
+    return this.db.prepare(`
+      SELECT * FROM identity_workspace_authorities
+      WHERE identity_id = ? AND status = 'active'
+      ORDER BY workspace_id
+    `).all(identityId).map((row) => ({ ...row }));
+  }
+  rootGrant(record) {
+    const grant = this.dependencies.grants.getGrant(record.root_grant_id);
+    if (!grant)
+      throw new Error(`Root grant '${record.root_grant_id}' is missing.`);
+    return grant;
+  }
+  /**
+   * Atomically issue a new root and revoke the old one. Without `may_widen`
+   * the new root must sit inside the old one: same or fewer operations, targets
+   * inside, and no longer lifetime. Only an issuer that already holds wider
+   * authority (host control, the admission root) may widen.
+   */
+  replace(input) {
+    return this.changed(this.inTransaction(() => {
+      const current = this.get(input.authority_id);
+      if (!current || current.status !== "active")
+        throw new Error("This authority is no longer active.");
+      const root = this.rootGrant(current);
+      if (!input.may_widen)
+        requireNarrower(root, input.operation_ids, input.targets ?? [], lifetimeExpiry(input.lifetime));
+      const next = this.insertWithoutActiveCheck(current, input);
+      this.stop(current, "replaced", next.authority_id);
+      return next;
+    }));
+  }
+  revoke(authorityId, reason) {
+    const current = this.get(authorityId);
+    if (!current || current.status !== "active")
+      return current;
+    return this.changed(this.inTransaction(() => {
+      this.stop(current, reason, null);
+      return this.get(authorityId);
+    }));
+  }
+  revokeAllForIdentity(identityId, reason) {
+    const stopped = this.inTransaction(() => this.listActiveForIdentity(identityId).map((record) => {
+      this.stop(record, reason, null);
+      return this.get(record.authority_id);
+    }));
+    for (const record of stopped)
+      this.changed(record);
+    return stopped;
+  }
+  changed(record) {
+    this.dependencies.on_changed?.(record.workspace_id);
+    return record;
+  }
+  insert(input) {
+    const authorityId = `identity_authority_${randomUUID28()}`;
+    const principalId = identityPrincipalId(input.identity_id);
+    const grant = this.dependencies.grants.issueGrant({
+      principal_id: principalId,
+      boundary: { kind: "workspace", workspace_id: input.workspace_id },
+      operation_ids: input.operation_ids,
+      targets: input.targets ?? [],
+      expires_at: lifetimeExpiry(input.lifetime),
+      issuer_id: input.issued_by,
+      evidence: [...input.evidence, { kind: "identity_workspace_authority", ref: authorityId }]
+    });
+    this.db.prepare(`
+      INSERT INTO identity_workspace_authorities (
+        authority_id, identity_id, principal_id, workspace_id, root_grant_id, status,
+        issued_by, issued_at, expires_at, revoked_at, revocation_reason, replaced_by_authority_id
+      ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, NULL, NULL, NULL)
+    `).run(authorityId, input.identity_id, principalId, input.workspace_id, grant.grant_id, input.issued_by, grant.issued_at, grant.expires_at);
+    return this.get(authorityId);
+  }
+  insertWithoutActiveCheck(current, input) {
+    this.db.prepare(`
+      UPDATE identity_workspace_authorities SET status = 'revoked', revoked_at = ?, revocation_reason = 'replaced'
+      WHERE authority_id = ?
+    `).run(this.now(), current.authority_id);
+    return this.insert({
+      identity_id: current.identity_id,
+      workspace_id: current.workspace_id,
+      operation_ids: input.operation_ids,
+      targets: input.targets,
+      lifetime: input.lifetime,
+      issued_by: input.issued_by,
+      evidence: [...input.evidence, { kind: "replaces_identity_workspace_authority", ref: current.authority_id }]
+    });
+  }
+  stop(record, reason, replacedBy) {
+    const at = this.now();
+    this.db.prepare(`
+      UPDATE identity_workspace_authorities
+      SET status = 'revoked', revoked_at = COALESCE(revoked_at, ?), revocation_reason = COALESCE(revocation_reason, ?),
+          replaced_by_authority_id = ?
+      WHERE authority_id = ?
+    `).run(at, reason, replacedBy, record.authority_id);
+    this.dependencies.grants.revokeGrant(record.root_grant_id, at);
+    this.dependencies.on_revoked?.(this.get(record.authority_id));
+  }
+  inTransaction(work) {
+    const name = `identity_authority_${randomUUID28().replaceAll("-", "")}`;
+    this.db.exec(`SAVEPOINT ${name}`);
+    try {
+      const result = work();
+      this.db.exec(`RELEASE ${name}`);
+      return result;
+    } catch (error) {
+      this.db.exec(`ROLLBACK TO ${name}`);
+      this.db.exec(`RELEASE ${name}`);
+      throw error;
+    }
+  }
+};
+function requireNarrower(root, operationIds, targets3, expiresAt) {
+  const wider = operationIds.find((id) => !root.operation_ids.includes(id));
+  if (wider)
+    throw new AuthorityWideningError(`You cannot add '${wider}': your current authority does not hold it.`);
+  if (root.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !root.targets.some((allowed) => targetContains(allowed, target))))) {
+    throw new AuthorityWideningError("Targets must stay inside your current authority.");
+  }
+  if (expiryMs(expiresAt) > expiryMs(root.expires_at)) {
+    throw new AuthorityWideningError("The new authority cannot last longer than your current authority.");
+  }
+}
+
+// floe-bus/dist/client-identity-store.js
 function applyClientIdentitySchema(db) {
   const challengeColumns = db.prepare("PRAGMA table_info(client_identity_challenges)").all();
   if (challengeColumns.some((column) => column.name === "workspace_id")) {
@@ -85654,6 +86643,7 @@ function applyClientIdentitySchema(db) {
     CREATE INDEX IF NOT EXISTS idx_client_identity_session_identity
       ON client_identity_sessions(identity_id);
   `);
+  db.exec("UPDATE client_identities SET principal_id = 'identity:' || identity_id WHERE principal_id != 'identity:' || identity_id");
 }
 var SqliteClientIdentityStore = class {
   db;
@@ -85664,7 +86654,7 @@ var SqliteClientIdentityStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow5;
     this.challengeFactory = dependencies.challenge_factory ?? (() => randomBytes3(32).toString("hex"));
-    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID28()}`);
+    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID29()}`);
   }
   /**
    * Admit a public key under a display name. Idempotent per key: re-admitting an
@@ -85675,16 +86665,15 @@ var SqliteClientIdentityStore = class {
   admitIdentity(input) {
     assertNonEmpty3("pubkey_hex", input.pubkey_hex);
     assertNonEmpty3("display_name", input.display_name);
-    assertNonEmpty3("principal_id", input.principal_id);
     assertNonEmpty3("admitted_by", input.admitted_by);
     const existing = this.getIdentityByPubkey(input.pubkey_hex);
     const admittedAt = this.now();
     if (existing) {
       this.db.prepare(`
         UPDATE client_identities
-        SET display_name = ?, principal_id = ?, admitted_by = ?, admitted_at = ?, revoked_at = NULL
+        SET display_name = ?, admitted_by = ?, admitted_at = ?, revoked_at = NULL
         WHERE identity_id = ?
-      `).run(input.display_name, input.principal_id, input.admitted_by, admittedAt, existing.identity_id);
+      `).run(input.display_name, input.admitted_by, admittedAt, existing.identity_id);
       return this.getIdentity(existing.identity_id);
     }
     const identityId = this.identityIdFactory();
@@ -85692,7 +86681,7 @@ var SqliteClientIdentityStore = class {
       INSERT INTO client_identities (
         identity_id, pubkey_hex, display_name, principal_id, admitted_by, admitted_at, revoked_at
       ) VALUES (?, ?, ?, ?, ?, ?, NULL)
-    `).run(identityId, input.pubkey_hex, input.display_name, input.principal_id, input.admitted_by, admittedAt);
+    `).run(identityId, input.pubkey_hex, input.display_name, identityPrincipalId(identityId), input.admitted_by, admittedAt);
     return this.getIdentity(identityId);
   }
   /**
@@ -85710,6 +86699,11 @@ var SqliteClientIdentityStore = class {
       VALUES (?, ?, ?, ?)
       ON CONFLICT(identity_id, workspace_id) DO NOTHING
     `).run(input.identity_id, input.workspace_id, input.admitted_by, this.now());
+  }
+  /** End one membership. The caller revokes the Workspace authority with it. */
+  removeWorkspaceMembership(identityId, workspaceId4) {
+    const result = this.db.prepare("DELETE FROM client_identity_workspaces WHERE identity_id = ? AND workspace_id = ?").run(identityId, workspaceId4);
+    return Number(result.changes) === 1;
   }
   /** The workspace ids this identity has been admitted to. */
   listWorkspaceIdsForIdentity(identityId) {
@@ -85820,12 +86814,1178 @@ function isoNow5() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 
+// floe-bus/dist/identity-workspace-authority-operations.js
+var text9 = { type: "string", minLength: 1 };
+var nullableText8 = { oneOf: [text9, { type: "null" }] };
+var targets2 = { type: "array", items: {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "id"],
+  properties: { kind: text9, id: nullableText8 }
+} };
+var authoritySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "authority_id",
+    "identity_id",
+    "principal_id",
+    "workspace_id",
+    "root_grant_id",
+    "status",
+    "issued_by",
+    "issued_at",
+    "expires_at",
+    "revoked_at",
+    "revocation_reason",
+    "replaced_by_authority_id",
+    "operation_ids",
+    "targets"
+  ],
+  properties: {
+    authority_id: text9,
+    identity_id: text9,
+    principal_id: text9,
+    workspace_id: text9,
+    root_grant_id: text9,
+    status: { enum: ["active", "revoked"] },
+    issued_by: text9,
+    issued_at: text9,
+    expires_at: { ...nullableText8, description: "Null means until revoked." },
+    revoked_at: nullableText8,
+    revocation_reason: nullableText8,
+    replaced_by_authority_id: nullableText8,
+    operation_ids: { type: "array", items: text9 },
+    targets: targets2
+  }
+};
+var resultSchema2 = (properties) => ({ version: "1", schema: {
+  type: "object",
+  additionalProperties: false,
+  required: Object.keys(properties),
+  properties
+} });
+function identityWorkspaceAuthorityOperations(deps) {
+  const common = {
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "permissions",
+    interaction_constraints: { allowed_modes: ["interactive"] }
+  };
+  const own = (principalId, workspaceId4) => {
+    const identity = deps.identities.listIdentities().find((candidate) => candidate.principal_id === principalId);
+    return identity ? deps.authorities.getActive(identity.identity_id, workspaceId4) : null;
+  };
+  const describe = (record) => {
+    const root = deps.authorities.rootGrant(record);
+    return { ...record, operation_ids: [...root.operation_ids], targets: [...root.targets] };
+  };
+  const missing = { state: "refused", refusal: refusal("identity_workspace_authority_unavailable", "Only an admitted identity with active authority in this Workspace can use this.", false, null) };
+  return [{
+    ...common,
+    operation_id: "identity.workspace-authority.inspect",
+    required_grants: ["identity.workspace-authority.inspect"],
+    title: "Inspect your Workspace authority",
+    description: "Show your durable authority in this Workspace: what it covers, when it ends (null expires_at means until revoked), and who issued it. Your sessions reference it; Actor access you delegated depends on it.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    result: resultSchema2({ authority: authoritySchema }),
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    handler: (context) => {
+      const record = own(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority));
+      return record ? { state: "completed", result: { authority: describe(record) } } : missing;
+    }
+  }, {
+    ...common,
+    operation_id: "identity.workspace-authority.replace",
+    required_grants: ["identity.workspace-authority.replace"],
+    title: "Narrow your Workspace authority",
+    description: "Replace your Workspace authority with a narrower one: fewer operations, narrower targets, or a shorter lifetime. The old authority is revoked in the same step, which ends your current sessions and every Actor grant delegated from it; delegate again from the new authority. Choose the lifetime explicitly: until_revoked, or expires_at. Widening is refused here.",
+    effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    result: resultSchema2({ authority: authoritySchema, replaced_authority_id: text9 }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["operation_ids"],
+      properties: {
+        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text9 },
+        targets: { ...targets2, description: "Omit to keep your current targets. Supplied targets may only narrow them." },
+        until_revoked: { const: true },
+        expires_at: text9
+      }
+    } },
+    handler: (context, input) => {
+      const current = own(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority));
+      if (!current)
+        return missing;
+      try {
+        const next = deps.authorities.replace({
+          authority_id: current.authority_id,
+          operation_ids: input.operation_ids,
+          targets: input.targets ?? deps.authorities.rootGrant(current).targets,
+          lifetime: parseAuthorityLifetime(input),
+          issued_by: context.authority.principal_id,
+          evidence: [{ kind: "operation_invocation", ref: context.invocation_id }],
+          may_widen: false
+        });
+        return {
+          state: "completed",
+          result: { authority: describe(next), replaced_authority_id: current.authority_id },
+          changed_refs: [{ kind: "capability_grant", id: next.root_grant_id, revision: null }],
+          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+        };
+      } catch (error) {
+        if (error instanceof AuthorityLifetimeRequiredError) {
+          return { state: "refused", refusal: refusal("authority_lifetime_required", error.message, false, null) };
+        }
+        if (error instanceof AuthorityWideningError) {
+          return { state: "refused", refusal: refusal("authority_widening_refused", error.message, false, null) };
+        }
+        throw error;
+      }
+    }
+  }, {
+    ...common,
+    operation_id: "identity.workspace-authority.revoke",
+    required_grants: ["identity.workspace-authority.revoke"],
+    title: "Give up your Workspace authority",
+    description: "Revoke your own authority in this Workspace. Your sessions and browser passes end, and every Actor grant delegated from it stops working. History stays inspectable. Getting authority back needs admission by host control.",
+    effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    result: resultSchema2({ authority: authoritySchema }),
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    handler: (context) => {
+      const current = own(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority));
+      if (!current)
+        return missing;
+      const revoked = deps.authorities.revoke(current.authority_id, "revoked");
+      return {
+        state: "completed",
+        result: { authority: describe(revoked) },
+        changed_refs: [{ kind: "capability_grant", id: revoked.root_grant_id, revision: null }],
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  }, {
+    ...common,
+    operation_id: "actor.access.adopt",
+    required_grants: ["actor.access.adopt"],
+    title: "Adopt an Actor's access",
+    description: "Become the owner of an Actor's access in this Workspace. Access Floe itself issued is moved onto your authority: the same operations and targets, cut to what you hold, lasting until you revoke it or your own access ends, so it no longer expires on a date. An Actor with no access at all gets the default Actor access from you. Refused when there is nothing to adopt.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    result: resultSchema2({
+      actor_id: text9,
+      actor_definition_revision_id: text9,
+      moved_grant_ids: { type: "array", items: text9 },
+      issued_grant_ids: { type: "array", items: text9 },
+      dropped_operation_ids: { type: "array", items: text9, description: "Operations the old access had that you do not hold." }
+    }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["actor_id"],
+      properties: { actor_id: text9 }
+    } },
+    handler: (context, input) => {
+      const current = own(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority));
+      if (!current)
+        return missing;
+      const move = deps.adoption().adopt({
+        actor_id: input.actor_id,
+        authority: current,
+        changed_by: context.authority.principal_id,
+        give_default: true
+      });
+      if (!move) {
+        return { state: "refused", refusal: refusal("actor_access_nothing_to_adopt", "This Actor has no Floe-issued access to adopt and already has access of its own, or is not an active Actor in this Workspace.", false, null) };
+      }
+      return {
+        state: "completed",
+        result: {
+          actor_id: move.actor_id,
+          actor_definition_revision_id: move.actor_definition_revision_id,
+          moved_grant_ids: [...move.moved_grant_ids],
+          issued_grant_ids: [...move.issued_grant_ids],
+          dropped_operation_ids: [...move.dropped_operation_ids]
+        },
+        changed_refs: move.issued_grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null })),
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  }];
+}
+
+// floe-bus/dist/browser-pass.js
+import { createHash as createHash26, randomBytes as randomBytes4, randomUUID as randomUUID30 } from "node:crypto";
+var BROWSER_PASS_CREDENTIAL_MS = 30 * 864e5;
+var RENEW_AFTER_MS = 864e5;
+var ROTATION_GRACE_MS = 6e4;
+var PASS_SESSION_MS = 15 * 6e4;
+var digest8 = (value) => createHash26("sha256").update(value).digest("hex");
+var iso = (ms) => new Date(ms).toISOString();
+var passInteractionId = (passId) => `browser:pass:${passId}`;
+function applyBrowserPassSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS browser_passes (
+      pass_id TEXT PRIMARY KEY,
+      identity_id TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      exact_origin TEXT NOT NULL,
+      grant_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      previous_token_hash TEXT,
+      previous_valid_until TEXT,
+      status TEXT NOT NULL CHECK (status IN ('active', 'revoked')),
+      issued_at TEXT NOT NULL,
+      authority_expires_at TEXT,
+      credential_expires_at TEXT NOT NULL,
+      last_used_at TEXT,
+      revoked_at TEXT,
+      revocation_reason TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_browser_passes_origin ON browser_passes(exact_origin) WHERE status = 'active';
+    CREATE INDEX IF NOT EXISTS idx_browser_passes_principal ON browser_passes(principal_id, workspace_id);
+  `);
+}
+var BrowserPassStore = class {
+  db;
+  grants;
+  authoritySessions;
+  onChanged;
+  now;
+  sessions = /* @__PURE__ */ new Map();
+  constructor(db, grants, authoritySessions, onChanged = () => {
+  }, now3 = () => Date.now()) {
+    this.db = db;
+    this.grants = grants;
+    this.authoritySessions = authoritySessions;
+    this.onChanged = onChanged;
+    this.now = now3;
+  }
+  issue(input) {
+    const token = randomBytes4(32).toString("base64url");
+    const pass = inSavepoint(this.db, () => {
+      const grant = this.grants.issueDependentGrant({
+        source_grant_id: input.source_grant_id,
+        principal_id: input.principal_id,
+        operation_ids: input.operation_ids,
+        targets: input.targets,
+        expires_at: input.expires_at,
+        evidence: input.evidence
+      });
+      const authorityExpiry = this.grants.effectiveExpiry(grant.grant_id);
+      const passId = `browserpass_${randomUUID30()}`;
+      this.db.prepare(`INSERT INTO browser_passes (pass_id, identity_id, principal_id, workspace_id, exact_origin,
+        grant_id, token_hash, status, issued_at, authority_expires_at, credential_expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`).run(passId, input.identity_id, input.principal_id, input.workspace_id, input.exact_origin, grant.grant_id, digest8(token), iso(this.now()), authorityExpiry, this.credentialExpiry(authorityExpiry));
+      return this.require(passId);
+    });
+    this.onChanged(pass);
+    return { pass, token };
+  }
+  get(passId) {
+    const row = this.db.prepare("SELECT * FROM browser_passes WHERE pass_id = ?").get(passId);
+    return row ? project(row) : null;
+  }
+  list(principalId, workspaceId4) {
+    return this.db.prepare(`SELECT * FROM browser_passes WHERE principal_id = ? AND workspace_id = ?
+      ORDER BY issued_at DESC, pass_id`).all(principalId, workspaceId4).map(project);
+  }
+  /** True while any active pass is bound to this exact origin. CORS only; it grants nothing. */
+  hasActiveOrigin(origin) {
+    return this.db.prepare(`SELECT 1 AS present FROM browser_passes WHERE exact_origin = ? AND status = 'active'
+      AND credential_expires_at > ? LIMIT 1`).get(origin, iso(this.now())) !== void 0;
+  }
+  /**
+   * Resolves a cookie for one exact origin and Workspace into a short session
+   * that references only the pass's grant. With `renew`, replaces the cookie
+   * while in use, never beyond the access it rests on; only a caller that can
+   * deliver the replacement cookie may ask for that.
+   */
+  use(token, origin, workspaceId4, renew = false) {
+    if (!token)
+      return null;
+    const nowMs = this.now();
+    const hash2 = digest8(token);
+    const row = this.db.prepare(`SELECT * FROM browser_passes WHERE status = 'active'
+      AND (token_hash = ? OR (previous_token_hash = ? AND previous_valid_until > ?))`).get(hash2, hash2, iso(nowMs));
+    if (!row || row.exact_origin !== origin)
+      return null;
+    if (workspaceId4 !== void 0 && workspaceId4 !== row.workspace_id)
+      return null;
+    if (Date.parse(row.credential_expires_at) <= nowMs)
+      return null;
+    const grant = this.grants.getGrant(row.grant_id);
+    if (!grant || !this.grants.isActiveGrant(grant, nowMs)) {
+      this.revoke(row.pass_id, "authority_ended");
+      return null;
+    }
+    let session = this.sessions.get(row.pass_id);
+    if (!session || Date.parse(session.expires_at) <= nowMs) {
+      if (session)
+        this.authoritySessions.revokeSession(session.authority_session_id);
+      const expiresAt = Math.min(nowMs + PASS_SESSION_MS, expiryMs(this.grants.effectiveExpiry(row.grant_id)));
+      const issued = this.authoritySessions.issueSession({
+        principal_id: row.principal_id,
+        workspace_id: row.workspace_id,
+        grant_ids: [row.grant_id],
+        interaction: { mode: "interactive", session_id: passInteractionId(row.pass_id) },
+        provenance: { cause_event_id: null, delivery_ids: [], execution_attempt_id: null, node_execution_id: null, scope_execution_id: null },
+        expires_at: iso(expiresAt)
+      });
+      session = {
+        bearer_token: issued.bearer_token,
+        authority_session_id: issued.session.authority_session_id,
+        principal_id: row.principal_id,
+        workspace_id: row.workspace_id,
+        expires_at: issued.session.expires_at
+      };
+      this.sessions.set(row.pass_id, session);
+    }
+    let renewed = null;
+    const lastRenewal = Date.parse(row.credential_expires_at) - BROWSER_PASS_CREDENTIAL_MS;
+    if (renew && row.token_hash === hash2 && nowMs - lastRenewal >= RENEW_AFTER_MS && this.credentialExpiry(row.authority_expires_at) > row.credential_expires_at) {
+      renewed = randomBytes4(32).toString("base64url");
+      this.db.prepare(`UPDATE browser_passes SET token_hash = ?, previous_token_hash = ?, previous_valid_until = ?,
+        credential_expires_at = ?, last_used_at = ? WHERE pass_id = ?`).run(digest8(renewed), row.token_hash, iso(nowMs + ROTATION_GRACE_MS), this.credentialExpiry(row.authority_expires_at), iso(nowMs), row.pass_id);
+    } else {
+      this.db.prepare("UPDATE browser_passes SET last_used_at = ? WHERE pass_id = ?").run(iso(nowMs), row.pass_id);
+    }
+    return { pass: this.require(row.pass_id), session, renewed_token: renewed };
+  }
+  /** Ends the pass a browser holds, as that browser's own disconnect. */
+  revokeByToken(token, origin, reason) {
+    if (!token)
+      return null;
+    const row = this.db.prepare("SELECT pass_id, exact_origin FROM browser_passes WHERE token_hash = ? AND status = 'active'").get(digest8(token));
+    return row && row.exact_origin === origin ? this.revoke(row.pass_id, reason) : null;
+  }
+  /** Records the claim, the first use of a pass. */
+  markClaimed(passId) {
+    this.db.prepare("UPDATE browser_passes SET last_used_at = ? WHERE pass_id = ? AND last_used_at IS NULL").run(iso(this.now()), passId);
+  }
+  /** Ends the pass, its grant and every session it minted. Revoking twice is a no-op. */
+  revoke(passId, reason) {
+    const result = this.db.prepare(`UPDATE browser_passes SET status = 'revoked', revoked_at = ?, revocation_reason = ?,
+      previous_token_hash = NULL, previous_valid_until = NULL WHERE pass_id = ? AND status = 'active'`).run(iso(this.now()), reason, passId);
+    const pass = this.get(passId);
+    if (Number(result.changes) !== 1 || !pass)
+      return pass;
+    this.sessions.delete(passId);
+    this.authoritySessions.revokeSessionsForInteraction(passInteractionId(passId));
+    this.grants.revokeGrant(pass.grant_id);
+    this.onChanged(pass);
+    return pass;
+  }
+  /** Ends each active pass whose access has ended, such as after its person's authority was revoked. */
+  revokeWhereAuthorityEnded() {
+    const nowMs = this.now();
+    const active = this.db.prepare("SELECT pass_id, grant_id FROM browser_passes WHERE status = 'active'").all();
+    return active.filter(({ grant_id }) => {
+      const grant = this.grants.getGrant(grant_id);
+      return !grant || !this.grants.isActiveGrant(grant, nowMs);
+    }).map(({ pass_id }) => this.revoke(pass_id, "authority_ended")).filter(Boolean);
+  }
+  /** An approved pass never claimed before a restart has no reachable cookie, so it is ended. */
+  revokeUnclaimed() {
+    const ids = this.db.prepare("SELECT pass_id FROM browser_passes WHERE status = 'active' AND last_used_at IS NULL").all();
+    return ids.map(({ pass_id }) => this.revoke(pass_id, "never_claimed")).filter(Boolean);
+  }
+  credentialExpiry(authorityExpiry) {
+    return iso(Math.min(this.now() + BROWSER_PASS_CREDENTIAL_MS, expiryMs(authorityExpiry)));
+  }
+  require(passId) {
+    const pass = this.get(passId);
+    if (!pass)
+      throw new Error(`Browser pass '${passId}' does not exist.`);
+    return pass;
+  }
+};
+function project(row) {
+  return {
+    pass_id: row.pass_id,
+    identity_id: row.identity_id,
+    principal_id: row.principal_id,
+    workspace_id: row.workspace_id,
+    exact_origin: row.exact_origin,
+    grant_id: row.grant_id,
+    status: row.status,
+    issued_at: row.issued_at,
+    authority_expires_at: row.authority_expires_at,
+    credential_expires_at: row.credential_expires_at,
+    last_used_at: row.last_used_at,
+    revoked_at: row.revoked_at,
+    revocation_reason: row.revocation_reason
+  };
+}
+
+// floe-bus/dist/scope-projection-layout-store.js
+var import_yaml3 = __toESM(require_dist(), 1);
+import { existsSync as existsSync5, mkdirSync as mkdirSync3, readFileSync as readFileSync3, writeFileSync as writeFileSync2 } from "node:fs";
+import { join as join4 } from "node:path";
+var RENDERER_PATTERN = /^[a-z][a-z0-9_-]*$/;
+var ScopeProjectionLayoutIdSchema = external_exports.string().min(1).max(200);
+function scopeProjectionLayoutSchemaId(renderer2) {
+  return `floe.scope-projection.layout.${renderer2}.v1`;
+}
+function isValidRenderer(renderer2) {
+  return RENDERER_PATTERN.test(renderer2);
+}
+var ScopeProjectionLayoutViewportSchema = external_exports.object({
+  x: external_exports.number(),
+  y: external_exports.number(),
+  zoom: external_exports.number()
+});
+var ScopeProjectionLayoutItemsSchema = external_exports.record(external_exports.object({
+  x: external_exports.number(),
+  y: external_exports.number(),
+  width: external_exports.number().optional(),
+  height: external_exports.number().optional(),
+  collapsed: external_exports.boolean().optional()
+}));
+function scopeProjectionLayoutSchema(renderer2) {
+  return external_exports.object({
+    schema: external_exports.literal(scopeProjectionLayoutSchemaId(renderer2)),
+    scope_id: ScopeProjectionLayoutIdSchema,
+    viewport: ScopeProjectionLayoutViewportSchema,
+    items: ScopeProjectionLayoutItemsSchema
+  });
+}
+var ScopeProjectionLayoutValidationError = class extends Error {
+  issues;
+  constructor(message, issues) {
+    super(message);
+    this.issues = issues;
+    this.name = "ScopeProjectionLayoutValidationError";
+  }
+};
+var ScopeProjectionLayoutIdMismatchError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ScopeProjectionLayoutIdMismatchError";
+  }
+};
+var ScopeProjectionLayoutRendererInvalidError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ScopeProjectionLayoutRendererInvalidError";
+  }
+};
+function layoutsDir(workspacePath) {
+  return join4(workspacePath, ".floe", "scope-projection-layouts");
+}
+function layoutPath(workspacePath, scopeId, renderer2) {
+  return join4(layoutsDir(workspacePath), `${encodeURIComponent(scopeId)}.layout.${renderer2}.yaml`);
+}
+function ensureDir(path3) {
+  if (!existsSync5(path3)) {
+    mkdirSync3(path3, { recursive: true });
+  }
+}
+function parseYamlFile(path3) {
+  const raw = readFileSync3(path3, "utf8");
+  return import_yaml3.default.parse(raw);
+}
+function writeYamlFile(path3, body) {
+  writeFileSync2(path3, import_yaml3.default.stringify(body), "utf8");
+}
+function validateScopeId(scopeId) {
+  const parsed = ScopeProjectionLayoutIdSchema.safeParse(scopeId);
+  if (!parsed.success) {
+    throw new ScopeProjectionLayoutValidationError(`invalid scope id '${scopeId}': ${parsed.error.issues.map((issue) => issue.message).join("; ")}`, parsed.error.issues);
+  }
+}
+function validateRenderer(renderer2) {
+  if (!isValidRenderer(renderer2)) {
+    throw new ScopeProjectionLayoutRendererInvalidError(`invalid renderer name '${renderer2}': must match ^[a-z][a-z0-9_-]*$`);
+  }
+}
+function upsertScopeProjectionLayout(workspacePath, scopeId, renderer2, body) {
+  validateScopeId(scopeId);
+  validateRenderer(renderer2);
+  const result = scopeProjectionLayoutSchema(renderer2).safeParse(body);
+  if (!result.success) {
+    throw new ScopeProjectionLayoutValidationError(`invalid layout body for scope '${scopeId}' renderer '${renderer2}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
+  }
+  const layout = result.data;
+  if (layout.scope_id !== scopeId) {
+    throw new ScopeProjectionLayoutIdMismatchError(`layout scope_id '${layout.scope_id}' does not match path scope id '${scopeId}'`);
+  }
+  const path3 = layoutPath(workspacePath, scopeId, renderer2);
+  ensureDir(layoutsDir(workspacePath));
+  writeYamlFile(path3, layout);
+  return layout;
+}
+function loadScopeProjectionLayout(workspacePath, scopeId, renderer2) {
+  validateScopeId(scopeId);
+  validateRenderer(renderer2);
+  const path3 = layoutPath(workspacePath, scopeId, renderer2);
+  if (!existsSync5(path3))
+    return null;
+  const parsed = parseYamlFile(path3);
+  const result = scopeProjectionLayoutSchema(renderer2).safeParse(parsed);
+  if (!result.success) {
+    throw new ScopeProjectionLayoutValidationError(`invalid layout file '${path3}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
+  }
+  return result.data;
+}
+
+// floe-bus/dist/scope-projection-layout-operations.js
+var LAYOUT_REFUSALS = {
+  ScopeProjectionLayoutValidationError: "scope_projection_layout_validation_error",
+  ScopeProjectionLayoutIdMismatchError: "scope_projection_layout_id_mismatch",
+  ScopeProjectionLayoutRendererInvalidError: "scope_projection_layout_renderer_invalid"
+};
+var SCOPE_PROJECTION_LAYOUT_INVALID_CODES = Object.values(LAYOUT_REFUSALS);
+var text10 = { type: "string", minLength: 1 };
+var renderer = {
+  ...text10,
+  description: "The surface that owns this layout, for example star-map. Lowercase letters, digits, - and _, starting with a letter. Each surface keeps its own."
+};
+var layoutSchema = { type: "object", required: ["schema", "scope_id", "viewport", "items"], properties: {
+  schema: { ...text10, description: "floe.scope-projection.layout.<renderer>.v1" },
+  scope_id: text10,
+  viewport: { type: "object" },
+  items: { type: "object" }
+} };
+function scopeProjectionLayoutOperations(deps) {
+  const common = {
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "scopes",
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: [], expected_revision: "not_applicable" }
+  };
+  const input = (extra = {}) => ({ version: "1", schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["scope_id", "renderer", ...Object.keys(extra)],
+    properties: { scope_id: text10, renderer, ...extra }
+  } });
+  const refused = (code, message) => ({ state: "refused", refusal: refusal(code, message, false, null) });
+  const place = (workspaceId4, scopeId, rendererId) => {
+    if (!isValidRenderer(rendererId)) {
+      return refused("scope_projection_layout_renderer_invalid", `renderer '${rendererId}' is not a valid renderer identity`);
+    }
+    if (!deps.scopeExists(workspaceId4, scopeId))
+      return refused("scope_not_found", `No Scope '${scopeId}' in this Workspace.`);
+    const locator = deps.locator(workspaceId4);
+    return locator ?? refused("workspace_local_binding_not_found", "This Workspace has no folder on this machine.");
+  };
+  const layoutError = (error) => {
+    const code = error instanceof Error ? LAYOUT_REFUSALS[error.name] : void 0;
+    if (!code)
+      throw error;
+    return refused(code, error.message);
+  };
+  return [{
+    ...common,
+    operation_id: "scope.projection.layout.get",
+    required_grants: ["scope.projection.layout.get"],
+    title: "Get a Scope's saved layout",
+    description: "Read where a surface last placed this Scope's nodes and its viewport. The result is null when that surface has not saved a layout yet.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    input: input(),
+    result: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["layout"],
+      properties: { layout: { oneOf: [layoutSchema, { type: "null" }] } }
+    } },
+    handler: (context, value) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      const locator = place(workspaceId4, value.scope_id, value.renderer);
+      if (typeof locator !== "string")
+        return locator;
+      try {
+        return { state: "completed", result: { layout: loadScopeProjectionLayout(locator, value.scope_id, value.renderer) } };
+      } catch (error) {
+        return layoutError(error);
+      }
+    }
+  }, {
+    ...common,
+    operation_id: "scope.projection.layout.save",
+    required_grants: ["scope.projection.layout.save"],
+    title: "Save a Scope's layout",
+    description: "Save where a surface places this Scope's nodes and its viewport, replacing that surface's previous layout. Other surfaces' layouts are untouched. Every connection in the Workspace is told it changed.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    input: input({ layout: {
+      type: "object",
+      description: "{schema: 'floe.scope-projection.layout.<renderer>.v1', scope_id, viewport: {x, y, zoom}, items: {<node id>: {x, y, width?, height?, collapsed?}}}"
+    } }),
+    result: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["layout"],
+      properties: { layout: layoutSchema }
+    } },
+    handler: (context, value) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      const locator = place(workspaceId4, value.scope_id, value.renderer);
+      if (typeof locator !== "string")
+        return locator;
+      let layout;
+      try {
+        layout = upsertScopeProjectionLayout(locator, value.scope_id, value.renderer, value.layout);
+      } catch (error) {
+        return layoutError(error);
+      }
+      deps.broadcast("scope_projection.layout.upserted", {
+        workspace_id: workspaceId4,
+        scope_id: value.scope_id,
+        source: "api",
+        renderer: value.renderer
+      });
+      return {
+        state: "completed",
+        result: { layout },
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  }];
+}
+
+// floe-bus/dist/browser-connections.js
+import { createHash as createHash27, randomBytes as randomBytes5, randomUUID as randomUUID31 } from "node:crypto";
+
+// floe-bus/dist/browser-origin.js
+var LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["127.0.0.1", "localhost", "[::1]"]);
+function normalizeBrowserOrigin(value) {
+  if (!value || value === "null" || value.includes("*"))
+    return null;
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.username || url.password || url.origin === "null")
+    return null;
+  if (url.origin !== value.replace(/\/$/, ""))
+    return null;
+  if (url.protocol === "https:")
+    return url.origin;
+  return url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname) ? url.origin : null;
+}
+function isLoopbackBrowserOrigin(origin) {
+  try {
+    return LOOPBACK_HOSTNAMES.has(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
+
+// floe-bus/dist/browser-connections.js
+function isLoopbackAddress(address) {
+  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
+}
+var LOOPBACK_BROWSER_HOSTNAMES = ["127.0.0.1", "localhost", "[::1]"];
+function loopbackBrowserOrigins(origins) {
+  const result = /* @__PURE__ */ new Set();
+  for (const origin of origins) {
+    let hostname;
+    try {
+      hostname = new URL(origin).hostname;
+    } catch {
+      continue;
+    }
+    if (LOOPBACK_BROWSER_HOSTNAMES.includes(hostname))
+      result.add(origin);
+  }
+  return result;
+}
+var PENDING_COOKIE = "floe_browser_pending";
+var SESSION_COOKIE = "floe_browser_session";
+var PASS_COOKIE = "floe_browser_pass";
+var digest9 = (value) => createHash27("sha256").update(value).digest("hex");
+var secret = () => randomBytes5(32).toString("base64url");
+var BrowserConnectionError = class extends Error {
+  status;
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+};
+var BrowserConnections = class {
+  origins;
+  revoke;
+  passes;
+  now;
+  local;
+  pending = /* @__PURE__ */ new Map();
+  sessions = /* @__PURE__ */ new Map();
+  constructor(origins, revoke, passes, now3 = () => Date.now(), local) {
+    this.origins = origins;
+    this.revoke = revoke;
+    this.passes = passes;
+    this.now = now3;
+    this.local = local;
+  }
+  prune() {
+    for (const [key, connection] of this.pending) {
+      if (Date.parse(connection.expires_at) > this.now())
+        continue;
+      if (connection.approved)
+        this.passes.revoke(connection.approved.pass_id, "never_claimed");
+      this.pending.delete(key);
+    }
+    for (const [key, entry] of this.sessions) {
+      if (Date.parse(entry.expires_at) > this.now())
+        continue;
+      for (const session of entry.workspaces.values())
+        this.revoke(session.authority_session_id);
+      this.sessions.delete(key);
+    }
+  }
+  rawOrigin(request) {
+    let origin = request.headers.origin;
+    if (!origin && request.headers.referer) {
+      try {
+        origin = new URL(request.headers.referer).origin;
+      } catch {
+      }
+    }
+    return origin ?? "";
+  }
+  /** A built-in trusted origin, or the exact origin an active pass is bound to. */
+  origin(request) {
+    const origin = this.rawOrigin(request);
+    if (this.origins.has(origin))
+      return origin;
+    const exact = normalizeBrowserOrigin(origin);
+    if (exact && this.passes.hasActiveOrigin(exact))
+      return exact;
+    throw new BrowserConnectionError(403, "This browser origin is not allowed to connect to Floe.");
+  }
+  /** Pairing also accepts a loopback origin that has no pass yet, long enough to ask for one. */
+  pairingOrigin(request) {
+    const origin = this.rawOrigin(request);
+    if (this.origins.has(origin))
+      return origin;
+    const exact = normalizeBrowserOrigin(origin);
+    if (exact && isLoopbackBrowserOrigin(exact))
+      return exact;
+    throw new BrowserConnectionError(403, "This browser origin is not allowed to connect to Floe.");
+  }
+  /** True when CORS may answer this origin on this path. CORS never grants authority by itself. */
+  corsAllows(origin, path3) {
+    if (this.origins.has(origin))
+      return true;
+    const exact = normalizeBrowserOrigin(origin);
+    if (!exact)
+      return false;
+    if (isLoopbackBrowserOrigin(exact) && PAIRING_PATHS.has(path3))
+      return true;
+    return this.passes.hasActiveOrigin(exact);
+  }
+  cookie(request, name) {
+    const values = (request.headers.cookie ?? "").split(";").map((item) => item.trim()).filter((item) => item.startsWith(`${name}=`));
+    if (values.length !== 1)
+      return "";
+    const value = values[0].slice(name.length + 1);
+    return /^[A-Za-z0-9_-]{43}$/.test(value) ? value : "";
+  }
+  setCookie(name, value, origin, maxAge) {
+    return `${name}=${value}; Path=/v1; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${origin.startsWith("https:") ? "; Secure" : ""}`;
+  }
+  passCookie(token, origin, expiresAt) {
+    return this.setCookie(PASS_COOKIE, token, origin, Math.max(0, Math.floor((Date.parse(expiresAt) - this.now()) / 1e3)));
+  }
+  localOrigin(request) {
+    const origin = this.origin(request);
+    const forwarded = ["forwarded", "x-forwarded-for", "x-forwarded-host", "x-real-ip"].some((header) => request.headers[header] !== void 0);
+    if (!this.local?.origins.has(origin) || !isLoopbackAddress(request.ip) || forwarded || request.headers.host !== new URL(origin).host || request.headers["sec-fetch-site"] !== void 0 && request.headers["sec-fetch-site"] !== "same-origin") {
+      throw new BrowserConnectionError(403, "This connection requires remote pairing.");
+    }
+    return origin;
+  }
+  connectLocal(request) {
+    this.prune();
+    const origin = this.localOrigin(request);
+    const existingToken = this.cookie(request, SESSION_COOKIE);
+    const existing = this.sessions.get(digest9(existingToken));
+    if (existing?.origin === origin) {
+      existing.expires_at = new Date(this.now() + 864e5).toISOString();
+      return this.setCookie(SESSION_COOKIE, existingToken, origin, 86400);
+    }
+    if (this.sessions.size >= 64)
+      throw new BrowserConnectionError(429, "Floe has too many browser connections.");
+    const session = this.local.issueSession();
+    const token = secret();
+    this.sessions.set(digest9(token), {
+      origin,
+      session,
+      workspaces: new Map(session ? [[session.workspace_id, session]] : []),
+      expires_at: new Date(this.now() + 864e5).toISOString()
+    });
+    return this.setCookie(SESSION_COOKIE, token, origin, 86400);
+  }
+  mode(request) {
+    this.prune();
+    const local = this.sessions.get(digest9(this.cookie(request, SESSION_COOKIE)));
+    if (local && local.origin === this.origin(request)) {
+      this.localOrigin(request);
+      return "local";
+    }
+    const token = this.cookie(request, PASS_COOKIE);
+    return token && this.passes.use(token, this.origin(request), void 0) ? "remote" : null;
+  }
+  localOwner(request) {
+    if (this.mode(request) !== "local")
+      throw new BrowserConnectionError(403, "This action is available through Floe on this computer.");
+    return digest9(this.cookie(request, SESSION_COOKIE));
+  }
+  start(request) {
+    this.prune();
+    const origin = this.pairingOrigin(request);
+    const previous = this.pending.get(digest9(this.cookie(request, PENDING_COOKIE)));
+    if (previous?.origin === origin && !previous.approved)
+      return { connection: this.project(previous), cookie: null };
+    if (this.pending.size >= 32)
+      throw new BrowserConnectionError(429, "Floe has too many browser connections. Close an unused connection and try again.");
+    const token = secret();
+    let code;
+    do {
+      code = randomBytes5(4).toString("hex").toUpperCase();
+    } while ([...this.pending.values()].some((item) => item.code === code));
+    const entry = {
+      connection_id: `browserconn_${randomUUID31()}`,
+      code,
+      origin,
+      expires_at: new Date(this.now() + 3e5).toISOString()
+    };
+    this.pending.set(digest9(token), entry);
+    return { connection: this.project(entry), cookie: this.setCookie(PENDING_COOKIE, token, origin, 300) };
+  }
+  list() {
+    this.prune();
+    return [...this.pending.values()].filter((entry) => !entry.approved).map((entry) => this.project(entry));
+  }
+  /** Approves a waiting browser by issuing its pass; the browser collects it by claiming. */
+  approve(connectionId, issue) {
+    this.prune();
+    const entry = [...this.pending.values()].find((item) => item.connection_id === connectionId);
+    if (!entry)
+      throw new BrowserConnectionError(404, "This browser connection expired. Start a new connection in the browser.");
+    if (entry.approved)
+      throw new BrowserConnectionError(409, "This browser connection has already been approved.");
+    const { pass, token } = issue(entry.origin);
+    entry.approved = { pass_id: pass.pass_id, token, credential_expires_at: pass.credential_expires_at };
+    return pass;
+  }
+  claim(request) {
+    this.prune();
+    const origin = this.pairingOrigin(request);
+    const key = digest9(this.cookie(request, PENDING_COOKIE));
+    const entry = this.pending.get(key);
+    if (!entry || entry.origin !== origin)
+      throw new BrowserConnectionError(401, "Start a new connection to Floe.");
+    if (!entry.approved)
+      throw new BrowserConnectionError(409, "Allow this connection in Floe first.");
+    this.pending.delete(key);
+    this.passes.markClaimed(entry.approved.pass_id);
+    return [
+      this.passCookie(entry.approved.token, origin, entry.approved.credential_expires_at),
+      this.setCookie(PENDING_COOKIE, "", origin, 0)
+    ];
+  }
+  /**
+   * The Workspace session behind this request's cookie, plus a replacement
+   * cookie when a pass was renewed. Null when the cookie does not apply here.
+   */
+  resolve(request, workspaceId4, renew = false) {
+    this.prune();
+    const localToken = this.cookie(request, SESSION_COOKIE);
+    const passToken = this.cookie(request, PASS_COOKIE);
+    if (!localToken && !passToken)
+      return null;
+    const origin = this.origin(request);
+    const entry = localToken ? this.sessions.get(digest9(localToken)) : void 0;
+    if (entry?.origin === origin) {
+      const session = this.localSession(request, entry, workspaceId4);
+      return session ? { session, cookie: null } : null;
+    }
+    const used = this.passes.use(passToken, origin, workspaceId4, renew);
+    if (!used)
+      return null;
+    return {
+      session: used.session,
+      cookie: used.renewed_token ? this.passCookie(used.renewed_token, origin, used.pass.credential_expires_at) : null
+    };
+  }
+  session(request, workspaceId4) {
+    return this.resolve(request, workspaceId4)?.session ?? null;
+  }
+  localSession(request, entry, workspaceId4) {
+    this.localOrigin(request);
+    const requested = workspaceId4 ?? entry.session?.workspace_id;
+    let session = requested ? entry.workspaces.get(requested) : void 0;
+    if (!session || Date.parse(session.expires_at) <= this.now()) {
+      for (const [id, cached] of entry.workspaces) {
+        if (Date.parse(cached.expires_at) <= this.now()) {
+          this.revoke(cached.authority_session_id);
+          entry.workspaces.delete(id);
+        }
+      }
+      if (entry.workspaces.size >= 128)
+        throw new BrowserConnectionError(429, "Too many workspaces are open in this browser connection.");
+      session = this.local.issueSession(requested) ?? void 0;
+      if (session) {
+        entry.workspaces.set(session.workspace_id, session);
+        if (!entry.session)
+          entry.session = session;
+      }
+    }
+    return session ?? null;
+  }
+  /** Disconnecting a paired browser revokes its pass, not just this process's memory of it. */
+  disconnect(request) {
+    const origin = this.origin(request);
+    const sessionKey = digest9(this.cookie(request, SESSION_COOKIE));
+    const entry = this.sessions.get(sessionKey);
+    if (entry?.origin === origin)
+      for (const session of entry.workspaces.values())
+        this.revoke(session.authority_session_id);
+    this.sessions.delete(sessionKey);
+    this.passes.revokeByToken(this.cookie(request, PASS_COOKIE), origin, "disconnected");
+    const pendingKey = digest9(this.cookie(request, PENDING_COOKIE));
+    const pending = this.pending.get(pendingKey);
+    if (pending?.origin === origin) {
+      if (pending.approved)
+        this.passes.revoke(pending.approved.pass_id, "disconnected");
+      this.pending.delete(pendingKey);
+    }
+    return [
+      this.setCookie(SESSION_COOKIE, "", origin, 0),
+      this.setCookie(PASS_COOKIE, "", origin, 0),
+      this.setCookie(PENDING_COOKIE, "", origin, 0)
+    ];
+  }
+  close() {
+    for (const entry of this.sessions.values())
+      for (const session of entry.workspaces.values())
+        this.revoke(session.authority_session_id);
+    this.sessions.clear();
+    for (const entry of this.pending.values())
+      if (entry.approved)
+        this.passes.revoke(entry.approved.pass_id, "never_claimed");
+    this.pending.clear();
+  }
+  project(entry) {
+    return { connection_id: entry.connection_id, code: entry.code, origin: entry.origin, expires_at: entry.expires_at };
+  }
+};
+var PAIRING_PATHS = /* @__PURE__ */ new Set(["/v1/browser/connections", "/v1/browser/connections/claim", "/v1/browser/session"]);
+
+// floe-bus/dist/browser-pass-operations.js
+var text11 = { type: "string", minLength: 1 };
+var nullableText9 = { oneOf: [text11, { type: "null" }] };
+var connectionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["connection_id", "code", "origin", "expires_at"],
+  properties: { connection_id: text11, code: text11, origin: text11, expires_at: text11 }
+};
+var passSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "pass_id",
+    "workspace_id",
+    "exact_origin",
+    "status",
+    "operation_ids",
+    "issued_at",
+    "authority_expires_at",
+    "credential_expires_at",
+    "last_used_at",
+    "revoked_at",
+    "revocation_reason"
+  ],
+  properties: {
+    pass_id: text11,
+    workspace_id: text11,
+    exact_origin: text11,
+    status: { enum: ["active", "revoked"] },
+    operation_ids: { type: "array", items: text11 },
+    issued_at: text11,
+    authority_expires_at: { ...nullableText9, description: "Null means until revoked." },
+    credential_expires_at: { ...text11, description: "The browser must be used before this, or pair again." },
+    last_used_at: nullableText9,
+    revoked_at: nullableText9,
+    revocation_reason: nullableText9
+  }
+};
+var resultSchema3 = (properties) => ({ version: "1", schema: {
+  type: "object",
+  additionalProperties: false,
+  required: Object.keys(properties),
+  properties
+} });
+function browserPassOperations(deps) {
+  const common = {
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "permissions",
+    interaction_constraints: { allowed_modes: ["interactive"] },
+    target: { resource_kinds: [], expected_revision: "not_applicable" }
+  };
+  const person = (principalId, workspaceId4) => {
+    const identity = deps.identities.listIdentities().find((candidate) => candidate.principal_id === principalId);
+    const authority = identity ? deps.authorities.getActive(identity.identity_id, workspaceId4) : null;
+    return identity && authority ? { identity, authority } : null;
+  };
+  const missing = { state: "refused", refusal: refusal("identity_workspace_authority_unavailable", "Only an admitted person with active authority in this Workspace can manage browser passes.", false, null) };
+  const unavailable4 = { state: "refused", refusal: refusal("browser_pairing_unavailable", "This Floe is not accepting browser connections right now.", true, null) };
+  const describe = (pass) => ({
+    pass_id: pass.pass_id,
+    workspace_id: pass.workspace_id,
+    exact_origin: pass.exact_origin,
+    status: pass.status,
+    operation_ids: [...deps.grants.getGrant(pass.grant_id)?.operation_ids ?? []],
+    issued_at: pass.issued_at,
+    authority_expires_at: pass.authority_expires_at,
+    credential_expires_at: pass.credential_expires_at,
+    last_used_at: pass.last_used_at,
+    revoked_at: pass.revoked_at,
+    revocation_reason: pass.revocation_reason
+  });
+  return [{
+    ...common,
+    operation_id: "browser.connection.list",
+    required_grants: ["browser.connection.list"],
+    title: "List browsers waiting to connect",
+    description: "Show browsers that asked to connect to Floe in the last five minutes and are waiting for a person to allow them. Each shows the code it displays and the exact web address it runs at; compare both with the browser before allowing it.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    result: resultSchema3({ connections: { type: "array", items: connectionSchema } }),
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    handler: (context) => {
+      if (!person(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority)))
+        return missing;
+      const pairing = deps.pairing();
+      return pairing ? { state: "completed", result: { connections: pairing.list() } } : unavailable4;
+    }
+  }, {
+    ...common,
+    operation_id: "browser.pass.approve",
+    required_grants: ["browser.pass.approve"],
+    title: "Allow a browser to act for you",
+    description: "Give a waiting browser a pass to use this Workspace as you, limited to the operations you choose. It can never hold more than you do, and it stops when your own access does. The browser keeps working after Floe restarts. Choose the lifetime explicitly: until_revoked, or expires_at. Revoke it at any time with browser.pass.revoke.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
+    result: resultSchema3({ pass: passSchema }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["connection_id", "workspace_id", "operation_ids"],
+      properties: {
+        connection_id: text11,
+        workspace_id: { ...text11, description: "Must be the Workspace this session is for." },
+        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text11 },
+        until_revoked: { const: true },
+        expires_at: text11
+      }
+    } },
+    handler: (context, input) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      const own = person(context.authority.principal_id, workspaceId4);
+      if (!own)
+        return missing;
+      if (input.workspace_id !== workspaceId4) {
+        return { state: "refused", refusal: refusal("browser_pass_workspace_mismatch", "A browser pass is approved from a session for the same Workspace.", false, null) };
+      }
+      const pairing = deps.pairing();
+      if (!pairing)
+        return unavailable4;
+      let lifetime;
+      try {
+        lifetime = lifetimeExpiry(parseAuthorityLifetime(input));
+      } catch (error) {
+        return { state: "refused", refusal: refusal("authority_lifetime_required", error.message, false, null) };
+      }
+      try {
+        const pass = pairing.approve(input.connection_id, (origin) => deps.passes.issue({
+          identity_id: own.identity.identity_id,
+          principal_id: context.authority.principal_id,
+          workspace_id: workspaceId4,
+          exact_origin: origin,
+          source_grant_id: own.authority.root_grant_id,
+          operation_ids: input.operation_ids,
+          expires_at: lifetime,
+          evidence: [{ kind: "operation_invocation", ref: context.invocation_id }]
+        }));
+        return {
+          state: "completed",
+          result: { pass: describe(pass) },
+          changed_refs: [{ kind: "capability_grant", id: pass.grant_id, revision: null }],
+          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+        };
+      } catch (error) {
+        if (error instanceof BrowserConnectionError) {
+          return { state: "refused", refusal: refusal("browser_connection_unavailable", error.message, false, null) };
+        }
+        return { state: "refused", refusal: refusal("browser_pass_widening_refused", error.message, false, null) };
+      }
+    }
+  }, {
+    ...common,
+    operation_id: "browser.pass.list",
+    required_grants: ["browser.pass.list"],
+    title: "List your browser passes",
+    description: "Show the browsers you have allowed to act for you in this Workspace, what each may do, when it was last used, and which have ended.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    result: resultSchema3({ passes: { type: "array", items: passSchema } }),
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    handler: (context) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      if (!person(context.authority.principal_id, workspaceId4))
+        return missing;
+      return { state: "completed", result: {
+        passes: deps.passes.list(context.authority.principal_id, workspaceId4).map(describe)
+      } };
+    }
+  }, {
+    ...common,
+    operation_id: "browser.pass.revoke",
+    required_grants: ["browser.pass.revoke"],
+    title: "Revoke a browser pass",
+    description: "Stop a browser acting for you in this Workspace, now. Its next request is refused and its live connection closes. Effects it already caused stay.",
+    effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" },
+    result: resultSchema3({ pass: passSchema }),
+    input: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["pass_id"],
+      properties: { pass_id: text11 }
+    } },
+    handler: (context, input) => {
+      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+      if (!person(context.authority.principal_id, workspaceId4))
+        return missing;
+      const pass = deps.passes.get(input.pass_id);
+      if (!pass || pass.principal_id !== context.authority.principal_id || pass.workspace_id !== workspaceId4) {
+        return { state: "refused", refusal: refusal("browser_pass_not_found", "You have no browser pass with this id in this Workspace.", false, null) };
+      }
+      const revoked = deps.passes.revoke(pass.pass_id, "revoked") ?? pass;
+      return {
+        state: "completed",
+        result: { pass: describe(revoked) },
+        changed_refs: [{ kind: "capability_grant", id: pass.grant_id, revision: null }],
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  }];
+}
+
 // floe-bus/dist/windows-dpapi-credential-protector.js
 import { spawn as spawn3 } from "node:child_process";
-import { createHash as createHash24, randomUUID as randomUUID29 } from "node:crypto";
+import { createHash as createHash28, randomUUID as randomUUID32 } from "node:crypto";
 import { mkdir, readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
-import { join as join4, resolve as resolve3 } from "node:path";
+import { join as join5, resolve as resolve3 } from "node:path";
 var WINDOWS_DPAPI_CREDENTIAL_BROKER_ID = "windows-dpapi-current-user-v1";
 var WindowsDpapiCredentialProtector = class {
   protection_kind = "windows-os-credential-protection";
@@ -85836,14 +87996,14 @@ var WindowsDpapiCredentialProtector = class {
     if (platform !== "win32") {
       throw new Error("The Windows DPAPI credential protector is available only on Windows.");
     }
-    const localAppData = dependencies.local_app_data ?? process.env.LOCALAPPDATA ?? join4(homedir2(), "AppData", "Local");
+    const localAppData = dependencies.local_app_data ?? process.env.LOCALAPPDATA ?? join5(homedir2(), "AppData", "Local");
     this.vaultDirectory = resolve3(localAppData, "Floe", "credential-vault", "v1");
     this.runDpapi = dependencies.run_dpapi ?? runWindowsDpapi;
   }
   async writeAtomic(locator, material) {
     requireMaterial(material);
     const target = this.pathForLocator(locator);
-    const temporary = join4(this.vaultDirectory, `.pending-${randomUUID29()}`);
+    const temporary = join5(this.vaultDirectory, `.pending-${randomUUID32()}`);
     const protectedBytes = await this.runDpapi("protect", copy(material));
     try {
       if (protectedBytes.byteLength === 0)
@@ -85883,8 +88043,8 @@ var WindowsDpapiCredentialProtector = class {
   }
   pathForLocator(locator) {
     const normalized = requireLocator(locator);
-    const name = createHash24("sha256").update("floe-windows-dpapi-vault:v1\0", "utf8").update(normalized, "utf8").digest("hex");
-    return join4(this.vaultDirectory, `${name}.dpapi`);
+    const name = createHash28("sha256").update("floe-windows-dpapi-vault:v1\0", "utf8").update(normalized, "utf8").digest("hex");
+    return join5(this.vaultDirectory, `${name}.dpapi`);
   }
 };
 var PROTECT_SCRIPT = String.raw`
@@ -85939,7 +88099,7 @@ try {
 `;
 async function runWindowsDpapi(mode, input) {
   const systemRoot = process.env.SystemRoot ?? process.env.WINDIR ?? "C:\\Windows";
-  const executable = join4(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const executable = join5(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   const script = mode === "protect" ? PROTECT_SCRIPT : UNPROTECT_SCRIPT;
   const encoded = Buffer.from(script, "utf16le").toString("base64");
   const child = spawn3(executable, [
@@ -86018,7 +88178,7 @@ function isMissingFile(error) {
 }
 
 // floe-bus/dist/attachment-ingress.js
-import { createHash as createHash25, randomBytes as randomBytes4, randomUUID as randomUUID30, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
+import { createHash as createHash29, randomBytes as randomBytes6, randomUUID as randomUUID33, timingSafeEqual as timingSafeEqual3 } from "node:crypto";
 var MAX_ATTACHMENT_INGRESS_BYTES = 20 * 1024 * 1024;
 var MAX_ATTACHMENT_INGRESS_ITEMS = 5;
 var DEFAULT_TTL_MS2 = 10 * 6e4;
@@ -86046,8 +88206,8 @@ var AttachmentIngressStore = class {
   maximumTerminalSessions;
   constructor(dependencies = {}) {
     this.now = dependencies.now ?? (() => /* @__PURE__ */ new Date());
-    this.tokenFactory = dependencies.token_factory ?? (() => randomBytes4(32).toString("base64url"));
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID30()}`);
+    this.tokenFactory = dependencies.token_factory ?? (() => randomBytes6(32).toString("base64url"));
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `attachment-ingress:${randomUUID33()}`);
     this.maximumPendingSessions = dependencies.maximum_pending_sessions ?? MAX_PENDING_SESSIONS;
     this.maximumPendingBytes = dependencies.maximum_pending_bytes ?? MAX_PENDING_BYTES;
     this.maximumTerminalSessions = dependencies.maximum_terminal_sessions ?? MAX_TERMINAL_SESSIONS;
@@ -86103,7 +88263,7 @@ var AttachmentIngressStore = class {
       state: "ready",
       digest: Object.freeze({
         algorithm: "sha256",
-        value: createHash25("sha256").update(bytes).digest("hex")
+        value: createHash29("sha256").update(bytes).digest("hex")
       })
     });
     this.sessions.set(status.ingress_session_id, { ...session, status, bytes });
@@ -86236,7 +88396,7 @@ var AttachmentIngressStore = class {
   }
 };
 function digestToken(token) {
-  return createHash25("sha256").update(requireText6(token, "bearer token", 4096), "utf8").digest();
+  return createHash29("sha256").update(requireText6(token, "bearer token", 4096), "utf8").digest();
 }
 function verifyToken2(expected, supplied) {
   const candidate = digestToken(supplied);
@@ -86266,7 +88426,7 @@ function requireText6(value, field, maximum) {
 }
 
 // floe-bus/dist/transport-credentials.js
-import { createHash as createHash26, randomBytes as randomBytes5, randomUUID as randomUUID31 } from "node:crypto";
+import { createHash as createHash30, randomBytes as randomBytes7, randomUUID as randomUUID34 } from "node:crypto";
 function applyTransportCredentialSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS transport_credentials (
@@ -86319,7 +88479,7 @@ var SqliteTransportCredentialStore = class {
     this.db = db;
     this.now = dependencies.now ?? isoNow6;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken2;
-    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID31()}`);
+    this.credentialIdFactory = dependencies.credential_id_factory ?? ((audience) => `transport_${audience}_${randomUUID34()}`);
   }
   issueHostControlCredential(input) {
     return this.issueCredential("host_control", input.host_id, input.expires_at, null);
@@ -86596,10 +88756,10 @@ function transportCredentialDenied() {
   };
 }
 function hashTransportBearerToken(audience, bearerToken) {
-  return createHash26("sha256").update(`floe-transport-credential:${audience}:v1\0`, "utf8").update(bearerToken, "utf8").digest("hex");
+  return createHash30("sha256").update(`floe-transport-credential:${audience}:v1\0`, "utf8").update(bearerToken, "utf8").digest("hex");
 }
 function createBearerToken2(audience) {
-  return `floe_${audience}_${randomBytes5(32).toString("base64url")}`;
+  return `floe_${audience}_${randomBytes7(32).toString("base64url")}`;
 }
 function requireBearerMaterial(value) {
   if (typeof value !== "string" || value.length < 32) {
@@ -86662,6 +88822,100 @@ var TransportPushStreamStore = class {
       VALUES (?, ?, ?, ?)
     `).run(input.workspace_id, input.type, JSON.stringify(input.payload), at);
     return this.require(Number(result.lastInsertRowid));
+  }
+  /**
+   * Promotes committed NodeExecution transition records into the replay stream.
+   * The insert and outbox acknowledgement share one transaction, so a restart
+   * can neither lose a transition nor append it twice.
+   */
+  drainNodeExecutionStateOutbox(limit = 1e3) {
+    if (!tableExists4(this.db, "node_execution_state_outbox"))
+      return [];
+    const rows = this.db.prepare(`
+      SELECT node_execution_id, state_revision, workspace_id, scope_id,
+             scope_execution_id, composition_revision_id, node_id,
+             from_status, to_status, attempt_id, delivery_id,
+             failure_json, changed_at
+      FROM node_execution_state_outbox
+      WHERE push_sequence IS NULL
+      ORDER BY changed_at, node_execution_id, state_revision
+      LIMIT ?
+    `).all(Math.min(Math.max(limit, 1), 1e4));
+    if (rows.length === 0)
+      return [];
+    const sequences = [];
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const insert = this.db.prepare(`
+        INSERT INTO transport_push_entries (workspace_id, event_type, payload_json, created_at)
+        VALUES (?, 'node_execution_state_changed', ?, ?)
+      `);
+      const acknowledge = this.db.prepare(`
+        UPDATE node_execution_state_outbox SET push_sequence = ?
+        WHERE node_execution_id = ? AND state_revision = ? AND push_sequence IS NULL
+      `);
+      for (const row of rows) {
+        const result = insert.run(row.workspace_id, JSON.stringify({
+          workspace_id: row.workspace_id,
+          scope_id: row.scope_id,
+          scope_execution_id: row.scope_execution_id,
+          composition_revision_id: row.composition_revision_id,
+          node_execution_id: row.node_execution_id,
+          node_id: row.node_id,
+          state_revision: row.state_revision,
+          from_status: row.from_status,
+          to_status: row.to_status,
+          attempt_id: row.attempt_id,
+          delivery_id: row.delivery_id,
+          failure: row.failure_json ? JSON.parse(row.failure_json) : null,
+          changed_at: row.changed_at
+        }), row.changed_at);
+        const sequence = Number(result.lastInsertRowid);
+        acknowledge.run(sequence, row.node_execution_id, row.state_revision);
+        sequences.push(sequence);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return sequences.map((sequence) => this.require(sequence));
+  }
+  drainActorLifecycleOutbox(limit = 1e3) {
+    if (!tableExists4(this.db, "actor_lifecycle_push_outbox"))
+      return [];
+    const rows = this.db.prepare(`
+      SELECT outbox_id, workspace_id, event_type, payload_json, changed_at
+      FROM actor_lifecycle_push_outbox
+      WHERE push_sequence IS NULL
+      ORDER BY outbox_id
+      LIMIT ?
+    `).all(Math.min(Math.max(limit, 1), 1e4));
+    if (rows.length === 0)
+      return [];
+    const sequences = [];
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const insert = this.db.prepare(`
+        INSERT INTO transport_push_entries (workspace_id, event_type, payload_json, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      const acknowledge = this.db.prepare(`
+        UPDATE actor_lifecycle_push_outbox SET push_sequence = ?
+        WHERE outbox_id = ? AND push_sequence IS NULL
+      `);
+      for (const row of rows) {
+        const result = insert.run(row.workspace_id, row.event_type, row.payload_json, row.changed_at);
+        const sequence = Number(result.lastInsertRowid);
+        acknowledge.run(sequence, row.outbox_id);
+        sequences.push(sequence);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return sequences.map((sequence) => this.require(sequence));
   }
   latestCursor() {
     const row = this.db.prepare(`
@@ -86801,9 +89055,14 @@ function rowToEntry(row) {
     at: row.created_at
   };
 }
+function tableExists4(db, table) {
+  return Boolean(db.prepare(`
+    SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?
+  `).get(table));
+}
 
 // floe-bus/dist/local-operator-principals.js
-import { randomUUID as randomUUID32 } from "node:crypto";
+import { randomUUID as randomUUID35 } from "node:crypto";
 function applyLocalOperatorPrincipalSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS local_operator_principals (
@@ -86820,7 +89079,7 @@ var SqliteLocalOperatorPrincipalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID32()}`);
+    this.principalIdFactory = dependencies.principal_id_factory ?? (() => `principal_local_operator_${randomUUID35()}`);
     applyLocalOperatorPrincipalSchema(db);
   }
   getCurrent() {
@@ -86854,10 +89113,10 @@ function requireIdentifier2(value, label) {
   return value;
 }
 function requireTimestamp3(value, label) {
-  const text12 = requireIdentifier2(value, label);
-  if (!Number.isFinite(Date.parse(text12)))
+  const text15 = requireIdentifier2(value, label);
+  if (!Number.isFinite(Date.parse(text15)))
     throw new Error(`Local operator ${label} must be an ISO timestamp.`);
-  return text12;
+  return text15;
 }
 
 // floe-bus/dist/delivery-operation-authority.js
@@ -87480,9 +89739,9 @@ function registerArtefactOperations(registry, store, publishVersion) {
 }
 
 // floe-bus/dist/artefact-export.js
-import { createHash as createHash27, randomUUID as randomUUID33 } from "node:crypto";
-import { closeSync, existsSync as existsSync5, fsyncSync, linkSync, lstatSync, mkdirSync as mkdirSync3, openSync, readFileSync as readFileSync3, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname5, join as join5 } from "node:path";
+import { createHash as createHash31, randomUUID as randomUUID36 } from "node:crypto";
+import { closeSync, existsSync as existsSync6, fsyncSync, linkSync, lstatSync, mkdirSync as mkdirSync4, openSync, readFileSync as readFileSync4, unlinkSync, writeFileSync as writeFileSync3 } from "node:fs";
+import { dirname as dirname5, join as join6 } from "node:path";
 var EXPORT_ARTEFACT_VERSION_OPERATION_ID = "artefact.version.export";
 var ArtefactExportError = class extends Error {
   code;
@@ -87513,28 +89772,28 @@ function exportArtefactVersion(input) {
   function existingMatches() {
     let stat;
     try {
-      stat = lstatSync(join5(input.workspace_locator, path3));
+      stat = lstatSync(join6(input.workspace_locator, path3));
     } catch (error) {
       if (error.code === "ENOENT")
         return false;
       throw error;
     }
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== content.size_bytes || createHash27("sha256").update(readFileSync3(destination)).digest("hex") !== content.digest.value) {
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== content.size_bytes || createHash31("sha256").update(readFileSync4(destination)).digest("hex") !== content.digest.value) {
       throw new ArtefactExportError("artefact_export_destination_exists", "The destination already contains something different. Choose another path; existing content was preserved.");
     }
     return true;
   }
   if (existingMatches())
     return result(false);
-  mkdirSync3(dirname5(destination), { recursive: true });
+  mkdirSync4(dirname5(destination), { recursive: true });
   destination = resolveWithinRoot(input.workspace_locator, path3);
-  const temporary = join5(dirname5(destination), `.floe-export-${randomUUID33()}.tmp`);
+  const temporary = join6(dirname5(destination), `.floe-export-${randomUUID36()}.tmp`);
   let staged = false;
   try {
     const fd = openSync(temporary, "wx", 384);
     staged = true;
     try {
-      writeFileSync2(fd, content.bytes);
+      writeFileSync3(fd, content.bytes);
       fsyncSync(fd);
     } finally {
       closeSync(fd);
@@ -87548,7 +89807,7 @@ function exportArtefactVersion(input) {
     }
     return result(true);
   } finally {
-    if (staged && existsSync5(temporary))
+    if (staged && existsSync6(temporary))
       unlinkSync(temporary);
   }
 }
@@ -87634,6 +89893,8 @@ function passOnEngineToolAccess(input) {
         principal_id: input.draft.actor_id,
         recipient: { kind: "actor", id: input.draft.actor_id },
         operation_ids: operations,
+        // The Actor's access lasts exactly as long as the creator's source grant.
+        expires_at: source.expires_at,
         invocation_id: input.invocation_id
       }));
       for (const id of operations)
@@ -87674,7 +89935,7 @@ function heldGrants(grants, authority) {
     boundary: authority.boundary,
     grant_ids: authority.session_capability_grant_ids ?? []
   });
-  return [...inspection.active_grants, ...inspection.delegable_grants].filter((grant) => grant.operation_ids.some((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id))).sort((a, b) => b.expires_at.localeCompare(a.expires_at) || a.grant_id.localeCompare(b.grant_id));
+  return [...inspection.active_grants, ...inspection.delegable_grants].filter((grant) => grant.operation_ids.some((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id))).sort((a, b) => expiryMs(b.expires_at) - expiryMs(a.expires_at) || a.grant_id.localeCompare(b.grant_id));
 }
 
 // floe-bus/dist/actor-definition-operations.js
@@ -87776,6 +90037,8 @@ var actorSchema = {
   required: [
     "actor_id",
     "workspace_id",
+    "created_in_context_id",
+    "created_in_scope_execution_id",
     "status",
     "current_definition_revision_id",
     "created_at",
@@ -87785,6 +90048,8 @@ var actorSchema = {
   properties: {
     actor_id: nonEmptyString2,
     workspace_id: nonEmptyString2,
+    created_in_context_id: nullableString2,
+    created_in_scope_execution_id: nullableString2,
     status: { enum: ["active", "retired"] },
     current_definition_revision_id: nullableString2,
     created_at: nonEmptyString2,
@@ -87914,7 +90179,11 @@ var actorOnlySchema = {
 var listInputSchema2 = {
   type: "object",
   additionalProperties: false,
-  properties: { include_retired: { type: "boolean" } }
+  properties: {
+    include_retired: { type: "boolean" },
+    created_in_context_id: nonEmptyString2,
+    created_in_scope_execution_id: nonEmptyString2
+  }
 };
 var inspectInputSchema2 = {
   type: "object",
@@ -88056,7 +90325,9 @@ function listActorsOperation(store) {
       state: "completed",
       result: {
         actors: store.listActors(authorityWorkspaceId2(context), {
-          include_retired: input.include_retired === true
+          include_retired: input.include_retired === true,
+          ...input.created_in_context_id ? { created_in_context_id: input.created_in_context_id } : {},
+          ...input.created_in_scope_execution_id ? { created_in_scope_execution_id: input.created_in_scope_execution_id } : {}
         }).map((actor) => ({ actor, current_definition: store.getCurrentDefinition(actor.actor_id) }))
       },
       audit_ref: auditRef7(context)
@@ -88144,6 +90415,8 @@ function createActorOperation(store, grants) {
       try {
         const created = store.createActor({
           workspace_id: authorityWorkspaceId2(context),
+          created_in_context_id: actorCreationContextId(store, context),
+          created_in_scope_execution_id: context.provenance.scope_execution_id,
           created_by_principal_id: context.authority.principal_id,
           definition: input.definition,
           ...input.actor_id ? { actor_id: input.actor_id } : {}
@@ -88177,6 +90450,23 @@ function createActorOperation(store, grants) {
       }
     })
   };
+}
+function actorCreationContextId(store, context) {
+  if (context.provenance.cause_event_id) {
+    const row = store.db.prepare(`
+      SELECT context_id FROM events WHERE event_id = ? AND workspace_id = ?
+    `).get(context.provenance.cause_event_id, authorityWorkspaceId2(context));
+    if (row)
+      return row.context_id;
+  }
+  if (context.provenance.node_execution_id) {
+    const row = store.db.prepare(`
+      SELECT context_id FROM node_executions WHERE node_execution_id = ?
+    `).get(context.provenance.node_execution_id);
+    if (row)
+      return row.context_id;
+  }
+  return null;
 }
 function createActorDefinitionDraftOperation(store) {
   return {
@@ -89257,22 +91547,22 @@ var RECORD_CONNECTOR_HEALTH_OPERATION_ID = "connector.health.record";
 var INGEST_CONNECTOR_OBSERVATION_OPERATION_ID = "connector.ingress.ingest";
 var REQUEST_CONNECTOR_ACTION_OPERATION_ID = "connector.action.request";
 var RECONCILE_CONNECTOR_ACTION_OPERATION_ID = "connector.action.reconcile";
-var text9 = { type: "string", minLength: 1 };
-var nullableText8 = { oneOf: [text9, { type: "null" }] };
+var text12 = { type: "string", minLength: 1 };
+var nullableText10 = { oneOf: [text12, { type: "null" }] };
 var sha2564 = { type: "string", pattern: "^[a-fA-F0-9]{64}$" };
-var stringArray2 = { type: "array", items: text9, uniqueItems: true };
+var stringArray2 = { type: "array", items: text12, uniqueItems: true };
 var emptyInput7 = { type: "object", additionalProperties: false };
 var ownerSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id"],
-  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text9 }
+  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text12 }
 };
 var resourceRefSchema4 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text9, id: text9, revision: nullableText8 }
+  properties: { kind: text12, id: text12, revision: nullableText10 }
 };
 var refsSchema = { type: "array", items: resourceRefSchema4 };
 var invocationProvenanceSchema = {
@@ -89286,11 +91576,11 @@ var invocationProvenanceSchema = {
     "scope_execution_id"
   ],
   properties: {
-    cause_event_id: nullableText8,
+    cause_event_id: nullableText10,
     delivery_ids: stringArray2,
-    execution_attempt_id: nullableText8,
-    node_execution_id: nullableText8,
-    scope_execution_id: nullableText8
+    execution_attempt_id: nullableText10,
+    node_execution_id: nullableText10,
+    scope_execution_id: nullableText10
   }
 };
 var jsonSchema = {
@@ -89307,7 +91597,7 @@ var credentialSlotSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "title", "purpose", "required"],
-  properties: { slot_id: text9, title: text9, purpose: text9, required: { type: "boolean" } }
+  properties: { slot_id: text12, title: text12, purpose: text12, required: { type: "boolean" } }
 };
 var sourceInterfaceSchema = {
   type: "object",
@@ -89327,23 +91617,23 @@ var sourceInterfaceSchema = {
     "checkpoint_schema_ref"
   ],
   properties: {
-    interface_id: text9,
-    title: text9,
-    source_kind: text9,
-    event_type: text9,
-    payload_schema_ref: text9,
+    interface_id: text12,
+    title: text12,
+    source_kind: text12,
+    event_type: text12,
+    payload_schema_ref: text12,
     observation_mode: { enum: ["push", "connector_poll"] },
-    polling_contract_ref: nullableText8,
+    polling_contract_ref: nullableText10,
     identity_scope: { enum: ["occurrence", "resource_revision"] },
     verification: {
       type: "object",
       additionalProperties: false,
       required: ["mode", "verifier_ref"],
-      properties: { mode: { enum: ["none", "origin", "signature"] }, verifier_ref: nullableText8 }
+      properties: { mode: { enum: ["none", "origin", "signature"] }, verifier_ref: nullableText10 }
     },
     credential_slot_ids: stringArray2,
     required_capability_ids: stringArray2,
-    checkpoint_schema_ref: nullableText8
+    checkpoint_schema_ref: nullableText10
   }
 };
 var actionInterfaceSchema = {
@@ -89364,20 +91654,20 @@ var actionInterfaceSchema = {
     "required_capability_ids"
   ],
   properties: {
-    interface_id: text9,
-    title: text9,
-    action_kind: text9,
-    input_schema_ref: text9,
-    result_schema_ref: text9,
+    interface_id: text12,
+    title: text12,
+    action_kind: text12,
+    input_schema_ref: text12,
+    result_schema_ref: text12,
     effect: { enum: ["none", "reversible", "irreversible"] },
     idempotency: { enum: ["required", "provider_guaranteed"] },
     retry: { enum: ["safe", "after_reconcile", "never"] },
-    compensation_action_interface_id: nullableText8,
+    compensation_action_interface_id: nullableText10,
     approval: {
       type: "object",
       additionalProperties: false,
       required: ["required", "policy_ref"],
-      properties: { required: { type: "boolean" }, policy_ref: nullableText8 }
+      properties: { required: { type: "boolean" }, policy_ref: nullableText10 }
     },
     credential_slot_ids: stringArray2,
     required_capability_ids: stringArray2
@@ -89399,11 +91689,11 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
     "rate_limit_policy_ref"
   ],
   properties: {
-    label: text9,
-    description: text9,
+    label: text12,
+    description: text12,
     implementation_ref: resourceRefSchema4,
-    configuration_schema_ref: text9,
-    configuration_ui_schema_ref: nullableText8,
+    configuration_schema_ref: text12,
+    configuration_ui_schema_ref: nullableText10,
     credential_slots: { type: "array", items: credentialSlotSchema },
     source_interfaces: { type: "array", items: sourceInterfaceSchema },
     action_interfaces: { type: "array", items: actionInterfaceSchema },
@@ -89411,16 +91701,16 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["check_capability_id", "evidence_schema_ref"],
-      properties: { check_capability_id: text9, evidence_schema_ref: nullableText8 }
+      properties: { check_capability_id: text12, evidence_schema_ref: nullableText10 }
     },
-    rate_limit_policy_ref: nullableText8
+    rate_limit_policy_ref: nullableText10
   }
 };
 var secretBindingSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "secret_ref_id"],
-  properties: { slot_id: text9, secret_ref_id: text9 }
+  properties: { slot_id: text12, secret_ref_id: text12 }
 };
 var CONNECTOR_BINDING_CONTENT_SCHEMA = {
   type: "object",
@@ -89438,7 +91728,7 @@ var CONNECTOR_BINDING_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "display_name"],
-      properties: { kind: text9, id: text9, display_name: nullableText8 }
+      properties: { kind: text12, id: text12, display_name: nullableText10 }
     },
     configuration: jsonSchema,
     enabled_source_interface_ids: stringArray2,
@@ -89460,13 +91750,13 @@ var definitionRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_definition_id: text9,
+    connector_definition_id: text12,
     owner: ownerSchema2,
     status: { enum: ["active", "retired"] },
-    current_revision_id: text9,
-    created_at: text9,
-    updated_at: text9,
-    retired_at: nullableText8
+    current_revision_id: text12,
+    created_at: text12,
+    updated_at: text12,
+    retired_at: nullableText10
   }
 };
 var definitionRevisionSchema = {
@@ -89484,15 +91774,15 @@ var definitionRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_definition_revision_id: text9,
-    connector_definition_id: text9,
+    connector_definition_revision_id: text12,
+    connector_definition_id: text12,
     revision_number: { type: "integer", minimum: 1 },
-    based_on_revision_id: nullableText8,
+    based_on_revision_id: nullableText10,
     semantic_digest: sha2564,
     content: CONNECTOR_DEFINITION_CONTENT_SCHEMA,
-    created_by_principal_id: text9,
-    created_at: text9,
-    published_at: text9
+    created_by_principal_id: text12,
+    created_at: text12,
+    published_at: text12
   }
 };
 var bindingRecordSchema = {
@@ -89512,17 +91802,17 @@ var bindingRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_binding_id: text9,
-    connector_definition_id: text9,
+    connector_binding_id: text12,
+    connector_definition_id: text12,
     owner: ownerSchema2,
     status: { enum: ["disabled", "enabled", "retired"] },
     state_version: { type: "integer", minimum: 1 },
-    current_revision_id: text9,
-    created_at: text9,
-    updated_at: text9,
-    enabled_at: nullableText8,
-    disabled_at: nullableText8,
-    retired_at: nullableText8
+    current_revision_id: text12,
+    created_at: text12,
+    updated_at: text12,
+    enabled_at: nullableText10,
+    disabled_at: nullableText10,
+    retired_at: nullableText10
   }
 };
 var bindingRevisionSchema = {
@@ -89541,16 +91831,16 @@ var bindingRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_binding_revision_id: text9,
-    connector_binding_id: text9,
-    connector_definition_revision_id: text9,
+    connector_binding_revision_id: text12,
+    connector_binding_id: text12,
+    connector_definition_revision_id: text12,
     revision_number: { type: "integer", minimum: 1 },
-    based_on_revision_id: nullableText8,
+    based_on_revision_id: nullableText10,
     semantic_digest: sha2564,
     content: CONNECTOR_BINDING_CONTENT_SCHEMA,
-    created_by_principal_id: text9,
-    created_at: text9,
-    published_at: text9
+    created_by_principal_id: text12,
+    created_at: text12,
+    published_at: text12
   }
 };
 var healthSchema2 = {
@@ -89569,16 +91859,16 @@ var healthSchema2 = {
     "recorded_at"
   ],
   properties: {
-    connector_health_observation_id: text9,
-    connector_binding_id: text9,
-    connector_binding_revision_id: text9,
+    connector_health_observation_id: text12,
+    connector_binding_id: text12,
+    connector_binding_revision_id: text12,
     owner: ownerSchema2,
     status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
-    code: nullableText8,
-    message: text9,
+    code: nullableText10,
+    message: text12,
     evidence_refs: refsSchema,
-    observed_at: text9,
-    recorded_at: text9
+    observed_at: text12,
+    recorded_at: text12
   }
 };
 var ingressVerificationSchema = {
@@ -89615,22 +91905,22 @@ var ingressReceiptSchema = {
     "physical_observation_count"
   ],
   properties: {
-    connector_ingress_receipt_id: text9,
-    connector_binding_id: text9,
-    connector_binding_revision_id: text9,
+    connector_ingress_receipt_id: text12,
+    connector_binding_id: text12,
+    connector_binding_revision_id: text12,
     owner: ownerSchema2,
-    source_interface_id: text9,
+    source_interface_id: text12,
     deduplication_key: sha2564,
-    idempotency_key: text9,
-    external_identity: text9,
-    external_revision: nullableText8,
+    idempotency_key: text12,
+    external_identity: text12,
+    external_revision: nullableText10,
     payload_digest: sha2564,
     status: { enum: ["accepted", "materialized", "quarantined"] },
-    normalized_event_id: nullableText8,
+    normalized_event_id: nullableText10,
     artefact_version_ids: stringArray2,
     checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-    first_observed_at: text9,
-    last_observed_at: text9,
+    first_observed_at: text12,
+    last_observed_at: text12,
     physical_observation_count: { type: "integer", minimum: 1 }
   }
 };
@@ -89652,18 +91942,18 @@ var ingressObservationSchema = {
     "recorded_at"
   ],
   properties: {
-    connector_ingress_observation_id: text9,
-    connector_ingress_receipt_id: text9,
-    connector_binding_revision_id: text9,
+    connector_ingress_observation_id: text12,
+    connector_ingress_receipt_id: text12,
+    connector_binding_revision_id: text12,
     classification: { enum: ["accepted", "quarantined", "duplicate", "quarantined_conflict"] },
-    idempotency_key: text9,
-    external_identity: text9,
-    external_revision: nullableText8,
+    idempotency_key: text12,
+    external_identity: text12,
+    external_revision: nullableText10,
     payload_digest: sha2564,
     verification: ingressVerificationSchema,
     evidence_refs: refsSchema,
-    observed_at: text9,
-    recorded_at: text9
+    observed_at: text12,
+    recorded_at: text12
   }
 };
 var externalEffectSchema = {
@@ -89690,24 +91980,24 @@ var externalEffectSchema = {
     "completed_at"
   ],
   properties: {
-    external_effect_receipt_id: text9,
-    connector_binding_id: text9,
-    connector_binding_revision_id: text9,
+    external_effect_receipt_id: text12,
+    connector_binding_id: text12,
+    connector_binding_revision_id: text12,
     owner: ownerSchema2,
-    action_interface_id: text9,
-    idempotency_key: text9,
+    action_interface_id: text12,
+    idempotency_key: text12,
     input_digest: sha2564,
     input_refs: refsSchema,
     secret_ref_ids: stringArray2,
     capability_grant_ids: stringArray2,
     approval_receipt_ids: stringArray2,
-    requested_by_principal_id: text9,
+    requested_by_principal_id: text12,
     invocation_provenance: invocationProvenanceSchema,
     status: { enum: ["requested", "running", "succeeded", "failed", "outcome_unknown"] },
     attempt_count: { type: "integer", minimum: 0 },
-    requested_at: text9,
-    updated_at: text9,
-    completed_at: nullableText8
+    requested_at: text12,
+    updated_at: text12,
+    completed_at: nullableText10
   }
 };
 var actionAttemptSchema = {
@@ -89727,17 +92017,17 @@ var actionAttemptSchema = {
     "completed_at"
   ],
   properties: {
-    external_action_attempt_id: text9,
-    external_effect_receipt_id: text9,
+    external_action_attempt_id: text12,
+    external_effect_receipt_id: text12,
     attempt_number: { type: "integer", minimum: 1 },
     status: { enum: ["started", "succeeded", "failed", "outcome_unknown"] },
     request_evidence_ref: resourceRefSchema4,
     provider_response_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
     observed_result_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-    error_code: nullableText8,
-    error_message: nullableText8,
-    started_at: text9,
-    completed_at: nullableText8
+    error_code: nullableText10,
+    error_message: nullableText10,
+    started_at: text12,
+    completed_at: nullableText10
   }
 };
 var definitionAndRevisionSchema = {
@@ -90041,7 +92331,7 @@ function bindConnectorOperation(store) {
         type: "object",
         additionalProperties: false,
         required: ["content"],
-        properties: { connector_binding_id: text9, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
+        properties: { connector_binding_id: text12, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
       }
     },
     result: { version: "1", schema: bindingAndRevisionSchema },
@@ -90083,7 +92373,7 @@ function configureConnectorBindingOperation(store) {
         additionalProperties: false,
         required: ["content"],
         properties: {
-          connector_definition_revision_id: text9,
+          connector_definition_revision_id: text12,
           content: CONNECTOR_BINDING_CONTENT_SCHEMA
         }
       }
@@ -90224,10 +92514,10 @@ function recordConnectorHealthOperation(store) {
         required: ["status", "message", "observed_at"],
         properties: {
           status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
-          code: nullableText8,
-          message: text9,
+          code: nullableText10,
+          message: text12,
           evidence_refs: refsSchema,
-          observed_at: text9
+          observed_at: text12
         }
       }
     },
@@ -90286,14 +92576,14 @@ function ingestConnectorObservationOperation(store) {
           "observed_at"
         ],
         properties: {
-          source_interface_id: text9,
-          external_identity: text9,
-          external_revision: nullableText8,
+          source_interface_id: text12,
+          external_identity: text12,
+          external_revision: nullableText10,
           payload_digest: sha2564,
           verification: ingressVerificationSchema,
           evidence_refs: refsSchema,
           checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-          observed_at: text9
+          observed_at: text12
         }
       }
     },
@@ -90362,7 +92652,7 @@ function requestConnectorActionOperation(store, approvals) {
         additionalProperties: false,
         required: ["action_interface_id", "input_digest"],
         properties: {
-          action_interface_id: text9,
+          action_interface_id: text12,
           input_digest: sha2564,
           input_refs: refsSchema,
           approval_receipt_ids: stringArray2
@@ -90438,12 +92728,12 @@ function reconcileConnectorActionOperation(store) {
       "reconciled_at"
     ],
     properties: {
-      external_action_reconciliation_id: text9,
-      external_effect_receipt_id: text9,
+      external_action_reconciliation_id: text12,
+      external_effect_receipt_id: text12,
       outcome: { enum: ["succeeded", "failed", "outcome_unknown"] },
       evidence_ref: resourceRefSchema4,
-      reconciled_by_principal_id: text9,
-      reconciled_at: text9
+      reconciled_by_principal_id: text12,
+      reconciled_at: text12
     }
   };
   return {
@@ -90530,8 +92820,8 @@ var DECIDE_APPROVAL_OPERATION_ID = "approval.decide";
 var CANCEL_APPROVAL_OPERATION_ID = "approval.cancel";
 var CONFIGURE_APPROVAL_RESPONSE_OPERATION_ID = "approval.response.configure";
 var REVOKE_APPROVAL_RECEIPT_OPERATION_ID = "approval.receipt.revoke";
-var text10 = { type: "string", minLength: 1 };
-var nullableText9 = { oneOf: [text10, { type: "null" }] };
+var text13 = { type: "string", minLength: 1 };
+var nullableText11 = { oneOf: [text13, { type: "null" }] };
 var timestamp = {
   type: "string",
   pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
@@ -90541,14 +92831,14 @@ var resourceRefSchema5 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text10, id: text10, revision: nullableText9 }
+  properties: { kind: text13, id: text13, revision: nullableText11 }
 };
 var approvalEffectSchema = {
   type: "object",
   additionalProperties: false,
   required: ["summary", "external", "reversibility", "resource_refs"],
   properties: {
-    summary: text10,
+    summary: text13,
     external: { type: "boolean" },
     reversibility: { enum: ["none", "reversible", "irreversible"] },
     resource_refs: { type: "array", items: resourceRefSchema5 }
@@ -90566,19 +92856,19 @@ var approvalDecisionBindingSchema = {
     "outcome_port_ids"
   ],
   properties: {
-    scope_execution_id: text10,
-    composition_revision_id: text10,
-    node_execution_id: text10,
-    node_placement_id: text10,
+    scope_execution_id: text13,
+    composition_revision_id: text13,
+    node_execution_id: text13,
+    node_placement_id: text13,
     node_execution_state_revision: { type: "integer", minimum: 1 },
     outcome_port_ids: {
       type: "object",
       additionalProperties: false,
       required: ["approved", "rejected", "changes_requested"],
       properties: {
-        approved: text10,
-        rejected: text10,
-        changes_requested: text10
+        approved: text13,
+        rejected: text13,
+        changes_requested: text13
       }
     }
   }
@@ -90591,8 +92881,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles"],
       properties: {
         mode: { const: "any" },
-        principal_ids: { type: "array", items: text10, uniqueItems: true },
-        roles: { type: "array", items: text10, uniqueItems: true }
+        principal_ids: { type: "array", items: text13, uniqueItems: true },
+        roles: { type: "array", items: text13, uniqueItems: true }
       }
     },
     {
@@ -90601,7 +92891,7 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids"],
       properties: {
         mode: { const: "all_named" },
-        principal_ids: { type: "array", items: text10, minItems: 1, uniqueItems: true }
+        principal_ids: { type: "array", items: text13, minItems: 1, uniqueItems: true }
       }
     },
     {
@@ -90610,8 +92900,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles", "quorum"],
       properties: {
         mode: { const: "quorum" },
-        principal_ids: { type: "array", items: text10, uniqueItems: true },
-        roles: { type: "array", items: text10, uniqueItems: true },
+        principal_ids: { type: "array", items: text13, uniqueItems: true },
+        roles: { type: "array", items: text13, uniqueItems: true },
         quorum: { type: "integer", minimum: 1 }
       }
     }
@@ -90630,9 +92920,9 @@ var approvalDecisionPolicySchema = {
           required: ["kind", "policy_evaluation_id", "policy_revision_id", "rule_id", "facts_digest"],
           properties: {
             kind: { const: "policy_evaluation" },
-            policy_evaluation_id: text10,
-            policy_revision_id: text10,
-            rule_id: text10,
+            policy_evaluation_id: text13,
+            policy_revision_id: text13,
+            rule_id: text13,
             facts_digest: sha2565
           }
         },
@@ -90641,7 +92931,7 @@ var approvalDecisionPolicySchema = {
           type: "object",
           additionalProperties: false,
           required: ["kind", "principal_id"],
-          properties: { kind: { const: "local_operator" }, principal_id: text10 }
+          properties: { kind: { const: "local_operator" }, principal_id: text13 }
         }
       ]
     },
@@ -90653,9 +92943,9 @@ var approvalDecisionPolicyReferenceSchema = {
   additionalProperties: false,
   required: ["policy_evaluation_id", "policy_revision_id", "rule_id"],
   properties: {
-    policy_evaluation_id: text10,
-    policy_revision_id: text10,
-    rule_id: text10
+    policy_evaluation_id: text13,
+    policy_revision_id: text13,
+    rule_id: text13
   }
 };
 var approvalIndividualDecisionSchema = {
@@ -90678,25 +92968,25 @@ var approvalIndividualDecisionSchema = {
     "resolution_after"
   ],
   properties: {
-    approval_decision_id: text10,
-    approval_request_id: text10,
-    workspace_id: text10,
-    principal_id: text10,
+    approval_decision_id: text13,
+    approval_request_id: text13,
+    workspace_id: text13,
+    principal_id: text13,
     decision: { enum: ["approved", "rejected", "changes_requested"] },
-    reason: text10,
-    decision_event_id: text10,
-    authority_grant_ids: { type: "array", items: text10, uniqueItems: true },
+    reason: text13,
+    decision_event_id: text13,
+    authority_grant_ids: { type: "array", items: text13, uniqueItems: true },
     role_evidence: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
         required: ["role", "authority_ref"],
-        properties: { role: text10, authority_ref: text10 }
+        properties: { role: text13, authority_ref: text13 }
       }
     },
-    supersedes_decision_id: nullableText9,
-    idempotency_key: text10,
+    supersedes_decision_id: nullableText11,
+    idempotency_key: text13,
     decided_at: timestamp,
     decision_set_digest: sha2565,
     resolution_after: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
@@ -90722,19 +93012,19 @@ var APPROVAL_ACTION_SCHEMA = {
     "expected_effect"
   ],
   properties: {
-    operation_id: text10,
-    authorized_principal_id: text10,
+    operation_id: text13,
+    authorized_principal_id: text13,
     target: { oneOf: [resourceRefSchema5, { type: "null" }] },
     input_digest: sha2565,
-    artefact_version_ids: { type: "array", items: text10, uniqueItems: true },
-    composition_revision_id: nullableText9,
-    node_placement_id: nullableText9,
-    scope_execution_id: nullableText9,
-    node_execution_id: nullableText9,
-    connector_binding_revision_id: nullableText9,
-    extension_package_version_id: nullableText9,
+    artefact_version_ids: { type: "array", items: text13, uniqueItems: true },
+    composition_revision_id: nullableText11,
+    node_placement_id: nullableText11,
+    scope_execution_id: nullableText11,
+    node_execution_id: nullableText11,
+    connector_binding_revision_id: nullableText11,
+    extension_package_version_id: nullableText11,
     approval_policy_ref: { oneOf: [resourceRefSchema5, { type: "null" }] },
-    capability_grant_ids: { type: "array", items: text10, uniqueItems: true },
+    capability_grant_ids: { type: "array", items: text13, uniqueItems: true },
     expected_effect: approvalEffectSchema
   }
 };
@@ -90771,13 +93061,13 @@ var approvalRequestSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_request_id: text10,
-    workspace_id: text10,
+    approval_request_id: text13,
+    workspace_id: text13,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
-    context_id: nullableText9,
+    context_id: nullableText11,
     decision_binding: { oneOf: [approvalDecisionBindingSchema, { type: "null" }] },
-    response_participant_id: nullableText9,
+    response_participant_id: nullableText11,
     decision_policy: approvalDecisionPolicySchema,
     decision_policy_digest: sha2565,
     decision_set_digest: sha2565,
@@ -90790,22 +93080,22 @@ var approvalRequestSchema = {
         approvals_received: { type: "integer", minimum: 0 },
         approvals_required: { type: "integer", minimum: 1 },
         active_decision_count: { type: "integer", minimum: 0 },
-        remaining_named_principal_ids: { type: "array", items: text10, uniqueItems: true },
+        remaining_named_principal_ids: { type: "array", items: text13, uniqueItems: true },
         resolution: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
       }
     },
-    requested_by_principal_id: text10,
-    reason: text10,
+    requested_by_principal_id: text13,
+    reason: text13,
     requested_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
-    idempotency_key: text10,
+    idempotency_key: text13,
     status: { enum: ["pending", "approved", "rejected", "cancelled", "invalidated"] },
     decision: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] },
     state_revision: { type: "integer", minimum: 1 },
-    decided_by_principal_id: nullableText9,
-    decision_event_id: nullableText9,
-    decision_reason: nullableText9,
+    decided_by_principal_id: nullableText11,
+    decision_event_id: nullableText11,
+    decision_reason: nullableText11,
     decided_at: { oneOf: [timestamp, { type: "null" }] }
   }
 };
@@ -90834,23 +93124,23 @@ var approvalReceiptSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_receipt_id: text10,
-    approval_request_id: text10,
-    workspace_id: text10,
+    approval_receipt_id: text13,
+    approval_request_id: text13,
+    workspace_id: text13,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
     decision_set_digest: sha2565,
-    context_id: nullableText9,
-    requested_by_principal_id: text10,
-    approved_by_principal_id: text10,
-    decision_event_id: text10,
+    context_id: nullableText11,
+    requested_by_principal_id: text13,
+    approved_by_principal_id: text13,
+    decision_event_id: text13,
     issued_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
     use_count: { type: "integer", minimum: 0 },
     revoked_at: { oneOf: [timestamp, { type: "null" }] },
-    revoked_by_principal_id: nullableText9,
-    revocation_reason: nullableText9
+    revoked_by_principal_id: nullableText11,
+    revocation_reason: nullableText11
   }
 };
 var inspectionSchema2 = {
@@ -91025,10 +93315,10 @@ function requestApprovalOperation(backend) {
         required: ["action", "reason", "expires_at"],
         properties: {
           action: APPROVAL_ACTION_SCHEMA,
-          context_id: { oneOf: [text10, { type: "null" }] },
+          context_id: { oneOf: [text13, { type: "null" }] },
           decision_binding: { oneOf: [approvalDecisionBindingSchema, { type: "null" }] },
           decision_policy_ref: approvalDecisionPolicyReferenceSchema,
-          reason: text10,
+          reason: text13,
           expires_at: timestamp,
           maximum_uses: { type: "integer", minimum: 1 }
         }
@@ -91095,9 +93385,9 @@ function decideApprovalOperation(backend) {
         required: ["decision", "reason"],
         properties: {
           decision: { enum: ["approved", "rejected", "changes_requested"] },
-          reason: text10,
+          reason: text13,
           receipt_expires_at: timestamp,
-          supersedes_decision_id: text10
+          supersedes_decision_id: text13
         }
       }
     },
@@ -91141,7 +93431,7 @@ function configureApprovalResponseOperation(backend) {
       type: "object",
       additionalProperties: false,
       required: ["response_participant_id"],
-      properties: { response_participant_id: nullableText9 }
+      properties: { response_participant_id: nullableText11 }
     } },
     result: { version: "3", schema: {
       type: "object",
@@ -91183,7 +93473,7 @@ function cancelApprovalOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text10 }
+        properties: { reason: text13 }
       }
     },
     result: {
@@ -91230,7 +93520,7 @@ function revokeApprovalReceiptOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text10 }
+        properties: { reason: text13 }
       }
     },
     result: {
@@ -92404,11 +94694,11 @@ function registerExtensionOperations(registry, store, entryPointExecution = new 
 }
 
 // floe-bus/dist/workspace-operation-backend.js
-import { existsSync as existsSync6, mkdirSync as mkdirSync4 } from "node:fs";
+import { existsSync as existsSync7, mkdirSync as mkdirSync5 } from "node:fs";
 import { isAbsolute as isAbsolute3, resolve as resolve4 } from "node:path";
 
 // floe-bus/dist/workspace-identities.js
-import { createHash as createHash28, randomUUID as randomUUID34 } from "node:crypto";
+import { createHash as createHash32, randomUUID as randomUUID37 } from "node:crypto";
 import { posix, win32 } from "node:path";
 var WorkspaceIdentityNotFoundError = class extends Error {
   workspace_id;
@@ -92520,7 +94810,7 @@ function getOrCreateLocalHostIdentity(db, dependencies = {}) {
   `).get();
   if (existing)
     return existing;
-  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID34()}`))();
+  const hostId = (dependencies.host_id_factory ?? (() => `host_${randomUUID37()}`))();
   assertNonEmpty4("host_id", hostId);
   const createdAt = (dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString()))();
   assertTimestamp("created_at", createdAt);
@@ -92547,7 +94837,7 @@ function normalizeWorkspaceLocator(locator, platform) {
 function planWorkspaceIdentityMigration(db, input) {
   assertNonEmpty4("host_id", input.host_id);
   const columns = workspaceColumns(db);
-  const bindingTableExists = tableExists4(db, "workspace_locator_bindings");
+  const bindingTableExists = tableExists5(db, "workspace_locator_bindings");
   if (columns.length === 0) {
     return migrationPlan("bootstrap", input, fingerprint2({ columns }), [], []);
   }
@@ -92662,8 +94952,8 @@ var SqliteWorkspaceIdentityStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID34()}`);
-    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID34()}`);
+    this.workspaceIdFactory = dependencies.workspace_id_factory ?? (() => `workspace_${randomUUID37()}`);
+    this.bindingIdFactory = dependencies.binding_id_factory ?? (() => `wbind_${randomUUID37()}`);
   }
   createWorkspace(input) {
     const workspaceId4 = this.workspaceIdFactory();
@@ -93039,11 +95329,11 @@ function migrationPlan(kind, input, sourceFingerprint, actions, refusals) {
   };
 }
 function workspaceColumns(db) {
-  if (!tableExists4(db, "workspaces"))
+  if (!tableExists5(db, "workspaces"))
     return [];
   return db.prepare(`PRAGMA table_info(workspaces)`).all().map((row) => row.name);
 }
-function tableExists4(db, tableName) {
+function tableExists5(db, tableName) {
   return Boolean(db.prepare(`SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?`).get(tableName));
 }
 function identityFromRow(row) {
@@ -93128,11 +95418,11 @@ function trimNonRootTrailingSeparators(value, platform) {
   return result;
 }
 function migratedBindingId(hostId, workspaceId4, normalizedLocator) {
-  const digest9 = createHash28("sha256").update(JSON.stringify([hostId, workspaceId4, normalizedLocator])).digest("hex").slice(0, 24);
-  return `wbind_migrated_${digest9}`;
+  const digest11 = createHash32("sha256").update(JSON.stringify([hostId, workspaceId4, normalizedLocator])).digest("hex").slice(0, 24);
+  return `wbind_migrated_${digest11}`;
 }
 function fingerprint2(value) {
-  return createHash28("sha256").update(canonicalJson17(value)).digest("hex");
+  return createHash32("sha256").update(canonicalJson17(value)).digest("hex");
 }
 function canonicalJson17(value) {
   if (Array.isArray(value))
@@ -93410,7 +95700,8 @@ function workspaceOperationDefinitions(backend) {
       handler: (context, value) => backend.derive({
         source_workspace_id: targetWorkspace(context),
         kind,
-        ...value
+        ...value,
+        principal_id: context.authority.principal_id
       })
     }))
   ];
@@ -93437,10 +95728,10 @@ var BusWorkspaceOperationBackend = class {
       throw new WorkspaceLocatorInvalidError(this.store.localWorkspacePlatform, "an absolute path is required");
     }
     const locator = resolve4(input.locator);
-    if (!existsSync6(locator)) {
+    if (!existsSync7(locator)) {
       if (!input.create_directory)
         throw new WorkspaceDirectoryNotFoundError(locator);
-      mkdirSync4(locator, { recursive: true });
+      mkdirSync5(locator, { recursive: true });
     }
     const workspace = this.store.registerWorkspace({ ...input, locator }, this.broadcast);
     return this.requireRemote(workspace.workspace_id);
@@ -93470,6 +95761,7 @@ var INSPECT_WORKSPACE_ACCESS_OPERATION_ID = "workspace.access.inspect";
 var ADD_WORKSPACE_FOLDER_OPERATION_ID = "workspace.folder.add";
 var REMOVE_WORKSPACE_FOLDER_OPERATION_ID = "workspace.folder.remove";
 var SET_WORKSPACE_SYSTEM_ACCESS_OPERATION_ID = "workspace.system_access.set";
+var ACKNOWLEDGE_WORKSPACE_NOTICE_OPERATION_ID = "workspace.notice.acknowledge";
 var nonEmptyString5 = { type: "string", minLength: 1 };
 var nullableString5 = { oneOf: [nonEmptyString5, { type: "null" }] };
 var accessSchema = {
@@ -93499,19 +95791,24 @@ var accessSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["record_id", "kind", "summary", "path", "principal_id", "recorded_at"],
+        required: ["record_id", "kind", "summary", "path", "principal_id", "recorded_at", "seen_by"],
         properties: {
           record_id: nonEmptyString5,
           kind: nonEmptyString5,
           summary: nonEmptyString5,
           path: nullableString5,
           principal_id: nonEmptyString5,
-          recorded_at: nonEmptyString5
+          recorded_at: nonEmptyString5,
+          seen_by: { type: "array", items: nonEmptyString5, description: "People who have seen it as it now reads." },
+          seen: { type: "boolean", description: "Whether you have seen it as it now reads." }
         }
       }
     }
   }
 };
+function forViewer(access, principalId) {
+  return { ...access, records: access.records.map((record) => ({ ...record, seen: record.seen_by.includes(principalId) })) };
+}
 function auditRef12(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
 }
@@ -93548,7 +95845,7 @@ function workspaceAccessOperationDefinitions(dependencies) {
       authority_boundary_kinds: ["workspace"],
       category: "workspace",
       title: "Show Workspace folders and System access",
-      description: "List the folders Floe Actors' file tools may use in this Workspace, whether System access is on, and recent changes.",
+      description: "List the folders Floe Actors' file tools may use in this Workspace, whether System access is on, and recent changes and notices, each marked seen or not by you.",
       effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
       required_grants: [INSPECT_WORKSPACE_ACCESS_OPERATION_ID],
       interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -93557,7 +95854,7 @@ function workspaceAccessOperationDefinitions(dependencies) {
       result: { version: "1", schema: accessSchema },
       handler: (context) => ({
         state: "completed",
-        result: dependencies.access.inspect(requireWorkspaceAuthorityId(context.authority)),
+        result: forViewer(dependencies.access.inspect(requireWorkspaceAuthorityId(context.authority)), context.authority.principal_id),
         changed_refs: [],
         audit_ref: auditRef12(context)
       })
@@ -93618,6 +95915,41 @@ function workspaceAccessOperationDefinitions(dependencies) {
         enabled: input.enabled,
         principal_id: context.authority.principal_id
       }))
+    },
+    {
+      operation_id: ACKNOWLEDGE_WORKSPACE_NOTICE_OPERATION_ID,
+      operation_version: "1",
+      authority_boundary_kinds: ["workspace"],
+      category: "workspace",
+      title: "Mark a notice as seen",
+      description: "Record that you have seen a Workspace notice or change, so every surface you use stops showing it as new. If the notice later changes, it shows as new again.",
+      effects: writeEffects3,
+      required_grants: [ACKNOWLEDGE_WORKSPACE_NOTICE_OPERATION_ID],
+      interaction_constraints: interactiveOnly,
+      target: noTarget,
+      input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["record_id"], properties: { record_id: nonEmptyString5 } } },
+      result: { version: "1", schema: accessSchema },
+      handler: (context, input) => {
+        const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+        const principalId = context.authority.principal_id;
+        try {
+          const changed = dependencies.access.acknowledge({ workspace_id: workspaceId4, record_id: input.record_id, principal_id: principalId });
+          const access = dependencies.access.inspect(workspaceId4);
+          if (changed)
+            dependencies.acknowledged(access);
+          return {
+            state: "completed",
+            result: forViewer(access, principalId),
+            changed_refs: changed ? [accessRef(workspaceId4)] : [],
+            audit_ref: auditRef12(context)
+          };
+        } catch (error) {
+          if (error instanceof WorkspaceFolderError) {
+            return { state: "refused", refusal: refusal(error.code, error.message, false, null) };
+          }
+          throw error;
+        }
+      }
     }
   ];
 }
@@ -93706,9 +96038,9 @@ function requireEventIngress(capability) {
 }
 
 // floe-bus/dist/workspace-portability.js
-import { createHash as createHash29 } from "node:crypto";
-import { existsSync as existsSync7, lstatSync as lstatSync2, mkdirSync as mkdirSync5, mkdtempSync, readFileSync as readFileSync4, readdirSync, renameSync, rmSync, statSync as statSync3, writeFileSync as writeFileSync3 } from "node:fs";
-import { basename as basename2, dirname as dirname6, isAbsolute as isAbsolute4, join as join6, resolve as resolve5, sep as sep2 } from "node:path";
+import { createHash as createHash33 } from "node:crypto";
+import { existsSync as existsSync8, lstatSync as lstatSync2, mkdirSync as mkdirSync6, mkdtempSync, readFileSync as readFileSync5, readdirSync, renameSync, rmSync, statSync as statSync3, writeFileSync as writeFileSync4 } from "node:fs";
+import { basename as basename2, dirname as dirname6, isAbsolute as isAbsolute4, join as join7, resolve as resolve5, sep as sep2 } from "node:path";
 var WORKSPACE_BUNDLE_FORMAT = "floe.workspace.directory-bundle";
 var WORKSPACE_BUNDLE_FORMAT_VERSION = 1;
 var WORKSPACE_BUNDLE_RECORD_VERSION = 1;
@@ -93818,6 +96150,7 @@ var PORTABLE_WORKSPACE_TABLES = /* @__PURE__ */ new Set([
   "node_execution_inputs",
   "node_execution_join_expectations",
   "node_execution_outputs",
+  "node_execution_state_outbox",
   "node_executions",
   "operation_invocation_ledger",
   "pending_responses",
@@ -93856,11 +96189,15 @@ var PORTABLE_WORKSPACE_TABLES = /* @__PURE__ */ new Set([
   "workspaces"
 ]);
 var NON_PORTABLE_HOST_TABLES = /* @__PURE__ */ new Set([
+  "actor_lifecycle_push_outbox",
   "bridges",
+  // A browser pass is a cookie held by one browser on this machine.
+  "browser_passes",
   "client_identities",
   "client_identity_challenges",
   "client_identity_sessions",
   "client_identity_workspaces",
+  "identity_workspace_authorities",
   "command_worker_bindings",
   "host_capability_policy_revisions",
   "local_host_identity",
@@ -93872,10 +96209,12 @@ var NON_PORTABLE_HOST_TABLES = /* @__PURE__ */ new Set([
   "transport_credentials",
   "transport_push_checkpoints",
   "transport_push_entries",
-  // Folders and System access name paths on this machine; a restored or copied
-  // Workspace starts with only its own folder and System access off.
+  // Folders and System access are this machine's opt-in. A package names what
+  // it left behind (host_access_left_behind) and a restore arrives without it;
+  // a copy or fork on this machine carries both through carryAccess instead.
   "workspace_access_records",
   "workspace_folders",
+  "workspace_notice_acknowledgements",
   "workspace_locator_bindings",
   "workspace_portability_imported_operation_receipts",
   "workspace_portability_dependencies",
@@ -93927,6 +96266,7 @@ var EXPLICIT_PORTABLE_RELATIONSHIPS = [
   relation("node_execution_inputs", "node_execution_id", "node_executions", "node_execution_id"),
   relation("node_execution_join_expectations", "node_execution_id", "node_executions", "node_execution_id"),
   relation("node_execution_outputs", "publication_id", "scope_output_publications", "publication_id"),
+  relation("node_execution_state_outbox", "node_execution_id", "node_executions", "node_execution_id"),
   relation("node_executions", "execution_id", "scope_executions", "execution_id"),
   relation("pulse_subscribers", "pulse_id", "pulses", "pulse_id"),
   relation("runtime_profile_head_changes", "runtime_profile_id", "runtime_profiles", "runtime_profile_id"),
@@ -94015,12 +96355,12 @@ var WorkspacePortabilityService = class {
     const selected = this.selectWorkspaceRecords(workspaceId4);
     const workspaceLocator = this.dependencies.workspace_locator(workspaceId4);
     const root = resolve5(this.dependencies.bundle_root);
-    mkdirSync5(root, { recursive: true });
-    const staging = mkdtempSync(join6(root, ".staging-"));
-    const recordDirectory = join6(staging, "records");
-    const contentDirectory = join6(staging, "content", "sha256");
-    mkdirSync5(recordDirectory, { recursive: true });
-    mkdirSync5(contentDirectory, { recursive: true });
+    mkdirSync6(root, { recursive: true });
+    const staging = mkdtempSync(join7(root, ".staging-"));
+    const recordDirectory = join7(staging, "records");
+    const contentDirectory = join7(staging, "content", "sha256");
+    mkdirSync6(recordDirectory, { recursive: true });
+    mkdirSync6(contentDirectory, { recursive: true });
     try {
       const recordInventory = [];
       const sourcePathTokens = workspaceLocator ? [resolve5(workspaceLocator)] : [];
@@ -94033,7 +96373,7 @@ var WorkspacePortabilityService = class {
         const path3 = `records/${table}.jsonl`;
         const bytes = Buffer.from(portableRows.map((item) => `${canonicalJson18(item)}
 `).join(""), "utf8");
-        writeFileSync3(join6(staging, ...path3.split("/")), bytes);
+        writeFileSync4(join7(staging, ...path3.split("/")), bytes);
         const columns = tableColumns2(this.dependencies.db, table).map((column) => column.name);
         recordInventory.push({
           table,
@@ -94052,6 +96392,11 @@ var WorkspacePortabilityService = class {
       const dependencies = deduplicateDependencies(selected.dependencies);
       const contentInventory = [...content.inventory].sort((left, right) => left.artefact_version_id.localeCompare(right.artefact_version_id));
       const identityPortable = sanitizePortableRecord(identity, sourcePathTokens).row;
+      const hostAccess = this.dependencies.host_access?.(workspaceId4);
+      const hostAccessLeftBehind = {
+        folder_names: (hostAccess?.folder_locators ?? []).map((locator) => sanitizeString(basename2(locator) || locator, sourcePathTokens).value),
+        system_access: hostAccess?.system_access ?? false
+      };
       const unsigned = {
         format: WORKSPACE_BUNDLE_FORMAT,
         format_version: WORKSPACE_BUNDLE_FORMAT_VERSION,
@@ -94064,6 +96409,7 @@ var WorkspacePortabilityService = class {
         content: contentInventory,
         restore_semantics: WORKSPACE_BUNDLE_RESTORE_SEMANTICS,
         unresolved_dependencies: dependencies,
+        host_access_left_behind: hostAccessLeftBehind,
         redaction_count: selected.redactionCount
       };
       const bundleDigest = sha2566(canonicalJson18(unsigned));
@@ -94073,10 +96419,10 @@ var WorkspacePortabilityService = class {
         bundle_digest: bundleDigest,
         bundle_id: bundleId
       };
-      writeFileSync3(join6(staging, "manifest.json"), `${canonicalJson18(manifest)}
+      writeFileSync4(join7(staging, "manifest.json"), `${canonicalJson18(manifest)}
 `, "utf8");
-      const target = join6(root, bundleId);
-      if (existsSync7(target)) {
+      const target = join7(root, bundleId);
+      if (existsSync8(target)) {
         const retained = this.validateBundle(target).manifest;
         if (retained.bundle_digest !== bundleDigest) {
           throw new WorkspacePortabilityError("bundle_identity_collision", "A different Workspace package already uses this bundle identity.", { bundle_id: bundleId });
@@ -94087,21 +96433,21 @@ var WorkspacePortabilityService = class {
       renameDirectoryWithWindowsRetry(staging, target);
       return { bundle_id: bundleId, bundle_digest: bundleDigest, workspace_id: workspaceId4, bundle_directory: target, manifest };
     } catch (error) {
-      if (existsSync7(staging))
+      if (existsSync8(staging))
         removeOwnedStagingDirectory(staging, root);
       throw error;
     }
   }
   validateBundle(bundleDirectory) {
     const bundleRoot = resolve5(bundleDirectory);
-    if (!existsSync7(bundleRoot) || !statSync3(bundleRoot).isDirectory()) {
+    if (!existsSync8(bundleRoot) || !statSync3(bundleRoot).isDirectory()) {
       throw new WorkspacePortabilityError("bundle_not_found", "The Workspace package directory does not exist.");
     }
     assertNoSymlinks(bundleRoot);
     const manifestPath = resolvePackagePath(bundleRoot, "manifest.json");
     let manifest;
     try {
-      manifest = JSON.parse(readFileSync4(manifestPath, "utf8"));
+      manifest = JSON.parse(readFileSync5(manifestPath, "utf8"));
     } catch {
       throw new WorkspacePortabilityError("bundle_manifest_invalid", "The Workspace package manifest is not valid JSON.");
     }
@@ -94121,7 +96467,7 @@ var WorkspacePortabilityService = class {
         throw new WorkspacePortabilityError("bundle_table_unsupported", `Workspace package table '${inventory.table}' is not supported.`);
       }
       const path3 = resolvePackagePath(bundleRoot, inventory.path);
-      const bytes = readFileSync4(path3);
+      const bytes = readFileSync5(path3);
       if (sha2566(bytes) !== inventory.records_digest) {
         throw new WorkspacePortabilityError("bundle_records_digest_mismatch", `Workspace package records for '${inventory.table}' changed.`);
       }
@@ -94144,7 +96490,7 @@ var WorkspacePortabilityService = class {
       if (!item.package_path || !item.digest || item.size_bytes === null) {
         throw new WorkspacePortabilityError("bundle_content_manifest_invalid", "Included content is missing its exact package reference.");
       }
-      const bytes = readFileSync4(resolvePackagePath(bundleRoot, item.package_path));
+      const bytes = readFileSync5(resolvePackagePath(bundleRoot, item.package_path));
       if (bytes.length !== item.size_bytes || sha2566(bytes) !== item.digest) {
         throw new WorkspacePortabilityError("bundle_content_digest_mismatch", `Content for '${item.artefact_version_id}' changed.`);
       }
@@ -94158,7 +96504,7 @@ var WorkspacePortabilityService = class {
       throw new WorkspacePortabilityError("bundle_schema_too_new", "This Floe build cannot restore the package's canonical record schema.");
     }
     for (const inventory of validated.manifest.records) {
-      if (!tableExists5(this.dependencies.db, inventory.table)) {
+      if (!tableExists6(this.dependencies.db, inventory.table)) {
         throw new WorkspacePortabilityError("restore_table_missing", `The target database does not contain '${inventory.table}'.`);
       }
       const targetColumns = new Set(tableColumns2(this.dependencies.db, inventory.table).map((column) => column.name));
@@ -94187,7 +96533,7 @@ var WorkspacePortabilityService = class {
     let inserted = 0;
     let retained = 0;
     const createdContentPaths = [];
-    const createdWorkspaceRoot = !existsSync7(targetWorkspaceRoot);
+    const createdWorkspaceRoot = !existsSync8(targetWorkspaceRoot);
     const db = this.dependencies.db;
     db.exec("PRAGMA foreign_keys = OFF");
     db.exec("BEGIN IMMEDIATE");
@@ -94203,7 +96549,7 @@ var WorkspacePortabilityService = class {
         }
       }
       this.dependencies.bind_workspace_locator?.(manifest.workspace_id, targetWorkspaceRoot);
-      mkdirSync5(targetWorkspaceRoot, { recursive: true });
+      mkdirSync6(targetWorkspaceRoot, { recursive: true });
       this.materializeIncludedContent(validated, targetWorkspaceRoot, createdContentPaths);
       const at = this.now();
       db.prepare(`
@@ -94267,7 +96613,7 @@ var WorkspacePortabilityService = class {
     } catch (error) {
       db.exec("ROLLBACK");
       removeMaterializedContent(createdContentPaths, targetWorkspaceRoot);
-      if (createdWorkspaceRoot && existsSync7(targetWorkspaceRoot)) {
+      if (createdWorkspaceRoot && existsSync8(targetWorkspaceRoot)) {
         try {
           rmSync(targetWorkspaceRoot);
         } catch {
@@ -94276,6 +96622,10 @@ var WorkspacePortabilityService = class {
       throw error;
     } finally {
       db.exec("PRAGMA foreign_keys = ON");
+    }
+    const leftBehind = manifest.host_access_left_behind;
+    if (leftBehind.folder_names.length > 0 || leftBehind.system_access) {
+      this.dependencies.host_access_left_behind?.(manifest.workspace_id, leftBehind);
     }
     return {
       workspace_id: manifest.workspace_id,
@@ -94297,7 +96647,7 @@ var WorkspacePortabilityService = class {
   }
   locateManagedBundle(bundleId) {
     requireStableId(bundleId, "bundle_id");
-    const candidate = join6(resolve5(this.dependencies.bundle_root), bundleId);
+    const candidate = join7(resolve5(this.dependencies.bundle_root), bundleId);
     const validated = this.validateBundle(candidate);
     if (validated.manifest.bundle_id !== bundleId) {
       throw new WorkspacePortabilityError("bundle_identity_mismatch", "The managed Workspace package identity is invalid.");
@@ -94347,7 +96697,7 @@ var WorkspacePortabilityService = class {
       throw new WorkspacePortabilityError("restore_content_source_invalid", "Content recovery requires an absolute host-local file path.");
     }
     const sourcePath = resolve5(input.source_path);
-    if (!existsSync7(sourcePath) || !lstatSync2(sourcePath).isFile() || lstatSync2(sourcePath).isSymbolicLink()) {
+    if (!existsSync8(sourcePath) || !lstatSync2(sourcePath).isFile() || lstatSync2(sourcePath).isSymbolicLink()) {
       throw new WorkspacePortabilityError("restore_content_source_invalid", "The selected content recovery source is not a regular file.");
     }
     const version = this.dependencies.db.prepare(`
@@ -94360,13 +96710,13 @@ var WorkspacePortabilityService = class {
       throw new WorkspacePortabilityError("restore_content_identity_missing", "The exact retained ArtefactVersion is unavailable.");
     }
     const contentRef = parseJsonObject(version.content_ref_json, "restored content reference");
-    const digest9 = contentDigest(contentRef);
+    const digest11 = contentDigest(contentRef);
     const relativePath = typeof contentRef.path === "string" ? contentRef.path : null;
-    if (contentRef.kind !== "workspace-relative" || !digest9 || !relativePath) {
+    if (contentRef.kind !== "workspace-relative" || !digest11 || !relativePath) {
       throw new WorkspacePortabilityError("restore_content_digest_missing", "This content dependency cannot be resolved without its exact retained digest.");
     }
-    const bytes = readFileSync4(sourcePath);
-    if (sha2566(bytes) !== digest9) {
+    const bytes = readFileSync5(sourcePath);
+    if (sha2566(bytes) !== digest11) {
       throw new WorkspacePortabilityError("restore_content_digest_mismatch", "The selected file is not the exact missing content.");
     }
     const workspaceRoot = this.dependencies.workspace_locator(input.workspace_id);
@@ -94374,18 +96724,18 @@ var WorkspacePortabilityService = class {
       throw new WorkspacePortabilityError("workspace_locator_unavailable", "The restored Workspace is not attached to this host.");
     }
     const destination = resolveWithinRoot(workspaceRoot, relativePath);
-    mkdirSync5(dirname6(destination), { recursive: true });
-    if (existsSync7(destination)) {
-      if (sha2566(readFileSync4(destination)) !== digest9) {
+    mkdirSync6(dirname6(destination), { recursive: true });
+    if (existsSync8(destination)) {
+      if (sha2566(readFileSync5(destination)) !== digest11) {
         throw new WorkspacePortabilityError("restore_content_collision", "Existing Workspace content conflicts with the missing exact content.");
       }
     } else {
-      const temporary = `${destination}.restore-${digest9.slice(0, 16)}.tmp`;
+      const temporary = `${destination}.restore-${digest11.slice(0, 16)}.tmp`;
       try {
-        writeFileSync3(temporary, bytes, { flag: "wx" });
+        writeFileSync4(temporary, bytes, { flag: "wx" });
         renameSync(temporary, destination);
       } finally {
-        if (existsSync7(temporary))
+        if (existsSync8(temporary))
           rmSync(temporary, { force: true });
       }
     }
@@ -94394,7 +96744,7 @@ var WorkspacePortabilityService = class {
       bundle_digest: hold.bundle_digest,
       dependency_id: pending.dependency_id,
       artefact_version_id: pending.resource_id,
-      digest: digest9,
+      digest: digest11,
       size_bytes: bytes.length
     };
   }
@@ -94577,15 +96927,15 @@ var WorkspacePortabilityService = class {
       if (!version)
         return null;
       const contentRef = parseJsonObject(version.content_ref_json, "restored content reference");
-      const digest9 = contentDigest(contentRef);
+      const digest11 = contentDigest(contentRef);
       const path3 = typeof contentRef.path === "string" ? contentRef.path : null;
       const workspaceRoot = this.dependencies.workspace_locator(hold.workspace_id);
-      if (contentRef.kind !== "workspace-relative" || !digest9 || !path3 || !workspaceRoot)
+      if (contentRef.kind !== "workspace-relative" || !digest11 || !path3 || !workspaceRoot)
         return null;
       const destination = resolveWithinRoot(workspaceRoot, path3);
-      if (!existsSync7(destination) || !lstatSync2(destination).isFile() || sha2566(readFileSync4(destination)) !== digest9)
+      if (!existsSync8(destination) || !lstatSync2(destination).isFile() || sha2566(readFileSync5(destination)) !== digest11)
         return null;
-      return this.completedContentSupplyReceipt(hold, item.dependency_id, item.resource_id, digest9)?.receipt_id ?? null;
+      return this.completedContentSupplyReceipt(hold, item.dependency_id, item.resource_id, digest11)?.receipt_id ?? null;
     }
     return null;
   }
@@ -94613,7 +96963,7 @@ var WorkspacePortabilityService = class {
     }
     return null;
   }
-  completedContentSupplyReceipt(hold, dependencyId, artefactVersionId, digest9) {
+  completedContentSupplyReceipt(hold, dependencyId, artefactVersionId, digest11) {
     const rows = this.dependencies.db.prepare(`
       SELECT ledger.receipt_id, ledger.invocation_id, ledger.operation_id, ledger.receipt_json
       FROM operation_invocation_ledger AS ledger
@@ -94628,7 +96978,7 @@ var WorkspacePortabilityService = class {
     for (const row of rows) {
       const receipt = parseMinimalOperationReceipt(row);
       const result = receipt.result;
-      if (result?.workspace_id === hold.workspace_id && result.bundle_digest === hold.bundle_digest && result.dependency_id === dependencyId && result.artefact_version_id === artefactVersionId && result.digest === digest9)
+      if (result?.workspace_id === hold.workspace_id && result.bundle_digest === hold.bundle_digest && result.dependency_id === dependencyId && result.artefact_version_id === artefactVersionId && result.digest === digest11)
         return receipt;
     }
     return null;
@@ -94696,29 +97046,29 @@ var WorkspacePortabilityService = class {
       const versionId = String(row.artefact_version_id);
       const contentRef = parseJsonObject(row.content_ref_json, `ArtefactVersion '${versionId}' content reference`);
       const kind = String(contentRef.kind ?? "");
-      const digest9 = contentDigest(contentRef);
+      const digest11 = contentDigest(contentRef);
       const size = typeof contentRef.size_bytes === "number" ? contentRef.size_bytes : null;
       const media = typeof contentRef.media_type === "string" ? contentRef.media_type : null;
-      if (kind === "workspace-relative" && workspaceLocator && digest9) {
+      if (kind === "workspace-relative" && workspaceLocator && digest11) {
         const portablePath = typeof contentRef.path === "string" ? contentRef.path : "";
         try {
           const source = resolveWithinRoot(workspaceLocator, portablePath);
           const stat = statSync3(source);
           if (!stat.isFile())
             throw new Error("not a file");
-          const bytes = readFileSync4(source);
-          if (sha2566(bytes) !== digest9 || size !== null && size !== bytes.length)
+          const bytes = readFileSync5(source);
+          if (sha2566(bytes) !== digest11 || size !== null && size !== bytes.length)
             throw new Error("digest or size mismatch");
           if (containsSensitivePortableText(bytes, workspaceLocator))
             throw new Error("content contains non-portable host or credential material");
-          const packagePath = `content/sha256/${digest9}`;
+          const packagePath = `content/sha256/${digest11}`;
           const destination = resolvePackagePath(stagingDirectory, packagePath);
-          if (!existsSync7(destination))
-            writeFileSync3(destination, bytes);
+          if (!existsSync8(destination))
+            writeFileSync4(destination, bytes);
           inventory.push({
             artefact_version_id: versionId,
             mode: "included",
-            digest: digest9,
+            digest: digest11,
             size_bytes: bytes.length,
             media_type: media,
             resolver_id: null,
@@ -94731,7 +97081,7 @@ var WorkspacePortabilityService = class {
           inventory.push({
             artefact_version_id: versionId,
             mode: "unresolved",
-            digest: digest9,
+            digest: digest11,
             size_bytes: size,
             media_type: media,
             resolver_id: null,
@@ -94748,7 +97098,7 @@ var WorkspacePortabilityService = class {
         inventory.push({
           artefact_version_id: versionId,
           mode: "portable_external",
-          digest: digest9,
+          digest: digest11,
           size_bytes: size,
           media_type: media,
           resolver_id: resolverId,
@@ -94760,7 +97110,7 @@ var WorkspacePortabilityService = class {
         inventory.push({
           artefact_version_id: versionId,
           mode: "unresolved",
-          digest: digest9,
+          digest: digest11,
           size_bytes: size,
           media_type: media,
           resolver_id: resolverId,
@@ -94863,16 +97213,16 @@ var WorkspacePortabilityService = class {
         continue;
       const source = resolvePackagePath(validated.bundle_directory, item.package_path);
       const destination = resolveWithinRoot(workspaceRoot, `.floe/portable-content/sha256/${item.digest}`);
-      mkdirSync5(dirname6(destination), { recursive: true });
-      const bytes = readFileSync4(source);
-      if (existsSync7(destination)) {
-        const existing = readFileSync4(destination);
+      mkdirSync6(dirname6(destination), { recursive: true });
+      const bytes = readFileSync5(source);
+      if (existsSync8(destination)) {
+        const existing = readFileSync5(destination);
         if (sha2566(existing) !== item.digest) {
           throw new WorkspacePortabilityError("restore_content_collision", "Existing Workspace content conflicts with the package digest.", { digest: item.digest });
         }
       } else {
         createdPaths.push(destination);
-        writeFileSync3(destination, bytes);
+        writeFileSync4(destination, bytes);
       }
     }
   }
@@ -94899,10 +97249,10 @@ var WorkspacePortabilityService = class {
     if (this.dependencies.database_path === ":memory:") {
       throw new WorkspacePortabilityError("restore_backup_required", "An existing in-memory Workspace cannot be changed without a recoverable backup.");
     }
-    const backupDirectory = join6(dirname6(this.dependencies.database_path), "backups");
-    mkdirSync5(backupDirectory, { recursive: true });
-    const backupPath = join6(backupDirectory, `${basename2(this.dependencies.database_path).replace(/\.sqlite$/i, "")}.before-restore-${manifest.bundle_digest.slice(0, 12)}.${this.now().replace(/[:.]/g, "-")}.sqlite`);
-    if (existsSync7(backupPath)) {
+    const backupDirectory = join7(dirname6(this.dependencies.database_path), "backups");
+    mkdirSync6(backupDirectory, { recursive: true });
+    const backupPath = join7(backupDirectory, `${basename2(this.dependencies.database_path).replace(/\.sqlite$/i, "")}.before-restore-${manifest.bundle_digest.slice(0, 12)}.${this.now().replace(/[:.]/g, "-")}.sqlite`);
+    if (existsSync8(backupPath)) {
       throw new WorkspacePortabilityError("restore_backup_collision", "The intended pre-restore backup path already exists.");
     }
     const quoted = backupPath.replaceAll("'", "''");
@@ -94953,19 +97303,19 @@ function deduplicateDependencies(values) {
   return [...new Map(values.map((value) => [value.dependency_id, value])).values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.resource_id.localeCompare(right.resource_id) || left.dependency_id.localeCompare(right.dependency_id));
 }
 function contentDigest(contentRef) {
-  const digest9 = contentRef.digest;
-  if (!digest9 || typeof digest9 !== "object" || Array.isArray(digest9))
+  const digest11 = contentRef.digest;
+  if (!digest11 || typeof digest11 !== "object" || Array.isArray(digest11))
     return null;
-  const record = digest9;
+  const record = digest11;
   return record.algorithm === "sha256" && typeof record.value === "string" && /^[a-f0-9]{64}$/i.test(record.value) ? record.value.toLowerCase() : null;
 }
 function containsSensitivePortableText(bytes, sourceWorkspaceLocator) {
-  const text12 = bytes.toString("utf8");
-  if (text12.includes(sourceWorkspaceLocator))
+  const text15 = bytes.toString("utf8");
+  if (text15.includes(sourceWorkspaceLocator))
     return true;
   return SECRET_VALUE_PATTERNS.some((pattern) => {
     pattern.lastIndex = 0;
-    return pattern.test(text12);
+    return pattern.test(text15);
   });
 }
 function sanitizePortableRecord(row, sourcePaths) {
@@ -95151,7 +97501,7 @@ function removeMaterializedContent(createdPaths, workspaceRoot) {
     if (candidate === root || !candidate.startsWith(`${root}${sep2}`)) {
       throw new WorkspacePortabilityError("restore_content_cleanup_boundary", "Restore rollback refused to remove content outside the target Workspace.");
     }
-    if (existsSync7(candidate) && lstatSync2(candidate).isFile()) {
+    if (existsSync8(candidate) && lstatSync2(candidate).isFile()) {
       rmSync(candidate, { force: true });
     }
     let directory = dirname6(candidate);
@@ -95269,7 +97619,7 @@ function listTables(db) {
   const rows = db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all();
   return new Set(rows.map((row) => row.name));
 }
-function tableExists5(db, table) {
+function tableExists6(db, table) {
   return Boolean(db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?").get(table));
 }
 function tableColumns2(db, table) {
@@ -95305,7 +97655,7 @@ function canonicalJson18(value) {
   return JSON.stringify(value);
 }
 function sha2566(value) {
-  return createHash29("sha256").update(value).digest("hex");
+  return createHash33("sha256").update(value).digest("hex");
 }
 function quoteIdentifier(value) {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value))
@@ -95333,7 +97683,7 @@ function resolvePackagePath(root, portablePath) {
 function assertNoSymlinks(root) {
   const visit = (directory) => {
     for (const entry of readdirSync(directory)) {
-      const path3 = join6(directory, entry);
+      const path3 = join7(directory, entry);
       const stat = lstatSync2(path3);
       if (stat.isSymbolicLink()) {
         throw new WorkspacePortabilityError("bundle_symlink_refused", "Workspace packages cannot contain symbolic links.");
@@ -95345,7 +97695,7 @@ function assertNoSymlinks(root) {
   visit(root);
 }
 function validateManifestShape(value) {
-  if (value?.format !== WORKSPACE_BUNDLE_FORMAT || value.format_version !== WORKSPACE_BUNDLE_FORMAT_VERSION || value.record_version !== WORKSPACE_BUNDLE_RECORD_VERSION || !value.workspace_id || !value.bundle_id || !/^[a-f0-9]{64}$/.test(value.bundle_digest) || !Array.isArray(value.records) || !Array.isArray(value.content) || canonicalJson18(value.restore_semantics) !== canonicalJson18(WORKSPACE_BUNDLE_RESTORE_SEMANTICS) || !Array.isArray(value.unresolved_dependencies)) {
+  if (value?.format !== WORKSPACE_BUNDLE_FORMAT || value.format_version !== WORKSPACE_BUNDLE_FORMAT_VERSION || value.record_version !== WORKSPACE_BUNDLE_RECORD_VERSION || !value.workspace_id || !value.bundle_id || !/^[a-f0-9]{64}$/.test(value.bundle_digest) || !Array.isArray(value.records) || !Array.isArray(value.content) || canonicalJson18(value.restore_semantics) !== canonicalJson18(WORKSPACE_BUNDLE_RESTORE_SEMANTICS) || !Array.isArray(value.unresolved_dependencies) || !Array.isArray(value.host_access_left_behind?.folder_names) || !value.host_access_left_behind.folder_names.every((name) => typeof name === "string") || typeof value.host_access_left_behind.system_access !== "boolean") {
     throw new WorkspacePortabilityError("bundle_manifest_unsupported", "The Workspace package format is not supported by this Floe build.");
   }
 }
@@ -95367,18 +97717,18 @@ var RESTORE_WORKSPACE_BUNDLE_OPERATION_ID = "workspace.package.restore";
 var INSPECT_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.inspect_restore";
 var RECONCILE_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.reconcile_restore";
 var RELEASE_WORKSPACE_RESTORE_HOLD_OPERATION_ID = "workspace.package.release_restore_hold";
-var text11 = { type: "string", minLength: 1 };
-var nullableText10 = { oneOf: [text11, { type: "null" }] };
+var text14 = { type: "string", minLength: 1 };
+var nullableText12 = { oneOf: [text14, { type: "null" }] };
 var empty = { type: "object", additionalProperties: false };
 var dependencySchema = {
   type: "object",
   additionalProperties: false,
   required: ["dependency_id", "kind", "resource_id", "reason"],
   properties: {
-    dependency_id: text11,
+    dependency_id: text14,
     kind: { enum: ["content", "secret_ref", "endpoint_attachment", "actor_runtime", "command_runtime", "connector_runtime", "extension_runtime"] },
-    resource_id: text11,
-    reason: text11
+    resource_id: text14,
+    reason: text14
   }
 };
 var bundleSummarySchema = {
@@ -95396,9 +97746,9 @@ var bundleSummarySchema = {
     "unresolved_dependencies"
   ],
   properties: {
-    bundle_id: text11,
-    bundle_digest: text11,
-    workspace_id: text11,
+    bundle_id: text14,
+    bundle_digest: text14,
+    workspace_id: text14,
     format_version: { type: "integer", minimum: 1 },
     source_database_schema_version: { type: "integer", minimum: 1 },
     record_count: { type: "integer", minimum: 0 },
@@ -95424,14 +97774,14 @@ var restoreHoldSchema = {
         "released_by_principal_id"
       ],
       properties: {
-        workspace_id: text11,
-        bundle_id: text11,
-        bundle_digest: text11,
+        workspace_id: text14,
+        bundle_id: text14,
+        bundle_digest: text14,
         state: { enum: ["held", "released"] },
-        reason: text11,
-        restored_at: text11,
-        released_at: nullableText10,
-        released_by_principal_id: nullableText10
+        reason: text14,
+        restored_at: text14,
+        released_at: nullableText12,
+        released_by_principal_id: nullableText12
       }
     }
   ]
@@ -95537,7 +97887,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id"],
-        properties: { bundle_id: text11 }
+        properties: { bundle_id: text14 }
       }
     },
     result: {
@@ -95546,7 +97896,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id", "bundle_directory"],
-        properties: { bundle_id: text11, bundle_directory: text11 }
+        properties: { bundle_id: text14, bundle_directory: text14 }
       }
     },
     handler: async (_context, input) => {
@@ -95579,7 +97929,7 @@ function preflightDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory"],
-        properties: { bundle_directory: text11 }
+        properties: { bundle_directory: text14 }
       }
     },
     result: {
@@ -95626,7 +97976,7 @@ function restoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory", "workspace_locator"],
-        properties: { bundle_directory: text11, workspace_locator: text11 }
+        properties: { bundle_directory: text14, workspace_locator: text14 }
       }
     },
     result: {
@@ -95645,9 +97995,9 @@ function restoreDefinition(service) {
           "backup_created"
         ],
         properties: {
-          workspace_id: text11,
-          bundle_id: text11,
-          bundle_digest: text11,
+          workspace_id: text14,
+          bundle_id: text14,
+          bundle_digest: text14,
           state: { const: "held" },
           inserted_record_count: { type: "integer", minimum: 0 },
           retained_record_count: { type: "integer", minimum: 0 },
@@ -95739,10 +98089,10 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "expected_bundle_digest", "dependency_id", "source_path"],
         properties: {
-          workspace_id: text11,
-          expected_bundle_digest: text11,
-          dependency_id: text11,
-          source_path: text11
+          workspace_id: text14,
+          expected_bundle_digest: text14,
+          dependency_id: text14,
+          source_path: text14
         }
       }
     },
@@ -95753,11 +98103,11 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "bundle_digest", "dependency_id", "artefact_version_id", "digest", "size_bytes"],
         properties: {
-          workspace_id: text11,
-          bundle_digest: text11,
-          dependency_id: text11,
-          artefact_version_id: text11,
-          digest: text11,
+          workspace_id: text14,
+          bundle_digest: text14,
+          dependency_id: text14,
+          artefact_version_id: text14,
+          digest: text14,
           size_bytes: { type: "integer", minimum: 0 }
         }
       }
@@ -95795,7 +98145,7 @@ function reconcileRestoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text11 }
+        properties: { expected_bundle_digest: text14 }
       }
     },
     result: {
@@ -95859,7 +98209,7 @@ function releaseHoldDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text11 }
+        properties: { expected_bundle_digest: text14 }
       }
     },
     result: {
@@ -95909,7 +98259,7 @@ function registerWorkspacePortabilityOperations(registry, service) {
 }
 
 // floe-bus/dist/workspace-config-import.js
-import { createHash as createHash30 } from "node:crypto";
+import { createHash as createHash34 } from "node:crypto";
 var LEGACY_WORKSPACE_MODEL_ACTOR_OPERATION_IDS_V1 = Object.freeze([
   "actor.create",
   "actor.definition.draft.create",
@@ -96087,7 +98437,7 @@ var WorkspaceConfigurationImportStore = class {
     const existing = this.getReceipt(workspaceId4, receiptId);
     if (existing)
       return { replayed: true, receipt: existing };
-    if (Date.parse(policy.expires_at) <= Date.parse(this.now())) {
+    if (policy.expires_at !== null && Date.parse(policy.expires_at) <= Date.parse(this.now())) {
       throw new WorkspaceConfigurationPolicyError("expiry must be in the future for a new import");
     }
     const currentOperationIds = new Set(this.dependencies.operation_registry.listCurrentOperationIds({
@@ -96224,11 +98574,10 @@ var WorkspaceConfigurationImportStore = class {
     for (const input of inventory.actors) {
       const actorId = workspaceConfigurationActorId(workspaceId4, input.source_actor_id);
       const profileId = workspaceConfigurationRuntimeProfileId(actorId);
-      const operationIds = actorOperationIds(policy, input.source_actor_id);
-      const generalOperationIds = operationIds ? nonCredentialOperationIds(operationIds) : [];
-      const grantId = generalOperationIds.length > 0 ? workspaceConfigurationGrantId(workspaceId4, actorId, policy, generalOperationIds) : null;
+      const plan = this.plannedAuthority(workspaceId4, actorId, input, policy);
+      const grantId = plan.kind === "policy" ? plan.grant_id : null;
       try {
-        validateActorDefinition(actorDefinition(input, [grantId].filter(isText)));
+        validateActorDefinition(actorDefinition(input, plannedGrantIds(plan)));
         validateRuntimeProfile(runtimeProfile(input));
       } catch {
         return invalidConfiguration("The Workspace Actor or Runtime configuration is not valid canonical input.");
@@ -96249,14 +98598,14 @@ var WorkspaceConfigurationImportStore = class {
       if (actor?.status === "retired") {
         return conflict("A retired canonical Actor cannot be silently reactivated by Workspace import.");
       }
-      if (ownership && actor?.current_definition_revision_id) {
+      if (ownership && actor?.current_definition_revision_id && plan.kind === "policy") {
         const previous = this.dependencies.actor_definitions.requireRevision(actor.current_definition_revision_id);
         if (previous.content.capability_grant_ids.some((id) => this.dependencies.capability_grants.getGrant(id)?.revoked_at)) {
           return conflict("Workspace import cannot replace explicitly revoked Actor authority with a renewed policy grant.");
         }
       }
       if (actor && !ownership) {
-        const desired = actorDefinition(input, [grantId].filter(isText));
+        const desired = actorDefinition(input, plannedGrantIds(plan));
         const current = actor.current_definition_revision_id ? this.dependencies.actor_definitions.requireRevision(actor.current_definition_revision_id) : null;
         if (!current || current.semantic_digest !== actorDefinitionDigest(desired)) {
           return conflict("Workspace import would replace an independently managed canonical Actor.");
@@ -96275,9 +98624,9 @@ var WorkspaceConfigurationImportStore = class {
           return conflict("Workspace import would replace an independently managed canonical Runtime Profile.");
         }
       }
-      if (grantId) {
+      if (grantId && plan.kind === "policy") {
         const grant = this.dependencies.capability_grants.getGrant(grantId);
-        if (grant && !sameGrant(grant, workspaceId4, actorId, policy, generalOperationIds)) {
+        if (grant && !sameGrant(grant, this.dependencies.capability_grants.getDelegation(grant.grant_id), workspaceId4, actorId, policy, plan.operation_ids)) {
           return conflict("The deterministic migration CapabilityGrant identifies different authority.");
         }
         if (grant?.revoked_at) {
@@ -96293,13 +98642,12 @@ var WorkspaceConfigurationImportStore = class {
   applyActor(workspaceId4, input, policy) {
     const actorId = workspaceConfigurationActorId(workspaceId4, input.source_actor_id);
     const profileId = workspaceConfigurationRuntimeProfileId(actorId);
-    const operationIds = actorOperationIds(policy, input.source_actor_id);
-    const generalOperationIds = operationIds ? nonCredentialOperationIds(operationIds) : [];
-    const grant = generalOperationIds.length > 0 ? this.ensureGrant(workspaceId4, actorId, policy, generalOperationIds) : null;
-    const capabilityGrantIds = [grant?.grant_id].filter(isText);
+    const plan = this.plannedAuthority(workspaceId4, actorId, input, policy);
+    const grant = plan.kind === "policy" ? this.ensureGrant(workspaceId4, actorId, policy, plan.operation_ids) : null;
+    const capabilityGrantIds = plan.kind === "keep" ? plan.grant_ids : [grant?.grant_id].filter(isText);
     const actorRevision = this.ensureActorDefinition(workspaceId4, actorId, input, capabilityGrantIds, policy.import_principal_id);
     const profileRevision = this.ensureRuntimeProfile(workspaceId4, profileId, input, policy.import_principal_id);
-    const status = runtimeBindingStatus(input, operationIds !== null);
+    const status = runtimeBindingStatus(input, plan.kind === "none" ? plan.mapped : plan.kind === "policy" || capabilityGrantIds.length > 0);
     const currentBinding = this.dependencies.runtime_profiles.getCurrentActorBinding(actorId);
     const endpointId = actorId;
     const binding = currentBinding && currentBinding.runtime_profile_revision_id === profileRevision.runtime_profile_revision_id && currentBinding.endpoint_id === endpointId && currentBinding.status === status.status && sameStrings(currentBinding.unresolved_reasons, status.reasons) ? currentBinding : this.dependencies.runtime_profiles.bindActor({
@@ -96315,7 +98663,7 @@ var WorkspaceConfigurationImportStore = class {
       source_actor_id: input.source_actor_id,
       actor_id: actorId,
       actor_definition_revision_id: actorRevision.actor_definition_revision_id,
-      capability_grant_id: grant?.grant_id ?? null,
+      capability_grant_id: capabilityGrantIds[0] ?? null,
       capability_grant_ids: capabilityGrantIds,
       runtime_profile_id: profileId,
       runtime_profile_revision_id: profileRevision.runtime_profile_revision_id,
@@ -96325,11 +98673,44 @@ var WorkspaceConfigurationImportStore = class {
       secret_ref_ids: []
     };
   }
+  /**
+   * What authority the import gives this Actor. The files never take access
+   * away: an existing Actor keeps its grants when the policy names nothing for
+   * it, or when any of its grants came from outside the import, such as a
+   * person. Only access the import itself issued is renewed or re-based.
+   */
+  plannedAuthority(workspaceId4, actorId, input, policy) {
+    const operationIds = actorOperationIds(policy, input.source_actor_id);
+    const current = this.dependencies.actor_definitions.getActor(actorId) ? this.dependencies.actor_definitions.getCurrentDefinition(actorId) : null;
+    if (current) {
+      const held = current.content.capability_grant_ids;
+      const grants = this.dependencies.capability_grants;
+      if (operationIds === null || held.some((id) => !isImportPolicyGrant(grants.getGrant(id)))) {
+        return { kind: "keep", grant_ids: [...held] };
+      }
+    }
+    const generalOperationIds = operationIds ? nonCredentialOperationIds(operationIds) : [];
+    return generalOperationIds.length > 0 ? {
+      kind: "policy",
+      operation_ids: generalOperationIds,
+      grant_id: workspaceConfigurationGrantId(workspaceId4, actorId, policy, generalOperationIds)
+    } : { kind: "none", mapped: operationIds !== null };
+  }
   ensureGrant(workspaceId4, actorId, policy, operationIds) {
     const grantId = workspaceConfigurationGrantId(workspaceId4, actorId, policy, operationIds);
     const existing = this.dependencies.capability_grants.getGrant(grantId);
     if (existing)
       return existing;
+    const evidence = [{ kind: "workspace_configuration_import_policy", ref: policy.policy_revision }];
+    if (policy.delegation_source_grant_id) {
+      return this.dependencies.capability_grants.issueDependentGrant({
+        grant_id: grantId,
+        source_grant_id: policy.delegation_source_grant_id,
+        principal_id: actorId,
+        operation_ids: operationIds,
+        evidence
+      });
+    }
     return this.dependencies.capability_grants.issueGrant({
       grant_id: grantId,
       principal_id: actorId,
@@ -96337,10 +98718,7 @@ var WorkspaceConfigurationImportStore = class {
       operation_ids: operationIds,
       expires_at: policy.expires_at,
       issuer_id: policy.issuer_id,
-      evidence: [{
-        kind: "workspace_configuration_import_policy",
-        ref: policy.policy_revision
-      }]
+      evidence
     });
   }
   ensureActorDefinition(workspaceId4, actorId, input, grantIds, principalId) {
@@ -96405,6 +98783,31 @@ var WorkspaceConfigurationImportStore = class {
       changed_by_principal_id: principalId
     });
   }
+  /**
+   * An Actor revision that differs from what the import last wrote only in its
+   * grants is not an independent edit of the imported definition, so the next
+   * import may continue from it. Anything else stays a conflict. True when the
+   * revision was accepted as the import's own.
+   */
+  acceptAuthorityOnlyRevision(actorId, revisionId) {
+    const row = this.dependencies.db.prepare(`
+      SELECT workspace_id, source_actor_id, last_actor_definition_revision_id
+      FROM workspace_configuration_import_resources WHERE actor_id = ?
+    `).get(actorId);
+    if (!row)
+      return false;
+    const withoutGrants = (id) => actorDefinitionDigest({
+      ...this.dependencies.actor_definitions.requireRevision(id).content,
+      capability_grant_ids: []
+    });
+    if (withoutGrants(row.last_actor_definition_revision_id) !== withoutGrants(revisionId))
+      return false;
+    this.dependencies.db.prepare(`
+      UPDATE workspace_configuration_import_resources SET last_actor_definition_revision_id = ?
+      WHERE workspace_id = ? AND source_actor_id = ?
+    `).run(revisionId, row.workspace_id, row.source_actor_id);
+    return true;
+  }
   getOwnership(workspaceId4, sourceActorId) {
     const row = this.dependencies.db.prepare(`
       SELECT actor_id, runtime_profile_id
@@ -96456,17 +98859,18 @@ function workspaceConfigurationRuntimeProfileId(actorId) {
   return `runtime-profile:${requiredText5(actorId, "actor_id")}`;
 }
 function workspaceConfigurationGrantId(workspaceId4, actorId, policy, operationIds) {
-  return `capgrant_workspace_import_${digest7(canonicalJson19({
+  return `capgrant_workspace_import_${digest10(canonicalJson19({
     workspace_id: workspaceId4,
     actor_id: actorId,
     policy_revision: policy.policy_revision,
     operation_ids: normalizeTextSet2(operationIds, "operation_id", true),
     expires_at: policy.expires_at,
-    issuer_id: policy.issuer_id
+    issuer_id: policy.issuer_id,
+    ...policy.delegation_source_grant_id ? { delegation_source_grant_id: policy.delegation_source_grant_id } : {}
   })).slice(0, 32)}`;
 }
 function workspaceConfigurationImportReceiptId(workspaceId4, bindingId, inventoryDigest, policyDigest) {
-  return `workspace_config_import_${digest7(`${workspaceId4}\0${bindingId}\0${inventoryDigest}\0${policyDigest}`).slice(0, 32)}`;
+  return `workspace_config_import_${digest10(`${workspaceId4}\0${bindingId}\0${inventoryDigest}\0${policyDigest}`).slice(0, 32)}`;
 }
 function actorDefinition(input, grantIds) {
   return {
@@ -96503,16 +98907,22 @@ function runtimeBindingStatus(input, hasExplicitOperationAuthority) {
   return normalized.length > 0 ? { status: "unresolved", reasons: normalized } : { status: "resolved", reasons: [] };
 }
 function normalizePolicy(value) {
-  const expiresAt = requiredText5(value.expires_at, "policy expires_at");
-  if (!Number.isFinite(Date.parse(expiresAt))) {
-    throw new WorkspaceConfigurationPolicyError("expiry must be a valid timestamp");
+  const source = value.delegation_source_grant_id == null ? null : requiredText5(value.delegation_source_grant_id, "policy delegation_source_grant_id");
+  let expiresAt = null;
+  if (value.expires_at !== null || source === null) {
+    expiresAt = requiredText5(value.expires_at, "policy expires_at");
+    if (!Number.isFinite(Date.parse(expiresAt))) {
+      throw new WorkspaceConfigurationPolicyError("expiry must be a valid timestamp");
+    }
   }
   return {
     policy_revision: requiredText5(value.policy_revision, "policy_revision"),
     actor_operation_authority: normalizeActorOperationAuthority(value.actor_operation_authority),
     expires_at: expiresAt,
     issuer_id: requiredText5(value.issuer_id, "issuer_id"),
-    import_principal_id: requiredText5(value.import_principal_id, "import_principal_id")
+    import_principal_id: requiredText5(value.import_principal_id, "import_principal_id"),
+    // Present only when used, so policies without it keep their recorded digest.
+    ...source === null ? {} : { delegation_source_grant_id: source }
   };
 }
 function normalizeActorOperationAuthority(value) {
@@ -96529,7 +98939,7 @@ function normalizeActorOperationAuthority(value) {
       operation_ids: normalizeUnknownTextSet(entry.operation_ids, `actor_operation_authority[${index}].operation_id`)
     };
   }).sort((left, right) => left.source_actor_id.localeCompare(right.source_actor_id));
-  unique5(entries.map((entry) => entry.source_actor_id), "actor operation-authority source_actor_id");
+  unique4(entries.map((entry) => entry.source_actor_id), "actor operation-authority source_actor_id");
   return entries;
 }
 function actorOperationIds(policy, sourceActorId) {
@@ -96571,7 +98981,7 @@ function normalizeInventory(value) {
     throw new WorkspaceConfigurationInventoryValidationError("actors must be an array");
   }
   const actors = document.actors.map((actor, index) => normalizeActor(actor, index)).sort((left, right) => left.source_actor_id.localeCompare(right.source_actor_id));
-  unique5(actors.map((actor) => actor.source_actor_id), "source_actor_id");
+  unique4(actors.map((actor) => actor.source_actor_id), "source_actor_id");
   return {
     schema: "floe.workspace-configuration-inventory.v1",
     importer_version: "1",
@@ -96771,7 +99181,7 @@ function normalizeTextSet2(values, label, required) {
   }
   return [...new Set(values.map((value) => requiredText5(value, label)))].sort((left, right) => left.localeCompare(right));
 }
-function unique5(values, label) {
+function unique4(values, label) {
   const seen = /* @__PURE__ */ new Set();
   for (const value of values) {
     if (seen.has(value)) {
@@ -96802,11 +99212,11 @@ function safeRelativePath(value, label) {
   return path3;
 }
 function digestText(value, label) {
-  const text12 = requiredText5(value, label).toLowerCase();
-  if (!/^sha256:[a-f0-9]{64}$/.test(text12)) {
+  const text15 = requiredText5(value, label).toLowerCase();
+  if (!/^sha256:[a-f0-9]{64}$/.test(text15)) {
     throw new WorkspaceConfigurationInventoryValidationError(`${label} must be a SHA-256 digest`);
   }
-  return text12;
+  return text15;
 }
 function requiredText5(value, label) {
   if (typeof value !== "string" || !value.trim()) {
@@ -96814,8 +99224,14 @@ function requiredText5(value, label) {
   }
   return value.trim();
 }
-function sameGrant(grant, workspaceId4, actorId, policy, operationIds) {
-  return grant.principal_id === actorId && grant.boundary.kind === "workspace" && grant.boundary.workspace_id === workspaceId4 && grant.expires_at === policy.expires_at && grant.issuer_id === policy.issuer_id && sameStrings(grant.operation_ids, operationIds) && grant.targets.length === 0 && grant.evidence.length === 1 && grant.evidence[0]?.kind === "workspace_configuration_import_policy" && grant.evidence[0]?.ref === policy.policy_revision;
+function plannedGrantIds(plan) {
+  return plan.kind === "keep" ? plan.grant_ids : plan.kind === "policy" ? [plan.grant_id] : [];
+}
+function isImportPolicyGrant(grant) {
+  return grant !== null && grant.evidence.some((item) => item.kind === "workspace_configuration_import_policy");
+}
+function sameGrant(grant, delegation, workspaceId4, actorId, policy, operationIds) {
+  return grant.principal_id === actorId && grant.boundary.kind === "workspace" && grant.boundary.workspace_id === workspaceId4 && grant.expires_at === policy.expires_at && grant.issuer_id === policy.issuer_id && (delegation?.source_grant_id ?? null) === (policy.delegation_source_grant_id ?? null) && sameStrings(grant.operation_ids, operationIds) && grant.targets.length === 0 && grant.evidence.length === 1 && grant.evidence[0]?.kind === "workspace_configuration_import_policy" && grant.evidence[0]?.ref === policy.policy_revision;
 }
 function sameStrings(left, right) {
   const normalizedLeft = [...left].sort((a, b) => a.localeCompare(b));
@@ -96847,10 +99263,10 @@ function receiptFromRow(row) {
   };
 }
 function sha2567(value) {
-  return `sha256:${digest7(value)}`;
+  return `sha256:${digest10(value)}`;
 }
-function digest7(value) {
-  return createHash30("sha256").update(value, "utf8").digest("hex");
+function digest10(value) {
+  return createHash34("sha256").update(value, "utf8").digest("hex");
 }
 function canonicalJson19(value) {
   if (Array.isArray(value))
@@ -96939,6 +99355,7 @@ var stoppableScopeExecutionStatuses = /* @__PURE__ */ new Set([
   "queued",
   "active",
   "waiting_external",
+  "pausing",
   "paused",
   "blocked"
 ]);
@@ -97277,6 +99694,7 @@ var scopeExecutionSchema = {
         "queued",
         "active",
         "waiting_external",
+        "pausing",
         "paused",
         "blocked",
         "completed",
@@ -98579,7 +100997,7 @@ function pauseScopeExecutionOperation(backend) {
     authority_boundary_kinds: ["workspace"],
     category: "scope-execution",
     title: "Pause Scope execution",
-    description: "Pause queued work at a durable scheduling boundary without changing the pinned plan or execution evidence.",
+    description: "Request an immediate pause, interrupt active turns, and retain the pinned plan and execution evidence.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [PAUSE_SCOPE_EXECUTION_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -98604,13 +101022,18 @@ function pauseScopeExecutionOperation(backend) {
         call: operationCall(context)
       });
       return {
-        state: "completed",
+        state: "accepted",
         result,
         changed_refs: [{
           kind: "scope_execution",
           id: result.execution.execution_id,
           revision: scopeExecutionStateRevision(result.execution)
         }],
+        progress_ref: {
+          kind: "scope_execution",
+          id: result.execution.execution_id,
+          revision: scopeExecutionStateRevision(result.execution)
+        },
         audit_ref: auditRef13(context)
       };
     })
@@ -100095,7 +102518,7 @@ var BusContextOperationBackend = class {
       const key = `${kind}\0${id}\0${relationship}`;
       refs.set(key, { kind, id, revision, relationship });
     };
-    const has = (table) => tableExists6(db, table);
+    const has = (table) => tableExists7(db, table);
     if (has("contexts")) {
       const children = db.prepare(`
         SELECT context_id, state_revision FROM contexts
@@ -100372,7 +102795,7 @@ function isIdentityOnlyDestructionChallenge(value, contextId) {
   const refusal2 = receipt.refusal;
   return receipt.operation_id === DESTROY_CONTEXT_PERMANENTLY_OPERATION_ID && receipt.state === "refused" && receipt.result == null && Array.isArray(receipt.changed_refs) && receipt.changed_refs.length === 0 && Boolean(target && typeof target === "object" && !Array.isArray(target) && target.kind === "context" && target.id === contextId) && Boolean(refusal2 && typeof refusal2 === "object" && !Array.isArray(refusal2) && refusal2.code === "operation_confirmation_required");
 }
-function tableExists6(db, table) {
+function tableExists7(db, table) {
   return Boolean(db.prepare(`SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?`).get(table));
 }
 function safeJson(value) {
@@ -100661,7 +103084,7 @@ function parseJson4(value) {
   return JSON.parse(value);
 }
 function stableHash(value) {
-  return createHash31("sha256").update(value).digest("hex");
+  return createHash35("sha256").update(value).digest("hex");
 }
 function canonicalJson20(value) {
   if (Array.isArray(value))
@@ -100728,6 +103151,10 @@ var BusStore = class {
   operationAuthoritySessions;
   operationAuthorityVerifier;
   clientIdentityStore;
+  identityWorkspaceAuthorityStore;
+  browserPassStore;
+  browserPairing = null;
+  authorityLostListeners = /* @__PURE__ */ new Set();
   operationRegistry;
   workspaceConfigurationImportStore;
   contextOperationBackend;
@@ -100750,6 +103177,8 @@ var BusStore = class {
   materializationWaiters = /* @__PURE__ */ new Map();
   /** Single-shot timer scheduled to fire at the next lease expiry time (D5). */
   leaseExpiryTimer = null;
+  /** Single-shot timer for the nearest durable Scope pause deadline. */
+  pauseDeadlineTimer = null;
   /** Bounded once-per-process recovery; Command workers are push-driven after this scan. */
   commandRecoveryStarted = false;
   /** Prevent deferred recovery or dispatch work from touching a closed SQLite handle. */
@@ -100757,15 +103186,18 @@ var BusStore = class {
   constructor(configPath, config, options = {}) {
     this.config = config;
     const dataDir = resolveLocalPath(configPath, config.home, config.bus.data_dir);
-    mkdirSync6(dataDir, { recursive: true });
-    const databasePath = join7(dataDir, "floe-bus.sqlite");
+    mkdirSync7(dataDir, { recursive: true });
+    const databasePath = join8(dataDir, "floe-bus.sqlite");
     this.db = new DatabaseSync(databasePath);
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec("PRAGMA foreign_keys = ON");
     runDatabaseUpgrade({
       db: this.db,
       database_path: databasePath,
-      migrate: () => this.migrate()
+      migrate: () => this.migrate(),
+      rebuild: () => {
+        rebuildCapabilityGrantsForUntilRevoked(this.db);
+      }
     });
     this.localHostId = getOrCreateLocalHostIdentity(this.db).host_id;
     this.localOperatorPrincipalStore = new SqliteLocalOperatorPrincipalStore(this.db);
@@ -100774,12 +103206,13 @@ var BusStore = class {
     this.workspaceIdentityStore = new SqliteWorkspaceIdentityStore(this.db);
     this.workspaceAccessStore = new WorkspaceAccessStore(this.db, {
       host_id: this.localHostId,
-      home_locator: (workspaceId4) => this.workspaceIdentityStore.getCurrentBinding(workspaceId4, this.localHostId)?.locator ?? null
+      home_locator: (workspaceId4) => this.workspaceIdentityStore.getCurrentBinding(workspaceId4, this.localHostId)?.locator ?? null,
+      notice_changed: (workspaceId4) => this.pushWorkspaceAccess(workspaceId4)
     });
     this.workspacePortabilityService = new WorkspacePortabilityService({
       db: this.db,
       database_path: databasePath,
-      bundle_root: join7(dataDir, "workspace-packages"),
+      bundle_root: join8(dataDir, "workspace-packages"),
       workspace_locator: (workspaceId4) => this.workspaceIdentityStore.getCurrentBinding(workspaceId4, this.localHostId)?.locator ?? null,
       bind_workspace_locator: (workspaceId4, locator) => {
         this.workspaceIdentityStore.bindLocator(workspaceId4, {
@@ -100788,7 +103221,9 @@ var BusStore = class {
           locator,
           init_authorized: true
         });
-      }
+      },
+      host_access: (workspaceId4) => this.workspaceAccessStore.hostAccess(workspaceId4),
+      host_access_left_behind: (workspaceId4, leftBehind) => this.workspaceAccessStore.recordLeftBehind(workspaceId4, leftBehind)
     });
     this.contextStore = new ContextStore(this.db);
     this.scopeStore = new ScopeStore(this.db);
@@ -100884,7 +103319,13 @@ var BusStore = class {
     });
     this.operationInvocationLedger = new SqliteOperationInvocationLedger(this.db);
     this.capabilityGrantStore = new SqliteCapabilityGrantStore(this.db, {
-      on_revoked: (grant) => this.settleApprovalsAfterRevocation(grant)
+      on_revoked: (grant) => {
+        this.settleApprovalsAfterRevocation(grant);
+        this.actorAccessAdoption?.noteLapse(grant.principal_id);
+        this.browserPassStore?.revokeWhereAuthorityEnded();
+        this.authorityLost();
+      },
+      on_issued: (grant) => this.actorAccessAdoption?.noteLapse(grant.principal_id)
     });
     this.secretRefStore = new SqliteSecretRefStore(this.db);
     const credentialBrokers = process.platform === "win32" ? [new WindowsCredentialBroker(WINDOWS_DPAPI_CREDENTIAL_BROKER_ID, new WindowsDpapiCredentialProtector())] : [];
@@ -100892,9 +103333,23 @@ var BusStore = class {
     this.credentialIngressStore = new CredentialIngressStore();
     this.attachmentIngressStore = new AttachmentIngressStore();
     this.transportCredentialStore = new SqliteTransportCredentialStore(this.db);
-    this.operationAuthoritySessions = new SqliteOperationAuthoritySessionStore(this.db, this.capabilityGrantStore);
+    this.operationAuthoritySessions = new SqliteOperationAuthoritySessionStore(this.db, this.capabilityGrantStore, { on_revoked: (authoritySessionId) => this.authorityLost(authoritySessionId) });
     this.operationAuthorityVerifier = new OperationAuthorityVerifier(this.operationAuthoritySessions, this.capabilityGrantStore);
     this.clientIdentityStore = new SqliteClientIdentityStore(this.db);
+    this.identityWorkspaceAuthorityStore = new IdentityWorkspaceAuthorityStore(this.db, {
+      grants: this.capabilityGrantStore,
+      on_revoked: (authority) => this.endIdentityWorkspaceAccess(authority.identity_id, authority.workspace_id),
+      // Actors get their access from the Workspace's people, so the Bridge
+      // re-reads the Workspace files whenever those people change.
+      on_changed: (workspaceId4) => this.broadcastFn?.("workspace_attachment_requested", { workspace_id: workspaceId4 })
+    });
+    this.browserPassStore = new BrowserPassStore(this.db, this.capabilityGrantStore, this.operationAuthoritySessions, (pass) => this.broadcastFn?.("browser_pass_changed", {
+      pass_id: pass.pass_id,
+      workspace_id: pass.workspace_id,
+      status: pass.status,
+      revocation_reason: pass.revocation_reason
+    }));
+    this.browserPassStore.revokeUnclaimed();
     let operationRegistry = registerArtefactOperations(new SemanticOperationRegistry(new AjvOperationSchemaValidator(), this.operationInvocationLedger, new BusOperationGovernanceControlPlane(this)), this.artefactStore, (input) => this.publishArtefactVersion(input));
     operationRegistry.register(exportArtefactVersionOperation(this.artefactStore, (workspaceId4) => this.getWorkspaceLocator(workspaceId4)));
     operationRegistry = registerActorDefinitionOperations(operationRegistry, this.actorDefinitionStore, this.capabilityGrantStore);
@@ -100902,6 +103357,26 @@ var BusStore = class {
       actors: this.actorDefinitionStore,
       grants: this.capabilityGrantStore,
       refs: this.secretRefStore
+    }))
+      operationRegistry.register(operation);
+    for (const operation of identityWorkspaceAuthorityOperations({
+      authorities: this.identityWorkspaceAuthorityStore,
+      identities: this.clientIdentityStore,
+      adoption: () => this.actorAccessAdoption
+    }))
+      operationRegistry.register(operation);
+    for (const operation of browserPassOperations({
+      passes: this.browserPassStore,
+      authorities: this.identityWorkspaceAuthorityStore,
+      identities: this.clientIdentityStore,
+      grants: this.capabilityGrantStore,
+      pairing: () => this.browserPairing
+    }))
+      operationRegistry.register(operation);
+    for (const operation of scopeProjectionLayoutOperations({
+      scopeExists: (workspaceId4, scopeId) => this.getScope(workspaceId4, scopeId) !== null,
+      locator: (workspaceId4) => this.getWorkspaceLocator(workspaceId4),
+      broadcast: (type, payload) => this.broadcastFn?.(type, payload)
     }))
       operationRegistry.register(operation);
     operationRegistry = registerCommandOperations(operationRegistry, this.commandDefinitionStore);
@@ -100917,7 +103392,7 @@ var BusStore = class {
       secret_refs: this.secretRefStore,
       capability_grants: this.capabilityGrantStore,
       broker: this.credentialBrokerService,
-      legacy_source: new LegacyAuthCredentialSource(join7(authDir, "profiles.yaml"), join7(authDir, "auth.json")),
+      legacy_source: new LegacyAuthCredentialSource(join8(authDir, "profiles.yaml"), join8(authDir, "auth.json")),
       ingress: this.credentialIngressStore,
       broker_id: WINDOWS_DPAPI_CREDENTIAL_BROKER_ID,
       expected_provider: (ref) => this.expectedCredentialProvider(ref),
@@ -100936,7 +103411,8 @@ var BusStore = class {
     operationRegistry = registerWorkspaceOperations(operationRegistry, this.workspaceOperationBackend);
     operationRegistry = registerWorkspaceAccessOperations(operationRegistry, {
       access: this.workspaceAccessStore,
-      changed: (access) => this.workspaceAccessChanged(access)
+      changed: (access) => this.workspaceAccessChanged(access),
+      acknowledged: (access) => this.pushWorkspaceAccess(access.workspace_id)
     });
     operationRegistry = registerWorkspacePortabilityOperations(operationRegistry, this.workspacePortabilityService);
     this.scopeOperationBackend = new BusScopeOperationBackend(this, (type, payload = {}) => this.broadcastFn?.(type, payload));
@@ -100951,11 +103427,14 @@ var BusStore = class {
       operation_registry: this.operationRegistry,
       policy_for_inventory: (workspaceId4, inventory) => {
         const identity = this.workspaceIdentityStore.getIdentity(workspaceId4);
+        const people = this.actorAccessAdoption.activeAuthorities(workspaceId4);
+        const soleRoot = people.length === 1 ? this.identityWorkspaceAuthorityStore.rootGrant(people[0]) : null;
         const configured = options.workspace_configuration_policy?.({
           workspace_id: workspaceId4,
           creation_kind: identity?.creation_kind ?? null,
           init_authorized: this.workspaceIdentityStore.getCurrentBinding(workspaceId4, this.localHostId)?.init_authorized ?? false,
-          inventory
+          inventory,
+          sole_person_root: soleRoot ? { grant_id: soleRoot.grant_id, principal_id: soleRoot.principal_id, operation_ids: soleRoot.operation_ids } : null
         });
         return configured ?? legacyWorkspaceConfigurationImportPolicy(workspaceId4, identity?.creation_kind ?? null, inventory);
       },
@@ -100968,6 +103447,92 @@ var BusStore = class {
     });
     this.endpointWatermarkStore = new EndpointWatermarkStore(this.db);
     this.importLegacyScopeCompositions();
+    this.identityAuthorityMigration = this.issueMissingIdentityWorkspaceAuthorities();
+    this.actorAccessAdoption = new ActorAccessAdoption({
+      db: this.db,
+      grants: this.capabilityGrantStore,
+      actors: this.actorDefinitionStore,
+      authorities: this.identityWorkspaceAuthorityStore,
+      access: this.workspaceAccessStore,
+      identity_name: (identityId) => this.clientIdentityStore.getIdentity(identityId)?.display_name ?? identityId,
+      default_actor_operation_ids: () => DEFAULT_ACTOR_OPERATIONS_V1,
+      accept_authority_only_revision: (actorId, revisionId) => this.workspaceConfigurationImportStore.acceptAuthorityOnlyRevision(actorId, revisionId)
+    });
+    this.actorAccessMigration = this.transaction(() => this.actorAccessAdoption.migrate());
+  }
+  actorAccessAdoption;
+  /** Actors whose Floe-issued access moved onto the only person in their Workspace at this start. */
+  actorAccessMigration;
+  /** Memberships given a durable root at this start, because they had none. Reported once. */
+  identityAuthorityMigration;
+  /**
+   * What a person's Workspace authority covers: every Workspace operation,
+   * interactive or unattended, and every engine tool, except per-secret
+   * maintenance. A person holds everything an Actor they give access to can.
+   */
+  identityAuthorityOperationIds() {
+    const ids = /* @__PURE__ */ new Set([
+      ...this.operationRegistry.listCurrentOperationIds({ interaction_mode: "interactive", boundary_kind: "workspace" }),
+      ...this.operationRegistry.listCurrentOperationIds({ interaction_mode: "unattended", boundary_kind: "workspace" }),
+      ...Object.values(ENGINE_TOOL_OPERATIONS)
+    ]);
+    return [...ids].filter((operationId) => !OPERATOR_CREDENTIAL_OPERATION_IDS.includes(operationId)).sort();
+  }
+  /**
+   * Give an admitted identity its durable authority in a Workspace. Idempotent:
+   * an active authority is returned unchanged. Admission is the explicit act,
+   * so the root lasts until revoked unless the admitting caller chose an expiry.
+   */
+  ensureIdentityWorkspaceAuthority(input) {
+    return this.identityWorkspaceAuthorityStore.issue({
+      identity_id: input.identity_id,
+      workspace_id: input.workspace_id,
+      operation_ids: this.identityAuthorityOperationIds(),
+      lifetime: input.lifetime,
+      issued_by: input.issued_by,
+      evidence: [
+        { kind: "client_identity_admission", ref: input.identity_id },
+        { kind: "client_identity_workspace_membership", ref: `${input.identity_id}:${input.workspace_id}` },
+        ...input.evidence
+      ]
+    });
+  }
+  /**
+   * Memberships admitted before durable authority existed had authority only
+   * through hour-long sessions. Each live membership gets its root once, until
+   * revoked, because admission was already the person's explicit act. A
+   * membership whose authority was later revoked is never given a new one.
+   */
+  issueMissingIdentityWorkspaceAuthorities() {
+    const rows = this.db.prepare(`
+      SELECT membership.identity_id, membership.workspace_id
+      FROM client_identity_workspaces membership
+      JOIN client_identities identity ON identity.identity_id = membership.identity_id
+      WHERE identity.revoked_at IS NULL
+        AND NOT EXISTS (SELECT 1 FROM identity_workspace_authorities authority
+          WHERE authority.identity_id = membership.identity_id AND authority.workspace_id = membership.workspace_id)
+      ORDER BY membership.admitted_at, membership.identity_id
+    `).all();
+    const issued = [];
+    for (const row of rows) {
+      if (!this.getWorkspace(row.workspace_id))
+        continue;
+      this.ensureIdentityWorkspaceAuthority({
+        ...row,
+        issued_by: "system:identity-authority-migration:v0.4.0",
+        lifetime: { until_revoked: true },
+        evidence: [{ kind: "identity_authority_migration", ref: "v0.4.0" }]
+      });
+      issued.push(row);
+    }
+    return issued;
+  }
+  /** Sessions end with the authority they referenced. */
+  endIdentityWorkspaceAccess(identityId, workspaceId4) {
+    for (const session of this.clientIdentityStore.listSessionsForIdentity(identityId)) {
+      if (session.workspace_id === workspaceId4)
+        this.operationAuthoritySessions.revokeSession(session.authority_session_id);
+    }
   }
   /**
    * A pending approval must not outlive the access it would use. After any
@@ -100986,9 +103551,13 @@ var BusStore = class {
    */
   workspaceAccessChanged(access) {
     this.settlePendingApprovals(access.workspace_id, "system:workspace-access", () => "The Workspace's folders or System access changed, so this call is no longer inside what it may reach.");
+    this.pushWorkspaceAccess(access.workspace_id);
+  }
+  /** Pushes the Workspace's current folders, System access and notices to its connections. */
+  pushWorkspaceAccess(workspaceId4) {
     queueMicrotask(() => this.broadcastFn?.("workspace_access_changed", {
-      workspace_id: access.workspace_id,
-      access: this.workspaceAccessStore.inspect(access.workspace_id)
+      workspace_id: workspaceId4,
+      access: this.workspaceAccessStore.inspect(workspaceId4)
     }));
   }
   settlePendingApprovals(workspaceId4, principalId, reasonFor) {
@@ -101020,6 +103589,22 @@ var BusStore = class {
    * Inject the broadcast function so the store can drive lease-expiry requeue
    * without being handed `broadcast` on every call (D5).
    */
+  /** The server's in-memory browser pairing, so a person's session can list and approve waiting browsers. */
+  setBrowserPairing(pairing) {
+    this.browserPairing = pairing;
+  }
+  /**
+   * Called after a grant is revoked (null: any session may be affected) or one
+   * session is revoked, so live connections can drop authority they no longer hold.
+   */
+  onAuthorityLost(listener) {
+    this.authorityLostListeners.add(listener);
+    return () => this.authorityLostListeners.delete(listener);
+  }
+  authorityLost(authoritySessionId = null) {
+    for (const listener of this.authorityLostListeners)
+      listener(authoritySessionId);
+  }
   setBroadcast(fn) {
     if (this.closed)
       return;
@@ -101032,6 +103617,7 @@ var BusStore = class {
       });
     }
     this.scheduleNextLeaseExpiryCheck();
+    this.scheduleNextPauseDeadline();
   }
   async invokeBrokeredExtensionOperation(input) {
     const target = input.target ? { kind: input.target.kind, id: input.target.id } : null;
@@ -101108,6 +103694,10 @@ var BusStore = class {
     if (this.leaseExpiryTimer !== null) {
       clearTimeout(this.leaseExpiryTimer);
       this.leaseExpiryTimer = null;
+    }
+    if (this.pauseDeadlineTimer !== null) {
+      clearTimeout(this.pauseDeadlineTimer);
+      this.pauseDeadlineTimer = null;
     }
     this.commandRuntimeHost.terminateAll();
     this.extensionRuntime.terminateAll();
@@ -101361,6 +103951,7 @@ var BusStore = class {
     applyTransportPushStreamSchema(this.db);
     applyLocalOperatorPrincipalSchema(this.db);
     applyOperationAuthoritySessionSchema(this.db);
+    applyBrowserPassSchema(this.db);
     applyClientIdentitySchema(this.db);
     applyDeliveryOperationAuthoritySchema(this.db);
     applyWorkspaceConfigurationImportSchema(this.db);
@@ -101644,6 +104235,12 @@ var BusStore = class {
         locator: input.locator,
         init_authorized: input.init_authorized
       }
+    });
+    this.workspaceAccessStore.carryAccess({
+      source_workspace_id: input.source_workspace_id,
+      workspace_id: identity.workspace_id,
+      how: input.kind,
+      principal_id: input.principal_id
     });
     const workspace = this.requireLocalWorkspace(identity.workspace_id);
     broadcast(input.kind === "copied" ? "workspace_copy_identity_created" : "workspace_fork_identity_created", {
@@ -102188,12 +104785,57 @@ var BusStore = class {
     if (!execution || execution.workspace_id !== input.workspace_id) {
       throw new ScopeExecutionInvalidError(`ScopeExecution '${input.execution_id}' is unavailable in Workspace '${input.workspace_id}'`);
     }
-    const result = this.scopeExecutionStore.pauseExecution({
+    let result = this.scopeExecutionStore.pauseExecution({
       execution_id: input.execution_id,
       reason: input.reason
     });
-    broadcast("scope_execution_paused", result);
+    broadcast("scope_execution_pause_requested", result);
+    for (const deliveryId of result.active_delivery_ids) {
+      const attempt = this.scopeExecutionStore.getAttemptForBundle(deliveryId);
+      const busOwned = attempt?.runtime.host_kind === "isolated_command_host";
+      broadcast("delivery_cancel_requested", {
+        workspace_id: input.workspace_id,
+        scope_execution_id: input.execution_id,
+        pause_id: result.pause_id,
+        delivery_id: deliveryId,
+        deadline_at: result.deadline_at,
+        runtime_owner: busOwned ? "bus" : "bridge"
+      });
+      if (busOwned && attempt) {
+        const cancelled = this.commandRuntimeHost.cancel(attempt.attempt_id);
+        this.scopeExecutionStore.recordPauseCancellation({
+          workspace_id: input.workspace_id,
+          delivery_id: deliveryId,
+          outcome: "quiesced",
+          evidence: {
+            host_kind: attempt.runtime.host_kind,
+            attempt_id: attempt.attempt_id,
+            active_host_cancelled: cancelled
+          }
+        });
+      }
+    }
+    result = this.scopeExecutionStore.pauseExecution({
+      execution_id: input.execution_id,
+      reason: input.reason
+    });
+    if (result.execution.status === "paused")
+      broadcast("scope_execution_paused", result);
+    this.scheduleNextPauseDeadline();
     this.scheduleNextLeaseExpiryCheck();
+    return result;
+  }
+  recordScopePauseCancellation(input, broadcast) {
+    const result = this.scopeExecutionStore.recordPauseCancellation(input);
+    if (!result || result.execution.workspace_id !== input.workspace_id)
+      return result;
+    if (result.paused) {
+      broadcast("scope_execution_paused", {
+        ...result,
+        workspace_id: input.workspace_id
+      });
+    }
+    this.scheduleNextPauseDeadline();
     return result;
   }
   resumeScopeExecution(input, broadcast) {
@@ -102269,7 +104911,7 @@ var BusStore = class {
     if (!execution || execution.workspace_id !== input.workspace_id) {
       throw new ScopeExecutionInvalidError(`ScopeExecution '${input.execution_id}' is unavailable in Workspace '${input.workspace_id}'`);
     }
-    if (!["queued", "active", "waiting_external", "paused", "blocked"].includes(execution.status)) {
+    if (!["queued", "active", "waiting_external", "pausing", "paused", "blocked"].includes(execution.status)) {
       throw new ScopeExecutionInvalidError(`ScopeExecution '${input.execution_id}' is already ${execution.status}`);
     }
     const queueRows = this.db.prepare(`
@@ -102689,9 +105331,11 @@ var BusStore = class {
       }
     });
     const validation = this.actorRoleAuthorityStore.validateResolutionEvidence(resolution, { require_current: true });
+    const identityAuthority = grants.length > 0 && input.principal_id.startsWith("identity:") ? this.identityWorkspaceAuthorityStore.getActive(input.principal_id.slice("identity:".length), input.workspace_id) : null;
+    const standsIn = identityAuthority ? [{ role: `${STANDS_IN_FOR_ROLE_PREFIX}${this.localOperatorPrincipalId}`, authority_ref: identityAuthority.authority_id }] : [];
     return {
       authority_grant_ids: grants.map((grant) => grant.grant_id).sort(),
-      role_evidence: validation.valid ? resolution.evidence.map((evidence) => ({
+      role_evidence: [...standsIn, ...validation.valid ? resolution.evidence.map((evidence) => ({
         role: evidence.role,
         authority_ref: canonicalJson20({
           actor_id: evidence.actor_id,
@@ -102699,7 +105343,7 @@ var BusStore = class {
           role_source_ref: evidence.role_source_ref,
           source_boundary: evidence.source_boundary
         })
-      })).sort((left, right) => `${left.role}\0${left.authority_ref}`.localeCompare(`${right.role}\0${right.authority_ref}`)) : []
+      })).sort((left, right) => `${left.role}\0${left.authority_ref}`.localeCompare(`${right.role}\0${right.authority_ref}`)) : []]
     };
   }
   /**
@@ -103255,7 +105899,7 @@ var BusStore = class {
         }
         joinKey = String(value);
       }
-      const activationKey = activation.mode === "per_delivery" ? `per-delivery:${publication.publication_id}:${edge.edge_id}` : activation.mode === "all_required_ports" ? `all-required:${execution.execution_id}:${targetNode.node_id}` : `keyed-gather:${createHash31("sha256").update(joinKey).digest("hex")}`;
+      const activationKey = activation.mode === "per_delivery" ? `per-delivery:${publication.publication_id}:${edge.edge_id}` : activation.mode === "all_required_ports" ? `all-required:${execution.execution_id}:${targetNode.node_id}` : `keyed-gather:${createHash35("sha256").update(joinKey).digest("hex")}`;
       const existingNodeExecution = this.scopeExecutionStore.findNodeExecution(execution.execution_id, targetNode.node_id, activationKey);
       const commandBinding = targetNode.kind === "command" ? this.resolveCommandPlacementBinding(revision, targetNode, existingNodeExecution) : null;
       const destinationEndpointId = targetNode.kind === "command" ? commandBinding.worker.worker_endpoint_id : targetNode.resource_id;
@@ -103568,11 +106212,11 @@ var BusStore = class {
       }
       cancelledPulseCount = Number(this.db.prepare(`
         SELECT COUNT(*) AS count FROM pulses
-        WHERE workspace_id = ? AND scope_id = ? AND status IN ('active', 'paused')
+        WHERE workspace_id = ? AND scope_id = ? AND status IN ('active', 'pausing', 'paused')
       `).get(workspaceId4, scopeId).count);
       this.db.prepare(`
         UPDATE pulses SET status = 'cancelled', next_fire_at = NULL, updated_at = ?
-        WHERE workspace_id = ? AND scope_id = ? AND status IN ('active', 'paused')
+        WHERE workspace_id = ? AND scope_id = ? AND status IN ('active', 'pausing', 'paused')
       `).run(timestamp2, workspaceId4, scopeId);
       for (const graph of graphs) {
         this.db.prepare("DELETE FROM context_subscriptions WHERE context_id = ?").run(graph.context_id);
@@ -103666,7 +106310,7 @@ var BusStore = class {
       throw new ScopeGraphNodeNotATriggerError(input.graph_id, input.node_id);
     const legacyCommandEndpoints = new Set(graph.nodes.filter((candidate) => candidate.kind === "command").map((candidate) => candidate.endpoint_id));
     const subscriptions = this.contextStore.getContextSubscriptions(graph.context_id).filter((subscription) => !legacyCommandEndpoints.has(subscription.endpoint_id)).filter((subscription) => subscription.event_types.includes("*") || subscription.event_types.includes(node.event_type));
-    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID35()}`;
+    const triggerFireId = input.idempotency_key ? `trigger_fire_${stableHash(input.idempotency_key).slice(0, 32)}` : `trigger_fire_${randomUUID38()}`;
     return subscriptions.map((subscription) => this.emitTriggerEvent({
       type: node.event_type,
       workspace_id: input.workspace_id,
@@ -105376,7 +108020,7 @@ var BusStore = class {
   }
   appendRuntimeTelemetry(input, broadcast) {
     const telemetry = {
-      telemetry_id: `tel_${randomUUID35()}`,
+      telemetry_id: `tel_${randomUUID38()}`,
       workspace_id: input.workspace_id,
       endpoint_id: input.endpoint_id,
       delivery_id: input.delivery_id ?? null,
@@ -105603,7 +108247,7 @@ var BusStore = class {
   }
   createConfig(input, broadcast) {
     const timestamp2 = now();
-    const configId = `cfg_${randomUUID35()}`;
+    const configId = `cfg_${randomUUID38()}`;
     this.db.prepare(`
       INSERT INTO saved_configs (config_id, name, config_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
@@ -105626,6 +108270,8 @@ var BusStore = class {
           expected_binding_id: bindingId,
           active_config_hash: result.receipt.config_hash
         });
+        if (!result.replayed)
+          this.actorAccessAdoption.noteLapses(workspaceId4);
       }
       return result;
     });
@@ -106025,8 +108671,8 @@ var BusStore = class {
     }
     return ids;
   }
-  associateArtefactVersions(artefactVersionIds, targets2) {
-    for (const target of targets2) {
+  associateArtefactVersions(artefactVersionIds, targets3) {
+    for (const target of targets3) {
       for (const versionId of artefactVersionIds) {
         this.artefactStore.associateVersion({
           artefact_version_id: versionId,
@@ -106106,19 +108752,19 @@ var BusStore = class {
     }
     const relativePath = contextAttachmentContentPath(ingress.digest.value);
     const destination = resolveWithinRoot(workspaceRoot, relativePath);
-    mkdirSync6(dirname7(destination), { recursive: true });
-    if (existsSync8(destination)) {
+    mkdirSync7(dirname7(destination), { recursive: true });
+    if (existsSync9(destination)) {
       assertAttachmentContentMatches(destination, ingress);
       return null;
     }
-    const temporary = `${destination}.upload-${randomUUID35()}.tmp`;
+    const temporary = `${destination}.upload-${randomUUID38()}.tmp`;
     try {
-      writeFileSync4(temporary, ingress.bytes, { flag: "wx" });
+      writeFileSync5(temporary, ingress.bytes, { flag: "wx" });
       renameSync2(temporary, destination);
     } catch (error) {
-      if (existsSync8(temporary))
+      if (existsSync9(temporary))
         rmSync2(temporary, { force: true });
-      if (existsSync8(destination)) {
+      if (existsSync9(destination)) {
         assertAttachmentContentMatches(destination, ingress);
         return null;
       }
@@ -106146,8 +108792,10 @@ var BusStore = class {
         throw new Error(`Event ArtefactVersion '${versionId}' is unavailable in this Workspace.`);
       }
     }
+    const eventId = `evt_${randomUUID38()}`;
+    const metadata = input.type === "request" ? this.requestEventProvenance(input.workspace_id, input.metadata, eventId) : input.metadata;
     const envelope = {
-      event_id: `evt_${randomUUID35()}`,
+      event_id: eventId,
       type: input.type,
       workspace_id: input.workspace_id,
       source_endpoint_id: input.source_endpoint_id,
@@ -106158,7 +108806,7 @@ var BusStore = class {
       destination_json: input.destination,
       content: input.content,
       response,
-      metadata: input.metadata ?? {},
+      metadata,
       artefact_version_ids: artefactVersionIds,
       created_at: now()
     };
@@ -106176,6 +108824,27 @@ var BusStore = class {
       role: input.artefact_role ?? "attachment"
     }]);
     return envelope;
+  }
+  requestEventProvenance(workspaceId4, metadata, requestEventId) {
+    const parentDeliveryId = typeof metadata.request_parent_delivery_id === "string" ? metadata.request_parent_delivery_id : null;
+    const parent = parentDeliveryId ? this.db.prepare(`
+          SELECT trigger_event_id, stable_delivery_ids_json
+          FROM delivery_bundles
+          WHERE delivery_id = ? AND workspace_id = ?
+        `).get(parentDeliveryId, workspaceId4) : void 0;
+    const triggerRow = parent ? this.db.prepare("SELECT * FROM events WHERE event_id = ? AND workspace_id = ?").get(parent.trigger_event_id, workspaceId4) : null;
+    const trigger = triggerRow ? this.rowToEvent(triggerRow) : null;
+    const stableDeliveryIds = parent ? parseJson4(parent.stable_delivery_ids_json ?? "[]") : [];
+    const queue = stableDeliveryIds.length > 0 ? this.db.prepare(`
+          SELECT scope_execution_id, node_execution_id
+          FROM event_queue WHERE queue_id = ?
+        `).get(stableDeliveryIds[0]) : void 0;
+    return {
+      ...metadata,
+      origin_event_id: trigger ? this.originEventId(trigger) : requestEventId,
+      scope_execution_id: queue?.scope_execution_id ?? null,
+      node_execution_id: queue?.node_execution_id ?? null
+    };
   }
   resolveDestinations(event) {
     const destination = event.destination_json;
@@ -106207,7 +108876,7 @@ var BusStore = class {
     return rows.map((row) => row.endpoint_id).filter((endpointId) => !(destination.exclude_source && endpointId === event.source_endpoint_id));
   }
   queueEvent(eventId, workspaceId4, destinationEndpointId, route) {
-    const queueId = `q_${randomUUID35()}`;
+    const queueId = `q_${randomUUID38()}`;
     this.db.prepare(`
       INSERT INTO event_queue (
         queue_id, event_id, workspace_id, destination_endpoint_id, state, created_at,
@@ -106227,7 +108896,7 @@ var BusStore = class {
   }
   createPendingResponse(event) {
     const pending = {
-      pending_id: `pr_${randomUUID35()}`,
+      pending_id: `pr_${randomUUID38()}`,
       workspace_id: event.workspace_id,
       waiting_endpoint_id: event.source_endpoint_id,
       source_event_id: event.event_id,
@@ -106304,7 +108973,7 @@ var BusStore = class {
     if (queuedRows.length === 0)
       return null;
     const deliveredAt = now();
-    const deliveryId = `del_${randomUUID35()}`;
+    const deliveryId = `del_${randomUUID38()}`;
     const leaseExpiresAt = clientExecuted ? null : this.deliveryLeaseExpiresAt();
     const deliveryAttempt = Math.max(...queuedRows.map((row) => Number(row.attempt_count ?? 0) + 1));
     const runtimePins = this.resolveDeliveryRuntimePins(firstQueued, endpointId, endpoint.workspace_id);
@@ -106571,14 +109240,14 @@ var BusStore = class {
   }
   commandIdempotencyKey(nodeExecution, definition2, input) {
     const inputIdentities = Object.values(input).flat().map((item) => `${item.input_id}:${item.event.event_id}:${item.artefact_version_id ?? "none"}`).sort();
-    return `command:${createHash31("sha256").update(canonicalJson20({
+    return `command:${createHash35("sha256").update(canonicalJson20({
       node_execution_id: nodeExecution.node_execution_id,
       command_definition_revision_id: definition2.command_definition_revision_id,
       input_identities: inputIdentities
     })).digest("hex")}`;
   }
   ensureCommandOutputGrant(worker, nodeExecution, definition2, expiresAt) {
-    const grantId = `capgrant_command_output_${createHash31("sha256").update(nodeExecution.node_execution_id).digest("hex").slice(0, 32)}`;
+    const grantId = `capgrant_command_output_${createHash35("sha256").update(nodeExecution.node_execution_id).digest("hex").slice(0, 32)}`;
     const existing = this.capabilityGrantStore.getGrant(grantId);
     if (existing) {
       const inspection = this.capabilityGrantStore.inspectSessionGrantIds({
@@ -106999,6 +109668,35 @@ var BusStore = class {
       this.requeueExpiredDeliveryLeases(broadcast);
     }, delay);
   }
+  scheduleNextPauseDeadline() {
+    if (this.pauseDeadlineTimer !== null) {
+      clearTimeout(this.pauseDeadlineTimer);
+      this.pauseDeadlineTimer = null;
+    }
+    const broadcast = this.broadcastFn;
+    if (!broadcast || this.closed)
+      return;
+    const deadline = this.scopeExecutionStore.nextPauseDeadline();
+    if (!deadline)
+      return;
+    const delay = Math.max(0, Date.parse(deadline) - Date.now());
+    this.pauseDeadlineTimer = setTimeout(() => {
+      this.pauseDeadlineTimer = null;
+      for (const row of this.scopeExecutionStore.claimExpiredPauseDeliveryIds()) {
+        const execution = this.scopeExecutionStore.getExecution(row.execution_id);
+        if (!execution)
+          continue;
+        broadcast("delivery_force_retire_requested", {
+          workspace_id: execution.workspace_id,
+          scope_execution_id: execution.execution_id,
+          pause_id: row.pause_id,
+          delivery_id: row.delivery_id,
+          deadline_at: deadline
+        });
+      }
+      this.scheduleNextPauseDeadline();
+    }, delay);
+  }
   rowToEvent(row) {
     return {
       event_id: row.event_id,
@@ -107170,7 +109868,7 @@ var BusStore = class {
   }
   reconcileScopeExecutionStatus(executionId) {
     const execution = this.scopeExecutionStore.getExecution(executionId);
-    if (!execution || ["completed", "failed", "cancelled", "superseded"].includes(execution.status))
+    if (!execution || ["pausing", "paused", "completed", "failed", "cancelled", "superseded"].includes(execution.status))
       return;
     const nodes = this.scopeExecutionStore.listNodeExecutions(executionId);
     if (nodes.some((node) => node.status === "failed")) {
@@ -107225,7 +109923,7 @@ function legacyWorkspaceConfigurationImportPolicy(workspaceId4, creationKind, in
   const now3 = /* @__PURE__ */ new Date();
   const renewalWindow = `${now3.getUTCFullYear()}-${String(now3.getUTCMonth() + 1).padStart(2, "0")}`;
   const expiresAt = new Date(Date.UTC(now3.getUTCFullYear(), now3.getUTCMonth() + 4, 1)).toISOString();
-  const instanceDigest = createHash31("sha256").update(JSON.stringify({
+  const instanceDigest = createHash35("sha256").update(JSON.stringify({
     policy: "legacy-workspace-model-actor-authority-v1",
     workspace_id: workspaceId4,
     creation_kind: creationKind,
@@ -107261,10 +109959,10 @@ function publicCredentialReference(ref) {
 function sameTextLists(left, right) {
   return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
 }
-function contextAttachmentContentPath(digest9) {
-  if (!/^[a-f0-9]{64}$/.test(digest9))
+function contextAttachmentContentPath(digest11) {
+  if (!/^[a-f0-9]{64}$/.test(digest11))
     throw new Error("Attachment digest is invalid.");
-  return `.floe/content/sha256/${digest9}`;
+  return `.floe/content/sha256/${digest11}`;
 }
 function attachmentTypeRef(mediaType) {
   if (mediaType.startsWith("image/"))
@@ -107278,15 +109976,15 @@ function attachmentTypeRef(mediaType) {
   return "core:file";
 }
 function assertAttachmentContentMatches(path3, ingress) {
-  const bytes = readFileSync5(path3);
-  const digest9 = createHash31("sha256").update(bytes).digest("hex");
-  if (bytes.byteLength !== ingress.size_bytes || digest9 !== ingress.digest.value) {
+  const bytes = readFileSync6(path3);
+  const digest11 = createHash35("sha256").update(bytes).digest("hex");
+  if (bytes.byteLength !== ingress.size_bytes || digest11 !== ingress.digest.value) {
     throw new Error(`Stored attachment content does not match digest '${ingress.digest.value}'.`);
   }
 }
 function deleteWorkspaceLocator(locator) {
   const resolved = resolve6(locator);
-  if (!existsSync8(resolved))
+  if (!existsSync9(resolved))
     return false;
   const root = parse(resolved).root;
   if (resolved === root) {
@@ -107348,16 +110046,16 @@ var PulseScheduler = class {
 };
 
 // floe-bus/dist/version.js
-import { existsSync as existsSync9, readFileSync as readFileSync6 } from "node:fs";
-import { dirname as dirname8, join as join8 } from "node:path";
+import { existsSync as existsSync10, readFileSync as readFileSync7 } from "node:fs";
+import { dirname as dirname8, join as join9 } from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 function readOwnVersion() {
   let dir = dirname8(fileURLToPath3(import.meta.url));
   for (; ; ) {
-    const candidate = join8(dir, "package.json");
-    if (existsSync9(candidate)) {
+    const candidate = join9(dir, "package.json");
+    if (existsSync10(candidate)) {
       try {
-        const version = JSON.parse(readFileSync6(candidate, "utf8")).version;
+        const version = JSON.parse(readFileSync7(candidate, "utf8")).version;
         return typeof version === "string" ? version : null;
       } catch {
         return null;
@@ -107370,117 +110068,6 @@ function readOwnVersion() {
   }
 }
 var BUS_VERSION = readOwnVersion();
-
-// floe-bus/dist/scope-projection-layout-store.js
-var import_yaml3 = __toESM(require_dist(), 1);
-import { existsSync as existsSync10, mkdirSync as mkdirSync7, readFileSync as readFileSync7, writeFileSync as writeFileSync5 } from "node:fs";
-import { join as join9 } from "node:path";
-var RENDERER_PATTERN = /^[a-z][a-z0-9_-]*$/;
-var ScopeProjectionLayoutIdSchema = external_exports.string().min(1).max(200);
-function scopeProjectionLayoutSchemaId(renderer) {
-  return `floe.scope-projection.layout.${renderer}.v1`;
-}
-function isValidRenderer(renderer) {
-  return RENDERER_PATTERN.test(renderer);
-}
-var ScopeProjectionLayoutViewportSchema = external_exports.object({
-  x: external_exports.number(),
-  y: external_exports.number(),
-  zoom: external_exports.number()
-});
-var ScopeProjectionLayoutItemsSchema = external_exports.record(external_exports.object({
-  x: external_exports.number(),
-  y: external_exports.number(),
-  width: external_exports.number().optional(),
-  height: external_exports.number().optional(),
-  collapsed: external_exports.boolean().optional()
-}));
-function scopeProjectionLayoutSchema(renderer) {
-  return external_exports.object({
-    schema: external_exports.literal(scopeProjectionLayoutSchemaId(renderer)),
-    scope_id: ScopeProjectionLayoutIdSchema,
-    viewport: ScopeProjectionLayoutViewportSchema,
-    items: ScopeProjectionLayoutItemsSchema
-  });
-}
-var ScopeProjectionLayoutValidationError = class extends Error {
-  issues;
-  constructor(message, issues) {
-    super(message);
-    this.issues = issues;
-    this.name = "ScopeProjectionLayoutValidationError";
-  }
-};
-var ScopeProjectionLayoutIdMismatchError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ScopeProjectionLayoutIdMismatchError";
-  }
-};
-var ScopeProjectionLayoutRendererInvalidError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ScopeProjectionLayoutRendererInvalidError";
-  }
-};
-function layoutsDir(workspacePath) {
-  return join9(workspacePath, ".floe", "scope-projection-layouts");
-}
-function layoutPath(workspacePath, scopeId, renderer) {
-  return join9(layoutsDir(workspacePath), `${encodeURIComponent(scopeId)}.layout.${renderer}.yaml`);
-}
-function ensureDir(path3) {
-  if (!existsSync10(path3)) {
-    mkdirSync7(path3, { recursive: true });
-  }
-}
-function parseYamlFile(path3) {
-  const raw = readFileSync7(path3, "utf8");
-  return import_yaml3.default.parse(raw);
-}
-function writeYamlFile(path3, body) {
-  writeFileSync5(path3, import_yaml3.default.stringify(body), "utf8");
-}
-function validateScopeId(scopeId) {
-  const parsed = ScopeProjectionLayoutIdSchema.safeParse(scopeId);
-  if (!parsed.success) {
-    throw new ScopeProjectionLayoutValidationError(`invalid scope id '${scopeId}': ${parsed.error.issues.map((issue) => issue.message).join("; ")}`, parsed.error.issues);
-  }
-}
-function validateRenderer(renderer) {
-  if (!isValidRenderer(renderer)) {
-    throw new ScopeProjectionLayoutRendererInvalidError(`invalid renderer name '${renderer}': must match ^[a-z][a-z0-9_-]*$`);
-  }
-}
-function upsertScopeProjectionLayout(workspacePath, scopeId, renderer, body) {
-  validateScopeId(scopeId);
-  validateRenderer(renderer);
-  const result = scopeProjectionLayoutSchema(renderer).safeParse(body);
-  if (!result.success) {
-    throw new ScopeProjectionLayoutValidationError(`invalid layout body for scope '${scopeId}' renderer '${renderer}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
-  }
-  const layout = result.data;
-  if (layout.scope_id !== scopeId) {
-    throw new ScopeProjectionLayoutIdMismatchError(`layout scope_id '${layout.scope_id}' does not match path scope id '${scopeId}'`);
-  }
-  const path3 = layoutPath(workspacePath, scopeId, renderer);
-  ensureDir(layoutsDir(workspacePath));
-  writeYamlFile(path3, layout);
-  return layout;
-}
-function loadScopeProjectionLayout(workspacePath, scopeId, renderer) {
-  validateScopeId(scopeId);
-  validateRenderer(renderer);
-  const path3 = layoutPath(workspacePath, scopeId, renderer);
-  if (!existsSync10(path3))
-    return null;
-  const parsed = parseYamlFile(path3);
-  const result = scopeProjectionLayoutSchema(renderer).safeParse(parsed);
-  if (!result.success) {
-    throw new ScopeProjectionLayoutValidationError(`invalid layout file '${path3}': ${result.error.issues.map((issue) => issue.message).join("; ")}`, result.error.issues);
-  }
-  return result.data;
-}
 
 // floe-bus/dist/scopes/projection.js
 function eventRef(event) {
@@ -107780,7 +110367,7 @@ function createHasher(hashCons, info = {}) {
   Object.assign(hashC, info);
   return Object.freeze(hashC);
 }
-function randomBytes6(bytesLength = 32) {
+function randomBytes8(bytesLength = 32) {
   const cr = typeof globalThis === "object" ? globalThis.crypto : null;
   if (typeof cr?.getRandomValues !== "function")
     throw new Error("crypto.getRandomValues must be defined");
@@ -109476,7 +112063,7 @@ function getWLengths(Fp, Fn) {
 }
 function ecdh(Point, ecdhOpts = {}) {
   const { Fn } = Point;
-  const randomBytes_ = ecdhOpts.randomBytes || randomBytes6;
+  const randomBytes_ = ecdhOpts.randomBytes || randomBytes8;
   const lengths = Object.assign(getWLengths(Point.Fp, Fn), { seed: getMinHashLength(Fn.ORDER) });
   function isValidSecretKey(secretKey) {
     try {
@@ -109541,7 +112128,7 @@ function ecdsa(Point, hash2, ecdsaOpts = {}) {
     bits2int_modN: "function"
   });
   ecdsaOpts = Object.assign({}, ecdsaOpts);
-  const randomBytes9 = ecdsaOpts.randomBytes || randomBytes6;
+  const randomBytes10 = ecdsaOpts.randomBytes || randomBytes8;
   const hmac2 = ecdsaOpts.hmac || ((key, msg) => hmac(hash2, key, msg));
   const { Fp, Fn } = Point;
   const { ORDER: CURVE_ORDER, BITS: fnBits } = Fn;
@@ -109683,7 +112270,7 @@ function ecdsa(Point, hash2, ecdsaOpts = {}) {
       throw new Error("invalid private key");
     const seedArgs = [int2octets(d), int2octets(h1int)];
     if (extraEntropy != null && extraEntropy !== false) {
-      const e = extraEntropy === true ? randomBytes9(lengths.secretKey) : extraEntropy;
+      const e = extraEntropy === true ? randomBytes10(lengths.secretKey) : extraEntropy;
       seedArgs.push(abytes(e, void 0, "extraEntropy"));
     }
     const seed = concatBytes(...seedArgs);
@@ -109850,7 +112437,7 @@ function challenge(...args) {
 function schnorrGetPublicKey(secretKey) {
   return schnorrGetExtPubKey(secretKey).bytes;
 }
-function schnorrSign(message, secretKey, auxRand = randomBytes6(32)) {
+function schnorrSign(message, secretKey, auxRand = randomBytes8(32)) {
   const { Fn } = Pointk1;
   const m = abytes(message, void 0, "message");
   const { bytes: px, scalar: d } = schnorrGetExtPubKey(secretKey);
@@ -109892,7 +112479,7 @@ function schnorrVerify(signature, message, publicKey) {
 var schnorr = /* @__PURE__ */ (() => {
   const size = 32;
   const seedLength = 48;
-  const randomSecretKey = (seed = randomBytes6(seedLength)) => {
+  const randomSecretKey = (seed = randomBytes8(seedLength)) => {
     return mapHashToField(seed, secp256k1_CURVE.n);
   };
   return {
@@ -112344,12 +114931,12 @@ __export2(nip04_exports, {
   decrypt: () => decrypt2,
   encrypt: () => encrypt2
 });
-function encrypt2(secretKey, pubkey, text12) {
+function encrypt2(secretKey, pubkey, text15) {
   const privkey = secretKey instanceof Uint8Array ? secretKey : hexToBytes(secretKey);
   const key = secp256k1.getSharedSecret(privkey, hexToBytes("02" + pubkey));
   const normalizedKey = getNormalizedX(key);
-  let iv = Uint8Array.from(randomBytes6(16));
-  let plaintext = utf8Encoder2.encode(text12);
+  let iv = Uint8Array.from(randomBytes8(16));
+  let plaintext = utf8Encoder2.encode(text15);
   let ciphertext = cbc(normalizedKey, iv).encrypt(plaintext);
   let ctb64 = base64.encode(new Uint8Array(ciphertext));
   let ivb64 = base64.encode(new Uint8Array(iv.buffer));
@@ -112719,7 +115306,7 @@ function decodePayload(payload) {
     mac: data.subarray(-32)
   };
 }
-function encrypt22(plaintext, conversationKey, nonce = randomBytes6(32)) {
+function encrypt22(plaintext, conversationKey, nonce = randomBytes8(32)) {
   const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(conversationKey, nonce);
   const padded = pad(plaintext);
   const ciphertext = chacha20(chacha_key, chacha_nonce, padded);
@@ -114536,261 +117123,13 @@ function trustedBrowserOrigins(configured) {
   const additions = (configured ?? "").split(",").map((value) => value.trim()).filter(Boolean);
   return /* @__PURE__ */ new Set([...DEFAULT_TRUSTED_BROWSER_ORIGINS, ...additions]);
 }
-function createCorsOriginPolicy(trusted = trustedBrowserOrigins()) {
-  return (origin, callback) => {
-    if (!origin || trusted.has(origin)) {
-      callback(null, true);
-      return;
-    }
-    callback(null, false);
+function createCorsDelegator(allows) {
+  return (request, callback) => {
+    const origin = request.headers.origin;
+    const allowed = !origin || allows(origin, request.url.split("?", 1)[0]);
+    callback(null, { origin: allowed, credentials: allowed && origin !== void 0 });
   };
 }
-
-// floe-bus/dist/browser-connections.js
-import { createHash as createHash32, randomBytes as randomBytes8 } from "node:crypto";
-function isLoopbackAddress(address) {
-  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
-}
-var LOOPBACK_BROWSER_HOSTNAMES = ["127.0.0.1", "localhost", "[::1]"];
-function loopbackBrowserOrigins(origins) {
-  const result = /* @__PURE__ */ new Set();
-  for (const origin of origins) {
-    let hostname;
-    try {
-      hostname = new URL(origin).hostname;
-    } catch {
-      continue;
-    }
-    if (LOOPBACK_BROWSER_HOSTNAMES.includes(hostname))
-      result.add(origin);
-  }
-  return result;
-}
-var PENDING_COOKIE = "floe_browser_pending";
-var SESSION_COOKIE = "floe_browser_session";
-var digest8 = (value) => createHash32("sha256").update(value).digest("hex");
-var secret = () => randomBytes8(32).toString("base64url");
-var BrowserConnectionError = class extends Error {
-  status;
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-};
-var BrowserConnections = class {
-  origins;
-  revoke;
-  now;
-  local;
-  pending = /* @__PURE__ */ new Map();
-  sessions = /* @__PURE__ */ new Map();
-  constructor(origins, revoke, now3 = Date.now, local) {
-    this.origins = origins;
-    this.revoke = revoke;
-    this.now = now3;
-    this.local = local;
-  }
-  prune() {
-    for (const [key, connection] of this.pending) {
-      if (Date.parse(connection.expires_at) > this.now())
-        continue;
-      if (connection.approved && !connection.claimed_cookie)
-        this.revoke(connection.approved.authority_session_id);
-      this.pending.delete(key);
-    }
-    for (const [key, entry] of this.sessions) {
-      if (Date.parse(entry.expires_at) > this.now())
-        continue;
-      for (const session of entry.workspaces.values())
-        this.revoke(session.authority_session_id);
-      this.sessions.delete(key);
-    }
-  }
-  origin(request) {
-    let origin = request.headers.origin;
-    if (!origin && request.headers.referer) {
-      try {
-        origin = new URL(request.headers.referer).origin;
-      } catch {
-      }
-    }
-    if (!origin || !this.origins.has(origin))
-      throw new BrowserConnectionError(403, "This browser origin is not allowed to connect to Floe.");
-    return origin;
-  }
-  cookie(request, name) {
-    const values = (request.headers.cookie ?? "").split(";").map((item) => item.trim()).filter((item) => item.startsWith(`${name}=`));
-    if (values.length !== 1)
-      return "";
-    const value = values[0].slice(name.length + 1);
-    return /^[A-Za-z0-9_-]{43}$/.test(value) ? value : "";
-  }
-  setCookie(name, value, origin, maxAge) {
-    return `${name}=${value}; Path=/v1; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${origin.startsWith("https:") ? "; Secure" : ""}`;
-  }
-  localOrigin(request) {
-    const origin = this.origin(request);
-    const forwarded = ["forwarded", "x-forwarded-for", "x-forwarded-host", "x-real-ip"].some((header) => request.headers[header] !== void 0);
-    if (!this.local?.origins.has(origin) || !isLoopbackAddress(request.ip) || forwarded || request.headers.host !== new URL(origin).host || request.headers["sec-fetch-site"] !== void 0 && request.headers["sec-fetch-site"] !== "same-origin") {
-      throw new BrowserConnectionError(403, "This connection requires remote pairing.");
-    }
-    return origin;
-  }
-  connectLocal(request) {
-    this.prune();
-    const origin = this.localOrigin(request);
-    const existingToken = this.cookie(request, SESSION_COOKIE);
-    const existing = this.sessions.get(digest8(existingToken));
-    if (existing?.mode === "local" && existing.origin === origin) {
-      existing.expires_at = new Date(this.now() + 864e5).toISOString();
-      return this.setCookie(SESSION_COOKIE, existingToken, origin, 86400);
-    }
-    if (this.sessions.size >= 64)
-      throw new BrowserConnectionError(429, "Floe has too many browser connections.");
-    const session = this.local.issueSession();
-    const token = secret();
-    this.sessions.set(digest8(token), {
-      origin,
-      mode: "local",
-      session,
-      workspaces: new Map(session ? [[session.workspace_id, session]] : []),
-      expires_at: new Date(this.now() + 864e5).toISOString()
-    });
-    return this.setCookie(SESSION_COOKIE, token, origin, 86400);
-  }
-  mode(request) {
-    this.prune();
-    const entry = this.sessions.get(digest8(this.cookie(request, SESSION_COOKIE)));
-    if (!entry || entry.origin !== this.origin(request))
-      return null;
-    if (entry.mode === "local")
-      this.localOrigin(request);
-    return entry.mode;
-  }
-  localOwner(request) {
-    if (this.mode(request) !== "local")
-      throw new BrowserConnectionError(403, "This action is available through Floe on this computer.");
-    return digest8(this.cookie(request, SESSION_COOKIE));
-  }
-  start(request) {
-    this.prune();
-    const origin = this.origin(request);
-    const previous = this.pending.get(digest8(this.cookie(request, PENDING_COOKIE)));
-    if (previous?.origin === origin)
-      return { connection: this.project(previous), cookie: null };
-    if (this.pending.size >= 32 || this.sessions.size >= 64)
-      throw new BrowserConnectionError(429, "Floe has too many browser connections. Close an unused connection and try again.");
-    const token = secret();
-    let code;
-    do {
-      code = randomBytes8(4).toString("hex").toUpperCase();
-    } while ([...this.pending.values()].some((item) => item.code === code));
-    const entry = { code, origin, expires_at: new Date(this.now() + 3e5).toISOString() };
-    this.pending.set(digest8(token), entry);
-    return { connection: this.project(entry), cookie: this.setCookie(PENDING_COOKIE, token, origin, 300) };
-  }
-  list() {
-    this.prune();
-    return [...this.pending.values()].filter((entry) => !entry.approved).map((entry) => this.project(entry));
-  }
-  approve(code, issue) {
-    this.prune();
-    const entry = [...this.pending.values()].find((item) => item.code === code);
-    if (!entry)
-      throw new BrowserConnectionError(404, "This browser connection expired. Start a new connection in the browser.");
-    if (entry.approved)
-      throw new BrowserConnectionError(409, "This browser connection has already been approved.");
-    if (this.sessions.size >= 64)
-      throw new BrowserConnectionError(429, "Floe has too many browser connections.");
-    entry.approved = issue();
-  }
-  claim(request) {
-    this.prune();
-    const origin = this.origin(request);
-    const entry = this.pending.get(digest8(this.cookie(request, PENDING_COOKIE)));
-    if (!entry || entry.origin !== origin)
-      throw new BrowserConnectionError(401, "Start a new connection to Floe.");
-    if (!entry.approved)
-      throw new BrowserConnectionError(409, "Allow this connection in the Floe app first.");
-    if (Date.parse(entry.approved.expires_at) <= this.now())
-      throw new BrowserConnectionError(401, "This connection expired.");
-    if (!entry.claimed_cookie) {
-      if (this.sessions.size >= 64)
-        throw new BrowserConnectionError(429, "Floe has too many browser connections.");
-      entry.claimed_cookie = secret();
-      this.sessions.set(digest8(entry.claimed_cookie), {
-        origin,
-        mode: "remote",
-        session: entry.approved,
-        workspaces: /* @__PURE__ */ new Map([[entry.approved.workspace_id, entry.approved]]),
-        expires_at: entry.approved.expires_at
-      });
-    }
-    return this.setCookie(SESSION_COOKIE, entry.claimed_cookie, origin, Math.max(0, Math.floor((Date.parse(entry.approved.expires_at) - this.now()) / 1e3)));
-  }
-  session(request, workspaceId4) {
-    this.prune();
-    const token = this.cookie(request, SESSION_COOKIE);
-    if (!token)
-      return null;
-    const origin = this.origin(request);
-    const entry = this.sessions.get(digest8(token));
-    if (entry?.origin !== origin)
-      return null;
-    if (entry.mode === "remote")
-      return !workspaceId4 || workspaceId4 === entry.session?.workspace_id ? entry.session : null;
-    this.localOrigin(request);
-    const requested = workspaceId4 ?? entry.session?.workspace_id;
-    let session = requested ? entry.workspaces.get(requested) : void 0;
-    if (!session || Date.parse(session.expires_at) <= this.now()) {
-      for (const [id, cached] of entry.workspaces) {
-        if (Date.parse(cached.expires_at) <= this.now()) {
-          this.revoke(cached.authority_session_id);
-          entry.workspaces.delete(id);
-        }
-      }
-      if (entry.workspaces.size >= 128)
-        throw new BrowserConnectionError(429, "Too many workspaces are open in this browser connection.");
-      session = this.local.issueSession(requested) ?? void 0;
-      if (session) {
-        entry.workspaces.set(session.workspace_id, session);
-        if (!entry.session)
-          entry.session = session;
-      }
-    }
-    return session ?? null;
-  }
-  disconnect(request) {
-    const origin = this.origin(request);
-    const sessionKey = digest8(this.cookie(request, SESSION_COOKIE));
-    const entry = this.sessions.get(sessionKey);
-    if (entry?.origin === origin)
-      for (const session of entry.workspaces.values())
-        this.revoke(session.authority_session_id);
-    this.sessions.delete(sessionKey);
-    const pendingKey = digest8(this.cookie(request, PENDING_COOKIE));
-    const pending = this.pending.get(pendingKey);
-    if (pending?.origin === origin) {
-      if (pending.approved)
-        this.revoke(pending.approved.authority_session_id);
-      this.pending.delete(pendingKey);
-    }
-    return [this.setCookie(SESSION_COOKIE, "", origin, 0), this.setCookie(PENDING_COOKIE, "", origin, 0)];
-  }
-  close() {
-    for (const entry of this.sessions.values())
-      for (const session of entry.workspaces.values())
-        this.revoke(session.authority_session_id);
-    for (const entry of this.pending.values())
-      if (entry.approved)
-        this.revoke(entry.approved.authority_session_id);
-    this.sessions.clear();
-    this.pending.clear();
-  }
-  project(entry) {
-    return { code: entry.code, origin: entry.origin, expires_at: entry.expires_at };
-  }
-};
 
 // floe-bus/dist/html-preview-host.js
 var HTML_PREVIEW_HOST_PATH = "/v1/previews/html";
@@ -114847,7 +117186,7 @@ var OperationInvocationSchema = external_exports.object({
   input_schema_version: external_exports.string().min(1),
   target: ResourceIdentitySchema.nullable().optional(),
   expected_resource_revision: external_exports.string().nullable().optional(),
-  idempotency_key: external_exports.string().min(1),
+  idempotency_key: external_exports.string().min(1).optional(),
   input: external_exports.unknown()
 });
 var emptyProvenance = {
@@ -114892,11 +117231,11 @@ function registerOperationRoutes(app, store, resolveHostAuthority) {
     const verified = verifyOperationSession(request, reply, store, params.workspace_id, body.target ?? null);
     if (!verified)
       return reply;
-    return store.operationRegistry.invoke({
+    return sendInvocation(reply, await store.operationRegistry.invoke({
       authority: verified.authority,
       provenance: verified.provenance,
       resolve_resource: (target) => store.resolveOperationResource(target, verified.authority.boundary)
-    }, body);
+    }, body));
   });
   app.get("/v1/workspaces/:workspace_id/operation-receipts/:receipt_id", async (request, reply) => {
     const params = external_exports.object({
@@ -114947,11 +117286,11 @@ function registerHostOperationRoutes(app, store, resolveHostAuthority, prefix) {
     const verified = resolveHostAuthority(request, reply, body.target ?? null);
     if (!verified)
       return reply;
-    return store.operationRegistry.invoke({
+    return sendInvocation(reply, await store.operationRegistry.invoke({
       authority: verified.authority,
       provenance: verified.provenance,
       resolve_resource: (target) => store.resolveOperationResource(target, verified.authority.boundary)
-    }, body);
+    }, body));
   });
   app.get(`${prefix}/operation-receipts/:receipt_id`, async (request, reply) => {
     const params = external_exports.object({ receipt_id: external_exports.string().min(1) }).parse(request.params);
@@ -114971,6 +117310,12 @@ function registerHostOperationRoutes(app, store, resolveHostAuthority, prefix) {
     }
     return { receipt };
   });
+}
+function sendInvocation(reply, response) {
+  if (response.kind === "rejected" && response.refusal.code === IDEMPOTENCY_KEY_REQUIRED) {
+    return reply.code(400).send(response);
+  }
+  return response;
 }
 function verifyOperationSession(request, reply, store, workspaceId4, target) {
   const authorization = request.headers.authorization ?? "";
@@ -115062,12 +117407,6 @@ var ConfirmedOperationInvocationSchema = external_exports.object({
   interaction_session_id: external_exports.string().min(1),
   invocation: OperationInvocationSchema.strict()
 }).strict();
-var OPERATOR_CREDENTIAL_OPERATION_IDS = Object.freeze([
-  BIND_CREDENTIAL_OPERATION_ID,
-  HEALTH_CREDENTIAL_OPERATION_ID,
-  ROTATE_CREDENTIAL_OPERATION_ID,
-  REVOKE_CREDENTIAL_OPERATION_ID
-]);
 var HOST_CREDENTIAL_OPERATION_IDS = /* @__PURE__ */ new Set([
   "credential.runtime-access.grant",
   "credential.runtime-access.revoke",
@@ -115160,6 +117499,14 @@ async function createBusServer(configPath, config, options = {}) {
       registeredRoutes.push({ method, url: route.url });
   });
   app.setErrorHandler((error, request, reply) => {
+    if (error.name === "ZodError") {
+      const issues = error.issues;
+      return reply.code(400).send({
+        error: "request_invalid",
+        message: issues.map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`).join("; "),
+        request_id: request.id
+      });
+    }
     const rawStatus = error.statusCode;
     const statusCode = typeof rawStatus === "number" ? rawStatus : 500;
     if (statusCode >= 500) {
@@ -115180,7 +117527,7 @@ async function createBusServer(configPath, config, options = {}) {
   const store = new BusStore(configPath, config, { workspace_configuration_policy: options.workspace_configuration_policy });
   const unsafeInProcessTestAuthBypass = options.unsafe_in_process_test_auth_bypass ?? false;
   const materializationTimeoutMs = options.workspace_materialization_timeout_ms ?? DEFAULT_MATERIALIZATION_TIMEOUT_MS;
-  const localControlToken = options.host_control_token ?? (unsafeInProcessTestAuthBypass ? `floe_test_host_${createHash33("sha256").update(configPath).digest("base64url")}` : "");
+  const localControlToken = options.host_control_token ?? (unsafeInProcessTestAuthBypass ? `floe_test_host_${createHash36("sha256").update(configPath).digest("base64url")}` : "");
   if (!localControlToken) {
     store.close();
     throw new Error("A host-control credential must be supplied by the trusted native owner.");
@@ -115195,7 +117542,7 @@ async function createBusServer(configPath, config, options = {}) {
   const localOrigins = options.local_browser_access ? loopbackBrowserOrigins(browserOrigins) : /* @__PURE__ */ new Set();
   const browserConnections = new BrowserConnections(browserOrigins, (id) => {
     store.operationAuthoritySessions.revokeSession(id);
-  }, Date.now, options.local_browser_access ? {
+  }, store.browserPassStore, Date.now, options.local_browser_access ? {
     origins: localOrigins,
     issueSession: (workspaceId4) => {
       const host = transportAuthenticator.authenticateHostControl(localControlToken);
@@ -115209,22 +117556,47 @@ async function createBusServer(configPath, config, options = {}) {
         return null;
       }
       return issueWorkspaceOperationSession(host.authority, workspace.workspace_id, {
-        interaction_session_id: `browser:local:${randomUUID36()}`,
+        interaction_session_id: `browser:local:${randomUUID39()}`,
         expires_in_seconds: 3600
       }, "floe-local-browser-session");
     }
   } : void 0);
+  function renewBrowserSocketAuthority(request, workspaceId4) {
+    try {
+      const session = browserConnections.session(request, workspaceId4);
+      if (!session)
+        return null;
+      const verified = transportAuthenticator.authenticateWorkspaceOperation(session.bearer_token, workspaceId4);
+      return verified.verified && verified.authority.audience === "workspace_operation" ? verified.authority : null;
+    } catch {
+      return null;
+    }
+  }
+  function closeSocketsWithoutAuthority(authoritySessionId) {
+    for (const [socket, authority] of socketAuthorities) {
+      if (authority.audience !== "workspace_operation")
+        continue;
+      if (authoritySessionId !== null && authority.authority_session_id !== authoritySessionId)
+        continue;
+      const session = store.operationAuthoritySessions.getSession(authority.authority_session_id);
+      const active = session !== null && session.revoked_at === null && store.capabilityGrantStore.inspectSessionGrantIds(session).active_grants.length > 0;
+      if (active)
+        continue;
+      socketAuthorities.delete(socket);
+      socket.close(4401, "Authority revoked");
+    }
+  }
+  const stopWatchingAuthority = store.onAuthorityLost(closeSocketsWithoutAuthority);
+  store.setBrowserPairing({
+    list: () => browserConnections.list(),
+    approve: (connectionId, issue) => browserConnections.approve(connectionId, issue)
+  });
   const pushStream = new TransportPushStreamStore(store.db);
   const socketAuthorities = /* @__PURE__ */ new Map();
   const requestAuthorities = /* @__PURE__ */ new WeakMap();
   const testBypassedRequests = /* @__PURE__ */ new WeakSet();
   const bridgeSockets = /* @__PURE__ */ new Map();
-  function broadcast(type, payload = {}) {
-    const entry = pushStream.append({
-      workspace_id: resolveBroadcastWorkspaceId(store, payload),
-      type,
-      payload
-    });
+  function sendPushEntry(entry) {
     const message = serializePushEntry(entry);
     for (const [socket, authority] of socketAuthorities) {
       try {
@@ -115234,12 +117606,44 @@ async function createBusServer(configPath, config, options = {}) {
         socketAuthorities.delete(socket);
       }
     }
+  }
+  function dispatchPendingNodeStateChanges() {
+    let entries;
+    do {
+      entries = pushStream.drainNodeExecutionStateOutbox();
+      for (const entry of entries)
+        sendPushEntry(entry);
+    } while (entries.length === 1e3);
+  }
+  function dispatchPendingActorLifecycleChanges() {
+    let entries;
+    do {
+      entries = pushStream.drainActorLifecycleOutbox();
+      for (const entry of entries)
+        sendPushEntry(entry);
+    } while (entries.length === 1e3);
+  }
+  function broadcast(type, payload = {}) {
+    dispatchPendingNodeStateChanges();
+    dispatchPendingActorLifecycleChanges();
+    const entry = pushStream.append({
+      workspace_id: resolveBroadcastWorkspaceId(store, payload),
+      type,
+      payload
+    });
+    sendPushEntry(entry);
     if (type === "workspace_attachment_requested" && typeof payload.workspace_id === "string") {
       for (const bridgeId of connectedBridgeIds(payload.workspace_id)) {
         broadcast("bridge_connected", { bridge_id: bridgeId, workspace_id: payload.workspace_id });
       }
     }
   }
+  dispatchPendingNodeStateChanges();
+  dispatchPendingActorLifecycleChanges();
+  store.actorDefinitionStore.setLifecyclePushReady(dispatchPendingActorLifecycleChanges);
+  app.addHook("onResponse", async () => {
+    dispatchPendingNodeStateChanges();
+  });
   function connectedBridgeIds(workspaceId4) {
     const ids = [];
     for (const [socket, authority] of socketAuthorities) {
@@ -115324,7 +117728,7 @@ async function createBusServer(configPath, config, options = {}) {
     interaction_mode: "interactive",
     boundary_kind: "host"
   }).filter((operationId) => HOST_LOCAL_WORKSPACE_OPERATION_IDS.has(operationId));
-  const hostPolicyRevision = createHash33("sha256").update(JSON.stringify({
+  const hostPolicyRevision = createHash36("sha256").update(JSON.stringify({
     host_id: store.localHostId,
     principal_id: hostPrincipalId,
     operation_ids: hostOperationIds,
@@ -115368,7 +117772,7 @@ async function createBusServer(configPath, config, options = {}) {
         interaction_mode: "interactive",
         boundary_kind: "host"
       }).filter((operationId) => HOST_CREDENTIAL_OPERATION_IDS.has(operationId));
-      const policyRevision = createHash33("sha256").update(JSON.stringify({
+      const policyRevision = createHash36("sha256").update(JSON.stringify({
         host_id: store.localHostId,
         secret_ref_id: ref.secret_ref_id,
         generation: ref.generation,
@@ -115424,7 +117828,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target,
       expected_resource_revision: null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID36()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${randomUUID39()}`,
       input
     };
     const response = await store.operationRegistry.invoke({
@@ -115489,7 +117893,7 @@ async function createBusServer(configPath, config, options = {}) {
       input_schema_version: "1",
       target: input.target ?? null,
       expected_resource_revision: input.expected_revision ?? null,
-      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID36()}`,
+      idempotency_key: typeof headerKey === "string" && headerKey.trim() ? headerKey.trim() : `legacy-http:${input.operation_id}:${randomUUID39()}`,
       input: input.value
     };
     const response = await store.operationRegistry.invoke({
@@ -115497,29 +117901,30 @@ async function createBusServer(configPath, config, options = {}) {
       provenance: verified.provenance,
       resolve_resource: (resource) => store.resolveOperationResource(resource, verified.authority.boundary)
     }, invocation);
+    const status = (code) => code.includes("not_found") ? 404 : code.includes("grant_required") ? 403 : code.includes("invalid") || code.includes("schema") || code === "context_parent_cycle" || code === "scope_id_reserved" || SCOPE_PROJECTION_LAYOUT_INVALID_CODES.includes(code) ? 400 : 409;
     if (response.kind === "rejected" || response.kind === "conflict") {
-      const code = response.refusal.code;
-      const status = code.includes("not_found") ? 404 : code.includes("grant_required") ? 403 : code.includes("invalid") || code.includes("schema") || code === "context_parent_cycle" || code === "scope_id_reserved" ? 400 : 409;
-      reply.code(status).send({ error: code, ...response.refusal });
+      reply.code(status(response.refusal.code)).send({ error: response.refusal.code, ...response.refusal });
       return null;
     }
     if (response.receipt.state === "refused") {
       const refusal2 = response.receipt.refusal;
-      const status = refusal2.code.includes("not_found") ? 404 : refusal2.code.includes("grant_required") ? 403 : refusal2.code.includes("invalid") || refusal2.code.includes("schema") || refusal2.code === "context_parent_cycle" || refusal2.code === "scope_id_reserved" ? 400 : 409;
-      reply.code(status).send({ error: refusal2.code, ...refusal2, receipt_id: response.receipt.receipt_id });
+      reply.code(status(refusal2.code)).send({ error: refusal2.code, ...refusal2, receipt_id: response.receipt.receipt_id });
       return null;
     }
     return response.receipt;
   }
   store.setBroadcast(broadcast);
-  await app.register(import_cors.default, { origin: createCorsOriginPolicy(browserOrigins) });
+  await app.register(import_cors.default, { delegator: createCorsDelegator((origin, path3) => browserConnections.corsAllows(origin, path3)) });
   await app.register(import_websocket.default);
   app.addHook("preHandler", async (request, reply) => {
     if (request.routeOptions.url === HTML_PREVIEW_HOST_PATH)
       return;
     try {
       const workspace = resolveRequestWorkspace(request, store);
-      const session = workspace.conflicted ? null : browserConnections.session(request, workspace.workspace_id ?? void 0);
+      const resolved = workspace.conflicted ? null : browserConnections.resolve(request, workspace.workspace_id ?? void 0, true);
+      if (resolved?.cookie)
+        reply.header("set-cookie", resolved.cookie);
+      const session = resolved?.session;
       if (session && !request.headers.authorization)
         request.headers.authorization = `Bearer ${session.bearer_token}`;
     } catch (error) {
@@ -115579,6 +117984,8 @@ async function createBusServer(configPath, config, options = {}) {
     socketAuthorities.clear();
     bridgeSockets.clear();
     browserConnections.close();
+    store.setBrowserPairing(null);
+    stopWatchingAuthority();
     store.close();
   });
   const timer = setInterval(() => void 0, 6e4);
@@ -115647,8 +118054,12 @@ async function createBusServer(configPath, config, options = {}) {
         return reply.code(400).send({ error: "browser_connection_request_invalid" });
       const started = browserConnections.start(request);
       reply.header("cache-control", "no-store");
-      if (started.cookie)
+      if (started.cookie) {
         reply.header("set-cookie", started.cookie);
+        for (const workspace of store.listWorkspaces()) {
+          broadcast("browser_connection_requested", { ...started.connection, workspace_id: workspace.workspace_id });
+        }
+      }
       return reply.code(201).send(started.connection);
     } catch (error) {
       return browserFailure(error, reply);
@@ -115691,11 +118102,6 @@ async function createBusServer(configPath, config, options = {}) {
       return browserFailure(error, reply);
     }
   });
-  app.get("/v1/local/browser-connections", async (request, reply) => {
-    if (!requireLocalControl(request, reply))
-      return reply;
-    return { connections: browserConnections.list() };
-  });
   app.get("/v1/browser/session/models", async (request, reply) => {
     try {
       const session = browserConnections.session(request);
@@ -115708,23 +118114,6 @@ async function createBusServer(configPath, config, options = {}) {
         return sendTransportForbidden(reply);
       reply.header("cache-control", "no-store");
       return { models: await listAuthModels(configPath, config, query.data.provider) };
-    } catch (error) {
-      return browserFailure(error, reply);
-    }
-  });
-  app.post("/v1/local/browser-connections/:code/approve", async (request, reply) => {
-    const authority = requireLocalControl(request, reply);
-    if (!authority)
-      return reply;
-    const params = external_exports.object({ code: external_exports.string().regex(/^[A-F0-9]{8}$/) }).safeParse(request.params);
-    const body = external_exports.object({ workspace_id: external_exports.string().min(1) }).strict().safeParse(request.body);
-    if (!params.success || !body.success)
-      return reply.code(400).send({ error: "browser_connection_request_invalid" });
-    if (!store.getWorkspace(body.data.workspace_id))
-      return reply.code(404).send({ error: "workspace_not_found" });
-    try {
-      browserConnections.approve(params.data.code, () => issueWorkspaceOperationSession(authority, body.data.workspace_id, { interaction_session_id: `browser:${params.data.code}`, expires_in_seconds: 3600 }, "floe-browser-session"));
-      return { approved: true };
     } catch (error) {
       return browserFailure(error, reply);
     }
@@ -115822,9 +118211,21 @@ async function createBusServer(configPath, config, options = {}) {
       }
       authenticated = true;
       socketAuthority = authority;
-      if (authority.audience === "workspace_operation") {
-        sessionExpiryTimeout = setTimeout(() => client.close(4401, "Session expired"), Math.max(0, Date.parse(authority.verification.expires_at) - Date.now()));
-      }
+      const armSessionExpiry = (current) => {
+        sessionExpiryTimeout = setTimeout(() => {
+          const renewed = parsed.data.browser_session ? renewBrowserSocketAuthority(request, current.workspace_id) : null;
+          if (!renewed) {
+            client.close(4401, "Session expired");
+            return;
+          }
+          socketAuthority = renewed;
+          if (socketAuthorities.has(client))
+            socketAuthorities.set(client, renewed);
+          armSessionExpiry(renewed);
+        }, Math.max(0, Date.parse(current.verification.expires_at) - Date.now()) + 50);
+      };
+      if (authority.audience === "workspace_operation")
+        armSessionExpiry(authority);
       clearTimeout(authenticationTimeout);
       client.send(JSON.stringify({
         type: "authenticated",
@@ -116108,16 +118509,15 @@ async function createBusServer(configPath, config, options = {}) {
     }
     return reply.code(201).send(issueWorkspaceOperationSession(hostAuthority, params.workspace_id, body));
   });
-  function issueWorkspaceOperationSession(hostAuthority, workspaceId4, body, brokerId = WINDOWS_DPAPI_CREDENTIAL_BROKER_ID) {
+  function issueWorkspaceOperationSession(hostAuthority, workspaceId4, body, brokerId = WINDOWS_DPAPI_CREDENTIAL_BROKER_ID, identityAuthority = null) {
     const expiresAt = new Date(Date.now() + (body.expires_in_seconds ?? 3600) * 1e3).toISOString();
-    const principalId = store.localOperatorPrincipalId;
-    const operationIds = store.operationRegistry.listCurrentOperationIds({ interaction_mode: "interactive", boundary_kind: "workspace" });
-    if (operationIds.length === 0) {
+    const principalId = identityAuthority?.principal_id ?? store.localOperatorPrincipalId;
+    const ordinaryOperationIds = store.identityAuthorityOperationIds();
+    if (ordinaryOperationIds.length === 0) {
       throw new Error("No interactive semantic operations are currently registered.");
     }
-    const ordinaryOperationIds = operationIds.filter((operationId) => !OPERATOR_CREDENTIAL_OPERATION_IDS.includes(operationId));
-    const grantIds = [];
-    if (ordinaryOperationIds.length > 0) {
+    const grantIds = identityAuthority ? [identityAuthority.root_grant_id] : [];
+    if (!identityAuthority) {
       grantIds.push(store.capabilityGrantStore.issueGrant({
         principal_id: principalId,
         boundary: { kind: "workspace", workspace_id: workspaceId4 },
@@ -116161,7 +118561,7 @@ async function createBusServer(configPath, config, options = {}) {
       grant_ids: grantIds,
       interaction: {
         mode: "interactive",
-        session_id: body.interaction_session_id ?? `interaction_${randomUUID36()}`,
+        session_id: body.interaction_session_id ?? `interaction_${randomUUID39()}`,
         broker_id: brokerId
       },
       provenance: emptyOperationProvenance,
@@ -116928,102 +119328,35 @@ async function createBusServer(configPath, config, options = {}) {
     }
     return locator;
   }
-  function mapScopeProjectionLayoutError(err, reply) {
-    if (!(err instanceof Error))
-      return null;
-    switch (err.name) {
-      case "ScopeProjectionLayoutValidationError":
-        reply.code(400);
-        return { error: "scope_projection_layout_validation_error", message: err.message };
-      case "ScopeProjectionLayoutIdMismatchError":
-        reply.code(400);
-        return { error: "scope_projection_layout_id_mismatch", message: err.message };
-      case "ScopeProjectionLayoutRendererInvalidError":
-        reply.code(400);
-        return { error: "scope_projection_layout_renderer_invalid", message: err.message };
-      default:
-        return null;
-    }
-  }
+  const layoutParams = external_exports.object({ workspace_id: external_exports.string(), scope_id: external_exports.string(), renderer: external_exports.string() });
   app.get("/v1/workspaces/:workspace_id/scopes/:scope_id/projection/layout/:renderer", async (request, reply) => {
-    if (!requireLocalControl(request, reply))
-      return reply;
-    const params = external_exports.object({
-      workspace_id: external_exports.string(),
-      scope_id: external_exports.string(),
-      renderer: external_exports.string()
-    }).parse(request.params);
-    if (!isValidRenderer(params.renderer)) {
-      reply.code(400);
-      return { error: "scope_projection_layout_renderer_invalid", message: `renderer '${params.renderer}' is not a valid renderer identity` };
-    }
+    const params = layoutParams.parse(request.params);
     if (!store.getWorkspace(params.workspace_id)) {
       return reply.code(404).send({ error: "workspace_not_found", workspace_id: params.workspace_id });
     }
-    if (!store.getScope(params.workspace_id, params.scope_id)) {
-      return reply.code(404).send({
-        error: "scope_not_found",
-        workspace_id: params.workspace_id,
-        scope_id: params.scope_id
-      });
-    }
-    const locator = resolveWorkspaceLocator(params.workspace_id, reply);
-    if (locator === null)
+    const receipt = await invokeWorkspaceCompatibility(request, reply, {
+      workspace_id: params.workspace_id,
+      operation_id: "scope.projection.layout.get",
+      value: { scope_id: params.scope_id, renderer: params.renderer }
+    });
+    if (!receipt)
       return reply;
-    try {
-      const layout = loadScopeProjectionLayout(locator, params.scope_id, params.renderer);
-      if (!layout) {
-        reply.code(404);
-        return { error: "scope_projection_layout_not_found" };
-      }
-      return { layout };
-    } catch (err) {
-      const mapped = mapScopeProjectionLayoutError(err, reply);
-      if (mapped)
-        return mapped;
-      throw err;
-    }
+    const { layout } = receipt.result;
+    return layout ? { layout } : reply.code(404).send({ error: "scope_projection_layout_not_found" });
   });
   app.put("/v1/workspaces/:workspace_id/scopes/:scope_id/projection/layout/:renderer", async (request, reply) => {
-    if (!requireLocalControl(request, reply))
-      return reply;
-    const params = external_exports.object({
-      workspace_id: external_exports.string(),
-      scope_id: external_exports.string(),
-      renderer: external_exports.string()
-    }).parse(request.params);
-    if (!isValidRenderer(params.renderer)) {
-      reply.code(400);
-      return { error: "scope_projection_layout_renderer_invalid", message: `renderer '${params.renderer}' is not a valid renderer identity` };
-    }
+    const params = layoutParams.parse(request.params);
     if (!store.getWorkspace(params.workspace_id)) {
       return reply.code(404).send({ error: "workspace_not_found", workspace_id: params.workspace_id });
     }
-    if (!store.getScope(params.workspace_id, params.scope_id)) {
-      return reply.code(404).send({
-        error: "scope_not_found",
-        workspace_id: params.workspace_id,
-        scope_id: params.scope_id
-      });
-    }
-    const locator = resolveWorkspaceLocator(params.workspace_id, reply);
-    if (locator === null)
+    const receipt = await invokeWorkspaceCompatibility(request, reply, {
+      workspace_id: params.workspace_id,
+      operation_id: "scope.projection.layout.save",
+      value: { scope_id: params.scope_id, renderer: params.renderer, layout: request.body }
+    });
+    if (!receipt)
       return reply;
-    try {
-      const layout = upsertScopeProjectionLayout(locator, params.scope_id, params.renderer, request.body);
-      broadcast("scope_projection.layout.upserted", {
-        workspace_id: params.workspace_id,
-        scope_id: params.scope_id,
-        source: "api",
-        renderer: params.renderer
-      });
-      return { layout };
-    } catch (err) {
-      const mapped = mapScopeProjectionLayoutError(err, reply);
-      if (mapped)
-        return mapped;
-      throw err;
-    }
+    return { layout: receipt.result.layout };
   });
   app.post("/v1/workspaces/register", async (request, reply) => {
     const input = external_exports.object({
@@ -117463,6 +119796,28 @@ async function createBusServer(configPath, config, options = {}) {
       }, broadcast)
     };
   });
+  app.post("/v1/delivery/:delivery_id/pause-cancellation", async (request, reply) => {
+    const bridgeAuthority = requireBridgeService(request, reply);
+    if (!bridgeAuthority)
+      return reply;
+    const params = external_exports.object({ delivery_id: external_exports.string().min(1) }).parse(request.params);
+    const body = external_exports.object({
+      workspace_id: external_exports.string().min(1),
+      outcome: external_exports.enum(["quiesced", "session_retired"]),
+      evidence: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+    }).parse(request.body);
+    if (!testBypassedRequests.has(request) && (!bridgeMayUseWorkspace(store, bridgeAuthority, body.workspace_id) || !bridgeOwnsDelivery(store, bridgeAuthority.bridge_id, params.delivery_id))) {
+      return sendTransportForbidden(reply);
+    }
+    return {
+      pause: store.recordScopePauseCancellation({
+        workspace_id: body.workspace_id,
+        delivery_id: params.delivery_id,
+        outcome: body.outcome,
+        evidence: body.evidence
+      }, broadcast)
+    };
+  });
   app.post("/v1/delivery/:delivery_id/runtime-prepare", async (request, reply) => {
     const bridgeAuthority = requireBridgeService(request, reply);
     if (!bridgeAuthority)
@@ -117660,10 +120015,21 @@ async function createBusServer(configPath, config, options = {}) {
     const body = external_exports.object({
       display_name: external_exports.string().min(1).max(200),
       pubkey: external_exports.string().min(1),
-      workspace_id: external_exports.string().min(1)
+      workspace_id: external_exports.string().min(1),
+      until_revoked: external_exports.literal(true).optional(),
+      expires_at: external_exports.string().min(1).optional()
     }).strict().safeParse(request.body);
     if (!body.success)
       return reply.code(400).send({ error: "identity_request_invalid" });
+    let lifetime;
+    try {
+      lifetime = parseAuthorityLifetime(body.data);
+    } catch (error) {
+      return reply.code(400).send({ error: "authority_lifetime_required", message: error.message });
+    }
+    if ("expires_at" in lifetime && Date.parse(lifetime.expires_at) <= Date.now()) {
+      return reply.code(400).send({ error: "authority_lifetime_required", message: "expires_at must be in the future." });
+    }
     if (!store.getWorkspace(body.data.workspace_id))
       return reply.code(404).send({ error: "workspace_not_found" });
     const pubkeyHex = normalizePubkeyToHex(body.data.pubkey);
@@ -117672,7 +120038,6 @@ async function createBusServer(configPath, config, options = {}) {
     const identity = store.clientIdentityStore.admitIdentity({
       pubkey_hex: pubkeyHex,
       display_name: body.data.display_name,
-      principal_id: store.localOperatorPrincipalId,
       admitted_by: authority.credential_id
     });
     store.clientIdentityStore.addWorkspaceMembership({
@@ -117680,9 +120045,17 @@ async function createBusServer(configPath, config, options = {}) {
       workspace_id: body.data.workspace_id,
       admitted_by: authority.credential_id
     });
+    const workspaceAuthority = store.ensureIdentityWorkspaceAuthority({
+      identity_id: identity.identity_id,
+      workspace_id: body.data.workspace_id,
+      issued_by: `transport:${authority.credential_id}`,
+      lifetime,
+      evidence: [{ kind: "authenticated_host_control", ref: authority.credential_id }]
+    });
     return reply.code(201).send({
       identity: publicIdentity(identity),
-      workspaces: identityWorkspaces(store, identity.identity_id)
+      workspaces: identityWorkspaces(store, identity.identity_id),
+      authority: publicWorkspaceAuthority(workspaceAuthority)
     });
   });
   app.get("/v1/identity/challenge", async (_request, reply) => {
@@ -117733,11 +120106,15 @@ async function createBusServer(configPath, config, options = {}) {
         workspaces
       };
     }
+    const workspaceAuthority = store.identityWorkspaceAuthorityStore.getActive(identity.identity_id, targetWorkspaceId);
+    if (!workspaceAuthority || expiryMs(workspaceAuthority.expires_at) <= Date.now()) {
+      return reply.code(403).send({ error: "identity_workspace_authority_unavailable", workspaces });
+    }
     const host = transportAuthenticator.authenticateHostControl(localControlToken);
     if (!host.verified || host.authority.audience !== "host_control") {
       return reply.code(503).send({ error: "identity_mint_unavailable" });
     }
-    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID36()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`);
+    const session = issueWorkspaceOperationSession(host.authority, targetWorkspaceId, { interaction_session_id: `client-identity:${identity.identity_id}:${randomUUID39()}`, expires_in_seconds: 3600 }, `floe-client-identity:${identity.identity_id}`, { principal_id: workspaceAuthority.principal_id, root_grant_id: workspaceAuthority.root_grant_id });
     store.clientIdentityStore.recordSession({
       authority_session_id: session.authority_session_id,
       identity_id: identity.identity_id,
@@ -117801,13 +120178,19 @@ async function createBusServer(configPath, config, options = {}) {
     const identity = store.clientIdentityStore.admitIdentity({
       pubkey_hex: verification.pubkey_hex,
       display_name: body.data.display_name,
-      principal_id: store.localOperatorPrincipalId,
       admitted_by: host.authority.credential_id
     });
     store.clientIdentityStore.addWorkspaceMembership({
       identity_id: identity.identity_id,
       workspace_id: workspace.workspace_id,
       admitted_by: host.authority.credential_id
+    });
+    store.ensureIdentityWorkspaceAuthority({
+      identity_id: identity.identity_id,
+      workspace_id: workspace.workspace_id,
+      issued_by: `transport:${host.authority.credential_id}`,
+      lifetime: { until_revoked: true },
+      evidence: [{ kind: "client_identity_workspace_registration", ref: workspace.workspace_id }]
     });
     const materialization = await store.awaitWorkspaceMaterialization(workspace.workspace_id, {
       timeout_ms: materializationTimeoutMs
@@ -117832,6 +120215,7 @@ async function createBusServer(configPath, config, options = {}) {
     const clients = store.clientIdentityStore.listIdentities().map((identity) => ({
       ...publicIdentity(identity),
       workspaces: identityWorkspaces(store, identity.identity_id),
+      authorities: store.identityWorkspaceAuthorityStore.listActiveForIdentity(identity.identity_id).map(publicWorkspaceAuthority),
       sessions: store.clientIdentityStore.listSessionsForIdentity(identity.identity_id).filter((session) => Date.parse(session.expires_at) > nowMs).map((session) => ({
         authority_session_id: session.authority_session_id,
         workspace_id: session.workspace_id,
@@ -117849,11 +120233,30 @@ async function createBusServer(configPath, config, options = {}) {
     const identity = store.clientIdentityStore.getIdentity(params.identity_id);
     if (!identity)
       return reply.code(404).send({ error: "identity_not_found" });
-    store.clientIdentityStore.revokeIdentity(identity.identity_id);
-    for (const session of store.clientIdentityStore.listSessionsForIdentity(identity.identity_id)) {
-      store.operationAuthoritySessions.revokeSession(session.authority_session_id);
-    }
+    store.transaction(() => {
+      store.clientIdentityStore.revokeIdentity(identity.identity_id);
+      store.identityWorkspaceAuthorityStore.revokeAllForIdentity(identity.identity_id, "identity_revoked");
+      for (const session of store.clientIdentityStore.listSessionsForIdentity(identity.identity_id)) {
+        store.operationAuthoritySessions.revokeSession(session.authority_session_id);
+      }
+    });
     return { revoked: true, identity_id: identity.identity_id };
+  });
+  app.delete("/v1/clients/:identity_id/workspaces/:workspace_id", async (request, reply) => {
+    const authority = requestAuthorities.get(request);
+    if (authority?.audience !== "host_control")
+      return sendTransportForbidden(reply);
+    const params = external_exports.object({ identity_id: external_exports.string().min(1), workspace_id: external_exports.string().min(1) }).parse(request.params);
+    if (!store.clientIdentityStore.isMemberOfWorkspace(params.identity_id, params.workspace_id)) {
+      return reply.code(404).send({ error: "identity_membership_not_found" });
+    }
+    store.transaction(() => {
+      store.clientIdentityStore.removeWorkspaceMembership(params.identity_id, params.workspace_id);
+      const active = store.identityWorkspaceAuthorityStore.getActive(params.identity_id, params.workspace_id);
+      if (active)
+        store.identityWorkspaceAuthorityStore.revoke(active.authority_id, "membership_revoked");
+    });
+    return { revoked: true, identity_id: params.identity_id, workspace_id: params.workspace_id };
   });
   app.delete("/v1/clients/:identity_id/sessions/:authority_session_id", async (request, reply) => {
     const authority = requestAuthorities.get(request);
@@ -118831,10 +121234,10 @@ function resolveTransportRequirement(request, store) {
   if (route === "/v1/delivery/claim" || route === "/v1/runtime/turn-result") {
     return { kind: "bridge_or_workspace", workspace_id: workspace.workspace_id };
   }
-  if (route.startsWith("/v1/bridge/") || route === "/v1/bridges/register" || route === "/v1/bridges/liveness" || route === "/v1/bridges/:bridge_id/liveness" || route === "/v1/delivery/:delivery_id/status" || route === "/v1/delivery/:delivery_id/runtime-prepare" || route === "/v1/delivery/:delivery_id/tool-policy/evaluate" || route === "/v1/delivery/:delivery_id/tool-policy/:evaluation_id/resolve" || route === "/v1/delivery/:delivery_id/runtime-credentials/:secret_ref_id" || route === "/v1/runtime/telemetry" && method === "POST" || route === "/v1/endpoints/:endpoint_id/status" && method === "POST" || route === "/v1/endpoints/:endpoint_id/turn-end" || route === "/v1/workspaces/:workspace_id/attachment-result" || route === "/v1/workspaces/:workspace_id/import-config") {
+  if (route.startsWith("/v1/bridge/") || route === "/v1/bridges/register" || route === "/v1/bridges/liveness" || route === "/v1/bridges/:bridge_id/liveness" || route === "/v1/delivery/:delivery_id/status" || route === "/v1/delivery/:delivery_id/pause-cancellation" || route === "/v1/delivery/:delivery_id/runtime-prepare" || route === "/v1/delivery/:delivery_id/tool-policy/evaluate" || route === "/v1/delivery/:delivery_id/tool-policy/:evaluation_id/resolve" || route === "/v1/delivery/:delivery_id/runtime-credentials/:secret_ref_id" || route === "/v1/runtime/telemetry" && method === "POST" || route === "/v1/endpoints/:endpoint_id/status" && method === "POST" || route === "/v1/endpoints/:endpoint_id/turn-end" || route === "/v1/workspaces/:workspace_id/attachment-result" || route === "/v1/workspaces/:workspace_id/import-config") {
     return { kind: "bridge_service", workspace_id: workspace.workspace_id };
   }
-  if (route.startsWith("/v1/local/") || route === "/v1/local-config/status" || route === "/v1/workspaces" || route === "/v1/workspaces/register" || route === "/v1/workspaces/:workspace_id/select" || route === "/v1/workspaces/:workspace_id/delete" || route === "/v1/workspaces/:workspace_id/config-snapshot" || route === "/v1/workspaces/:workspace_id/apply-config" || route === "/v1/bridges/service-credential" || route.startsWith("/v1/auth/") || route === "/v1/runtime/status" || route === "/v1/fs/capability" || route === "/v1/fs/browse" || route === "/v1/workspaces/:workspace_id/fs/agents" || route === "/v1/workspaces/:workspace_id/fs/file" || route.startsWith("/v1/webhooks/") || route === "/v1/identities" || route === "/v1/clients" || route === "/v1/clients/:identity_id" || route === "/v1/clients/:identity_id/sessions/:authority_session_id" || route === "/v1/configs" && method !== "GET") {
+  if (route.startsWith("/v1/local/") || route === "/v1/local-config/status" || route === "/v1/workspaces" || route === "/v1/workspaces/register" || route === "/v1/workspaces/:workspace_id/select" || route === "/v1/workspaces/:workspace_id/delete" || route === "/v1/workspaces/:workspace_id/config-snapshot" || route === "/v1/workspaces/:workspace_id/apply-config" || route === "/v1/bridges/service-credential" || route.startsWith("/v1/auth/") || route === "/v1/runtime/status" || route === "/v1/fs/capability" || route === "/v1/fs/browse" || route === "/v1/workspaces/:workspace_id/fs/agents" || route === "/v1/workspaces/:workspace_id/fs/file" || route.startsWith("/v1/webhooks/") || route === "/v1/identities" || route === "/v1/clients" || route === "/v1/clients/:identity_id" || route === "/v1/clients/:identity_id/sessions/:authority_session_id" || route === "/v1/clients/:identity_id/workspaces/:workspace_id" || route === "/v1/configs" && method !== "GET") {
     return { kind: "host_control" };
   }
   if (route === "/v1/configs" && method === "GET") {
@@ -118905,11 +121308,24 @@ function sendIdentityAuthFailed(reply) {
 function publicIdentity(identity) {
   return {
     identity_id: identity.identity_id,
+    principal_id: identity.principal_id,
     display_name: identity.display_name,
     pubkey_hex: identity.pubkey_hex,
     npub: encodeNpub(identity.pubkey_hex),
     admitted_at: identity.admitted_at,
     revoked_at: identity.revoked_at
+  };
+}
+function publicWorkspaceAuthority(authority) {
+  return {
+    authority_id: authority.authority_id,
+    workspace_id: authority.workspace_id,
+    principal_id: authority.principal_id,
+    root_grant_id: authority.root_grant_id,
+    status: authority.status,
+    issued_at: authority.issued_at,
+    expires_at: authority.expires_at,
+    revoked_at: authority.revoked_at
   };
 }
 function identityWorkspaces(store, identityId) {
@@ -119197,185 +121613,6 @@ function firePulse(pulseId, store, broadcast, pulseScheduler) {
   broadcast("pulse_fired", { pulse_id: pulseId, fired_at: fireTimestamp, subscriber_count: subscribers.length });
 }
 
-// floe-bus/dist/local-product-policy.js
-import { createHash as createHash34 } from "node:crypto";
-var LOCAL_FLOE_ACTOR_OPERATIONS_V1 = Object.freeze([
-  ...CAPABILITY_GRANT_OPERATION_IDS,
-  "actor.create",
-  "actor.definition.draft.create",
-  "actor.definition.draft.replace",
-  "actor.definition.get",
-  "actor.definition.publish",
-  "actor.definition.rollback",
-  "actor.inspect",
-  "actor.list",
-  "actor.reactivate",
-  "actor.retire",
-  "actor.runtime-binding.create",
-  "actor.runtime-binding.get",
-  "actor.runtime-binding.inspect",
-  "actor.runtime-binding.replace",
-  "approval.inspect",
-  "approval.list",
-  "approval.request",
-  "approval.response.configure",
-  "artefact.create",
-  "artefact.inspect",
-  "artefact.search",
-  "artefact.version.publish",
-  "artefact.version.export",
-  "connector.inspect",
-  "context.archive",
-  "context.communication.emit",
-  "context.create",
-  "context.get",
-  "context.inspect",
-  "context.list",
-  "context.participant.remove",
-  "context.participant.set_access",
-  "context.restore",
-  "credential.use",
-  "credential.refresh",
-  "extension.inspect",
-  "extension.list",
-  "extension.package.get",
-  "extension.schema.discover",
-  "runtime-profile.create",
-  "runtime-profile.draft.create",
-  "runtime-profile.draft.replace",
-  "runtime-profile.inspect",
-  "runtime-profile.list",
-  "runtime-profile.publish",
-  "runtime-profile.reactivate",
-  "runtime-profile.retire",
-  "runtime-profile.revision.get",
-  "runtime-profile.rollback",
-  "scope.create",
-  "scope.list",
-  "scope.composition.draft.create",
-  "scope.composition.draft.replace",
-  "scope.composition.clone",
-  "scope.composition.compare",
-  "scope.composition.export",
-  "scope.composition.impact.inspect",
-  "scope.composition.import",
-  "scope.composition.publish",
-  "scope.composition.rollback",
-  "scope.composition.simulate",
-  "scope.composition.validate",
-  "scope.execution.inspect",
-  "scope.execution.pause",
-  "scope.execution.redo",
-  "scope.execution.resume",
-  "scope.execution.start",
-  "scope.execution.stop",
-  "scope.node-execution.retry",
-  "scope.node-output.publish",
-  "scope.plan.inspect",
-  "workspace.inspect",
-  // Engine built-ins are unrestricted by default; a person may choose limits.
-  ...Object.values(ENGINE_TOOL_OPERATIONS)
-]);
-var localProductWorkspacePolicy = (input) => {
-  if (input.creation_kind !== "created" || !input.init_authorized)
-    return null;
-  const assignments = input.inventory.actors.filter((actor) => actor.source_actor_id === "floe").map((actor) => ({ source_actor_id: actor.source_actor_id, operation_ids: LOCAL_FLOE_ACTOR_OPERATIONS_V1 }));
-  const now3 = /* @__PURE__ */ new Date();
-  const renewalWindow = `${now3.getUTCFullYear()}-${String(now3.getUTCMonth() + 1).padStart(2, "0")}`;
-  const expiry = new Date(Date.UTC(now3.getUTCFullYear(), now3.getUTCMonth() + 4, 1)).toISOString();
-  const digest9 = createHash34("sha256").update(JSON.stringify({ workspace_id: input.workspace_id, assignments, expiry })).digest("hex").slice(0, 24);
-  return {
-    policy_revision: `local-floe-actor-v1:${renewalWindow}:${digest9}`,
-    actor_operation_authority: assignments,
-    expires_at: expiry,
-    issuer_id: "policy:local-floe-actor:v1",
-    import_principal_id: "system:workspace-configuration-import"
-  };
-};
-function applyLocalFloeDelegationPolicy(store) {
-  applyLocalFloeOperationPolicy(store, "policy:local-floe-delegation:v1", "capgrant_local_floe_delegation_", CAPABILITY_GRANT_OPERATION_IDS);
-}
-function applyLocalFloeExportPolicy(store) {
-  applyLocalFloeOperationPolicy(store, "policy:local-floe-export:v1", "capgrant_local_floe_export_", ["artefact.version.export"]);
-}
-function applyLocalFloeApprovalResponsePolicy(store) {
-  applyLocalFloeOperationPolicy(store, "policy:local-floe-approval-response:v1", "capgrant_local_floe_approval_response_", ["approval.response.configure"], [{ kind: "approval_request", id: null }]);
-}
-function applyLocalFloeToolPolicy(store) {
-  const engineOperations = Object.values(ENGINE_TOOL_OPERATIONS);
-  const granted = applyLocalFloeOperationPolicy(store, "policy:local-floe-tools:v1", "capgrant_local_floe_tools_", engineOperations, [], (grants) => grants.some((grant) => grant.operation_ids.some((id) => engineOperations.includes(id))));
-  for (const workspaceId4 of granted)
-    store.workspaceAccessStore.recordToolAccessNotice(workspaceId4, "policy:local-floe-tools:v1");
-  return granted;
-}
-function applyLocalFloeOperationPolicy(store, policy, grantPrefix, operationIds, targets2 = [], alreadyChosen = () => false) {
-  const granted = [];
-  for (const workspace of store.workspaceIdentityStore.listLocalProjections(store.localHostId)) {
-    if (!workspace.binding?.init_authorized || !["created", "legacy_retained"].includes(workspace.creation_kind))
-      continue;
-    const ownership = store.db.prepare(`SELECT actor_id FROM workspace_configuration_import_resources
-      WHERE workspace_id = ? AND source_actor_id = 'floe'`).get(workspace.workspace_id);
-    if (!ownership)
-      continue;
-    const actor = store.actorDefinitionStore.getActor(ownership.actor_id);
-    if (!actor || actor.status !== "active" || actor.workspace_id !== workspace.workspace_id)
-      continue;
-    const definition2 = store.actorDefinitionStore.getCurrentDefinition(actor.actor_id);
-    if (!definition2)
-      continue;
-    const inspection = store.capabilityGrantStore.inspectSessionGrantIds({
-      principal_id: actor.actor_id,
-      boundary: { kind: "workspace", workspace_id: actor.workspace_id },
-      grant_ids: definition2.content.capability_grant_ids
-    });
-    if (inspection.unavailable_grants.length > 0)
-      continue;
-    if (operationIds.every((id) => inspection.active_grants.some((grant) => grant.targets.length === 0 && grant.operation_ids.includes(id))))
-      continue;
-    if (alreadyChosen(inspection.active_grants))
-      continue;
-    const basis = inspection.active_grants.find((grant) => grant.targets.length === 0 && ["policy:local-floe-actor:v1", "policy:legacy-workspace-model-actor-authority:v1"].includes(grant.issuer_id) && grant.evidence.some((item) => item.kind === "workspace_configuration_import_policy") && grant.operation_ids.includes("actor.create"));
-    if (!basis)
-      continue;
-    const grantId = `${grantPrefix}${createHash34("sha256").update(actor.actor_id).digest("hex").slice(0, 32)}`;
-    if (store.capabilityGrantStore.getGrant(grantId))
-      continue;
-    store.db.exec("SAVEPOINT local_floe_delegation_policy");
-    try {
-      const grant = store.capabilityGrantStore.issueGrant({
-        grant_id: grantId,
-        principal_id: actor.actor_id,
-        boundary: basis.boundary,
-        operation_ids: operationIds,
-        targets: targets2,
-        expires_at: basis.expires_at,
-        issuer_id: policy,
-        evidence: [{ kind: "local_product_policy", ref: policy }, { kind: "capability_grant", ref: basis.grant_id }]
-      });
-      const draft = store.actorDefinitionStore.createDraft({
-        actor_id: actor.actor_id,
-        created_by_principal_id: policy,
-        definition: {
-          ...definition2.content,
-          capability_grant_ids: [...definition2.content.capability_grant_ids, grant.grant_id]
-        }
-      });
-      store.actorDefinitionStore.publishDraft({
-        actor_definition_revision_id: draft.actor_definition_revision_id,
-        expected_current_revision_id: definition2.actor_definition_revision_id,
-        changed_by_principal_id: policy
-      });
-      store.db.exec("RELEASE local_floe_delegation_policy");
-      granted.push(workspace.workspace_id);
-    } catch (error) {
-      store.db.exec("ROLLBACK TO local_floe_delegation_policy");
-      store.db.exec("RELEASE local_floe_delegation_policy");
-      throw error;
-    }
-  }
-  return granted;
-}
-
 // floe-bus/dist/index.js
 function getArgValue(name) {
   const index = process.argv.indexOf(name);
@@ -119400,10 +121637,10 @@ async function main() {
     local_browser_access: true,
     workspace_configuration_policy: localProductWorkspacePolicy
   });
-  applyLocalFloeDelegationPolicy(server.store);
-  applyLocalFloeExportPolicy(server.store);
-  applyLocalFloeApprovalResponsePolicy(server.store);
-  applyLocalFloeToolPolicy(server.store);
+  const { identityAuthorityMigration, actorAccessMigration } = server.store;
+  if (identityAuthorityMigration.length > 0 || actorAccessMigration.length > 0) {
+    console.log(`[floe-bus] access migration: ${identityAuthorityMigration.length} person authorities issued, ${actorAccessMigration.length} Actors' access moved onto their one person`);
+  }
   await server.listen();
 }
 main().catch((error) => {

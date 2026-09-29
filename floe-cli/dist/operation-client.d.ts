@@ -71,7 +71,8 @@ export type CliOperationInvocation = Readonly<{
     input_schema_version: string;
     target: OperationTarget | null;
     expected_resource_revision?: string | null;
-    idempotency_key: string;
+    /** Omitted for a read: the Bus gives each keyless read its own key. */
+    idempotency_key?: string;
     input: unknown;
 }>;
 /**

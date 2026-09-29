@@ -4654,6 +4654,13 @@ var BusClient = class {
     });
     return result2.delivery;
   }
+  async reportPauseCancellation(input) {
+    await this.post(`/v1/delivery/${encodeURIComponent(input.delivery_id)}/pause-cancellation`, {
+      workspace_id: input.workspace_id,
+      outcome: input.outcome,
+      evidence: input.evidence ?? {}
+    });
+  }
   async prepareRuntimeDelivery(deliveryId) {
     return this.post(`/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-prepare`, {});
   }
@@ -10593,6 +10600,7 @@ var FloeRuntimeAdapter = class {
         });
       }
       this.writeWorkLog(context, bundle, turn, "completed");
+      turn.settle();
     } catch (caught) {
       let error = caught;
       if (turn.cancelled) {
@@ -10638,6 +10646,7 @@ var FloeRuntimeAdapter = class {
       if (session.activeTurn === turn)
         session.activeTurn = void 0;
       this.writeWorkLog(context, bundle, turn, "error");
+      turn.settle();
       throw new TurnFailedError(bundle.delivery_id, turn.source_endpoint_id, bundle.workspace_id, turn.context_id, turn.thread_id, model ?? "(default)", this.name, httpStatus, errorMessage);
     }
   }
@@ -10652,6 +10661,46 @@ var FloeRuntimeAdapter = class {
       return true;
     }
     return false;
+  }
+  async waitForDeliveryCancellation(deliveryId) {
+    for (const session of this.sessions.values()) {
+      const turn = session.activeTurn;
+      if (!turn || turn.delivery_id !== deliveryId)
+        continue;
+      if (turn.cancellation)
+        await turn.cancellation;
+      else
+        await turn.settled;
+      if (turn.cancellationFault)
+        return null;
+      return {
+        outcome: "quiesced",
+        evidence: {
+          runtime_turn_id: turn.runtime_turn_id,
+          session_id: session.sessionId
+        }
+      };
+    }
+    return null;
+  }
+  async forceRetireDelivery(deliveryId) {
+    for (const [key, session] of this.sessions) {
+      const turn = session.activeTurn;
+      if (!turn || turn.delivery_id !== deliveryId || turn.finalized)
+        continue;
+      turn.cancelled = true;
+      this.toolGate.abandonDelivery(deliveryId);
+      await session.runtime.close();
+      this.sessions.delete(key);
+      return {
+        outcome: "session_retired",
+        evidence: {
+          runtime_turn_id: turn.runtime_turn_id,
+          session_id: session.sessionId
+        }
+      };
+    }
+    return null;
   }
   async dispose(_reason = "bridge_shutdown") {
     const sessions = [...this.sessions.values()];
@@ -10757,6 +10806,10 @@ var FloeRuntimeAdapter = class {
     const contextId = bundle.context_id ?? trigger?.context_id ?? null;
     const threadId = contextId ?? trigger?.thread_id ?? `thread:${bundle.workspace_id}:floe-runtime`;
     const sourceEndpoint = trigger?.source_endpoint_id || `actor:${bundle.workspace_id}:operator`;
+    let settle;
+    const settled = new Promise((resolve6) => {
+      settle = resolve6;
+    });
     return {
       runtime_turn_id: `rt_${randomUUID6()}`,
       delivery_id: bundle.delivery_id,
@@ -10783,7 +10836,9 @@ var FloeRuntimeAdapter = class {
       finalized: false,
       cancelled: false,
       cancellation: null,
-      cancellationFault: null
+      cancellationFault: null,
+      settled,
+      settle
     };
   }
   /** Build the neutral write-back anchor the substrate tools require. */
@@ -11626,9 +11681,33 @@ var BridgeDaemon = class {
   }
   async handleEventStreamMessage(message) {
     if (message.type === "delivery_cancel_requested" && message.payload?.delivery_id) {
+      if (message.payload?.runtime_owner === "bus")
+        return;
       const deliveryId = String(message.payload.delivery_id);
       this.cancelledDeliveries.add(deliveryId);
-      await this.adapter.cancelDelivery?.(deliveryId);
+      const accepted = this.adapter.cancelDelivery?.(deliveryId) ?? false;
+      const result2 = accepted ? await this.adapter.waitForDeliveryCancellation?.(deliveryId) : null;
+      if (result2 && typeof message.payload?.workspace_id === "string") {
+        await this.bus.reportPauseCancellation({
+          workspace_id: message.payload.workspace_id,
+          delivery_id: deliveryId,
+          outcome: result2.outcome,
+          evidence: result2.evidence
+        });
+      }
+    }
+    if (message.type === "delivery_force_retire_requested" && message.payload?.delivery_id) {
+      const deliveryId = String(message.payload.delivery_id);
+      this.cancelledDeliveries.add(deliveryId);
+      const result2 = await this.adapter.forceRetireDelivery?.(deliveryId);
+      if (result2 && typeof message.payload?.workspace_id === "string") {
+        await this.bus.reportPauseCancellation({
+          workspace_id: message.payload.workspace_id,
+          delivery_id: deliveryId,
+          outcome: result2.outcome,
+          evidence: result2.evidence
+        });
+      }
     }
     if ((message.type === "approval_decided" || message.type === "approval_invalidated") && typeof message.payload?.request?.approval_request_id === "string") {
       this.adapter.approvalChanged?.(message.payload.request.approval_request_id);

@@ -1,7 +1,7 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
   connectIdentity
-} from "./chunk-OLUPVQLM.js";
+} from "./chunk-CV7G6OJS.js";
 import {
   SERVICE_NAMES,
   clearRecords,
@@ -18,25 +18,27 @@ import {
   startAll,
   stopService,
   waitForBusHealth
-} from "./chunk-S743VT2Q.js";
+} from "./chunk-WZ6YKNSS.js";
 import {
   CliOperationClient,
-  __commonJS,
-  __require,
-  __toESM,
   directInstallRequiredMessage,
-  ensureConfig,
-  ensureLocalDirs,
-  external_exports,
   fetchHostControlToken,
   forgetIdentityDeviceKey,
   nativeOperationBroker,
   registerLocalWorkspaceViaBroker,
-  require_dist,
-  resolveLocalPath,
   selectLocalWorkspace,
   thisInstallation
-} from "./chunk-FUQ57RD4.js";
+} from "./chunk-AKI56RAB.js";
+import {
+  __commonJS,
+  __require,
+  __toESM,
+  ensureConfig,
+  ensureLocalDirs,
+  external_exports,
+  require_dist,
+  resolveLocalPath
+} from "./chunk-WLSAFSRN.js";
 
 // node_modules/commander/lib/error.js
 var require_error = __commonJS({
@@ -3227,9 +3229,6 @@ function registerPersonIdentityCommands(identity, configPath) {
       if (client.versionNote)
         console.log(`Note: ${client.versionNote}`);
       await action(client, prompt);
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
     } finally {
       prompt.close();
       client?.close();
@@ -3499,14 +3498,19 @@ function registerIdentityCommand(program3, dependencies = {}) {
   const currentDir = dependencies.cwd ?? (() => process.cwd());
   const identity = program3.command("identity").description("Your identity on this machine, and the identities admitted to its workspaces");
   registerPersonIdentityCommands(identity, () => program3.opts().config);
-  identity.command("add").description("Admit a public key to a workspace under a display name (requires host control)").requiredOption("--name <name>", "the human display name for this identity").requiredOption("--pubkey <npub|hex>", "the identity public key, as npub or 64-char hex").option("--workspace <workspace_id>", "the workspace this identity may act in; defaults to the workspace for the current directory").action(async (options) => {
+  identity.command("add").description("Admit a public key to a workspace under a display name (requires host control)").requiredOption("--name <name>", "the human display name for this identity").requiredOption("--pubkey <npub|hex>", "the identity public key, as npub or 64-char hex").option("--workspace <workspace_id>", "the workspace this identity may act in; defaults to the workspace for the current directory").option("--expires-at <iso_time>", "when this identity's authority in the workspace ends; without it, it lasts until revoked").action(async (options) => {
     const { config } = resolveConfig();
     const token = await hostControlToken(busBase(config));
     const workspaceId = options.workspace ?? await resolveWorkspaceForCwd(busBase(config), token, httpFetch, currentDir(), write2);
     const response = await httpFetch(`${busBase(config)}/v1/identities`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ display_name: options.name, pubkey: options.pubkey, workspace_id: workspaceId })
+      body: JSON.stringify({
+        display_name: options.name,
+        pubkey: options.pubkey,
+        workspace_id: workspaceId,
+        ...options.expiresAt ? { expires_at: options.expiresAt } : { until_revoked: true }
+      })
     });
     if (!response.ok) {
       throw new Error(`Admission failed (${response.status}): ${await safeBody(response)}`);
@@ -3515,6 +3519,7 @@ function registerIdentityCommand(program3, dependencies = {}) {
     write2(`Admitted "${body.identity.display_name}" as ${body.identity.identity_id}`);
     write2(`  ${body.identity.npub}`);
     write2(`  workspaces: ${body.workspaces.map((w) => `${w.name} (${w.workspace_id})`).join(", ") || "none"}`);
+    write2(`  authority: ${options.expiresAt ? `until ${options.expiresAt}` : "until revoked"}`);
     write2("");
     write2("Re-admitting a lost key is re-admission, not recovery: a lost recovery phrase is unrecoverable.");
   });
@@ -3596,6 +3601,52 @@ async function safeBody(response) {
   } catch {
     return "<unreadable>";
   }
+}
+
+// floe-cli/dist/workspace-registration.js
+var NO_PERSON_NOTE = "Nobody is signed in on this machine, so Floe opened this folder without a person.\nIf nobody has joined this workspace yet, its Floe Actor has no access until someone does:\n  floe identity create --name <your name>   (or: floe identity unlock)\n  floe identity join";
+function canActWithoutPrompt(state) {
+  return state.kind === "unlocked" || state.kind === "locked" && state.protection === "device";
+}
+async function registerFolder(locator, deps) {
+  const person = await joinAsPerson(locator, deps);
+  if (person)
+    return person;
+  await deps.register_via_broker(locator);
+  deps.log(NO_PERSON_NOTE);
+  return { as: "host" };
+}
+async function joinAsPerson(locator, deps) {
+  let client;
+  try {
+    client = await deps.connect();
+  } catch {
+    return null;
+  }
+  try {
+    const state = client.state;
+    if (!canActWithoutPrompt(state))
+      return null;
+    const outcome = await client.joinFolder({ locator });
+    if (outcome.kind === "ready" || outcome.kind === "pending") {
+      return { as: "person", display_name: state.display_name, workspace_id: outcome.workspace_id };
+    }
+    throw new Error(describeRefusal(locator, outcome));
+  } finally {
+    client.close();
+  }
+}
+function describeRefusal(locator, outcome) {
+  if (outcome.kind === "failed")
+    return `The workspace for ${locator} could not be prepared (${outcome.reason}).`;
+  return "message" in outcome ? outcome.message : `The folder ${locator} could not be joined.`;
+}
+function defaultRegistrationDependencies(configPath, busHttpBase) {
+  return {
+    connect: () => connectIdentity({ surface: "floe terminal", configPath, start: false }),
+    register_via_broker: (locator) => registerLocalWorkspaceViaBroker(locator, true, busHttpBase),
+    log: (line) => console.log(line)
+  };
 }
 
 // floe-cli/dist/surfaces.js
@@ -3958,7 +4009,7 @@ function errorText(error) {
 
 // floe-cli/dist/cli.js
 var program2 = new Command();
-program2.name("floe").description("Launch and manage the local Floe substrate").option("--config <path>", "config path");
+program2.name("floe").description("Launch and manage the local Floe substrate").option("--config <path>", "config path").option("--debug", "show full error details in the terminal");
 program2.command("setup").description("Create config, start services, verify health, and offer to install auto-start").option("--yes", "accept setup defaults (install auto-start without prompting)").option("--no-autostart", "do not offer to install auto-start").option("--repair", "reconcile local service records").action(async (options) => {
   const { configPath, config } = ensureConfig(program2.opts().config);
   if (options.repair)
@@ -3967,7 +4018,7 @@ program2.command("setup").description("Create config, start services, verify hea
   await verifyHealth(configPath, config);
   const currentWorkspace = findAncestorWithFloe(process.cwd());
   if (currentWorkspace) {
-    await registerCurrentWorkspace(config, currentWorkspace, true);
+    await registerCurrentWorkspace(configPath, config, currentWorkspace);
   }
   console.log(`Floe services are running: ${config.bus.http_base_url}`);
   if (options.autostart !== false) {
@@ -4154,7 +4205,9 @@ program2.command("up").description("Ensure the Floe substrate is reachable (star
 program2.command("launch [surface]").description("Ensure the substrate is reachable, then launch a surface (the default action)").action(async (surface) => {
   await runLauncher(surface);
 });
-await program2.parseAsync(routeSurfaceLaunch(normalizeLegacyCommandArgs(process.argv)));
+async function runCli(argv = process.argv) {
+  await program2.parseAsync(routeSurfaceLaunch(normalizeLegacyCommandArgs(argv)));
+}
 async function runUp() {
   const { configPath, config } = ensureConfig(program2.opts().config);
   const plan = await ensureSubstrateForClient(configPath, config);
@@ -4184,7 +4237,7 @@ async function runLauncher(surfaceName) {
   }
   if (plan === "connect")
     await reportVersionMismatch(config);
-  await registerCwdWorkspaceBestEffort(config);
+  await registerCwdWorkspaceBestEffort(configPath, config);
   if (!hasBeenAsked(configPath, config, "start_at_login")) {
     if (await offerServiceInstall(configPath, { assumeYes: false })) {
       markAsked(configPath, config, "start_at_login");
@@ -4222,12 +4275,12 @@ async function runLauncher(surfaceName) {
   if (chosen)
     await launchAndPropagate(chosen);
 }
-async function registerCwdWorkspaceBestEffort(config) {
+async function registerCwdWorkspaceBestEffort(configPath, config) {
   const currentWorkspace = findAncestorWithFloe(process.cwd());
   if (!currentWorkspace)
     return;
   try {
-    await registerCurrentWorkspace(config, currentWorkspace, true);
+    await registerCurrentWorkspace(configPath, config, currentWorkspace);
   } catch (error) {
     console.warn(`Note: could not register the current workspace: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -4360,8 +4413,10 @@ function stopAllServices(configPath, config) {
   for (const service2 of [...SERVICE_NAMES].reverse())
     stopService(configPath, config, service2);
 }
-async function registerCurrentWorkspace(config, locator, initAuthorized) {
-  await registerLocalWorkspaceViaBroker(locator, initAuthorized, config.bus.http_base_url);
+async function registerCurrentWorkspace(configPath, config, locator) {
+  const registered = await registerFolder(locator, defaultRegistrationDependencies(configPath, config.bus.http_base_url));
+  if (registered.as === "person")
+    console.log(`Opened ${locator} as ${registered.display_name}.`);
 }
 function findAncestorWithFloe(start) {
   let current = resolve4(start);
@@ -4429,3 +4484,6 @@ function normalizeLegacyCommandArgs(argv) {
   }
   return normalized;
 }
+export {
+  runCli
+};

@@ -1,1 +1,1 @@
-export {};
+export declare function runCli(argv?: string[]): Promise<void>;

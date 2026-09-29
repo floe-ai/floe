@@ -5,7 +5,6 @@ import {
   canonicalHome,
   channelAddress,
   channelProof,
-  ensureConfig,
   ensureRunDir,
   ensureStage,
   fetchBridgeServiceToken,
@@ -18,10 +17,13 @@ import {
   pruneStages,
   readChannelRunFile,
   readRunFile,
-  resolveLocalPath,
   runFilePath,
   thisInstallation
-} from "./chunk-FUQ57RD4.js";
+} from "./chunk-AKI56RAB.js";
+import {
+  ensureConfig,
+  resolveLocalPath
+} from "./chunk-WLSAFSRN.js";
 
 // floe-cli/dist/process-manager.js
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";

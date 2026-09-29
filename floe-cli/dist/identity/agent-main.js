@@ -1,15 +1,12 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
-  DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES,
   IDENTITY_CHANNEL,
   PROTOCOL_VERSION,
   canonicalHome,
   channelAddress,
   channelProof,
   channelRunFilePath,
-  ensureConfig,
   ensureRunDir,
-  external_exports,
   fetchHostControlToken,
   fetchIdentityDeviceKey,
   forgetIdentityDeviceKey,
@@ -19,10 +16,15 @@ import {
   newNonce,
   proofMatches,
   readChannelRunFile,
-  resolveLocalPath,
   thisInstallation,
   writeChannelRunFile
-} from "../chunk-FUQ57RD4.js";
+} from "../chunk-AKI56RAB.js";
+import {
+  DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES,
+  ensureConfig,
+  external_exports,
+  resolveLocalPath
+} from "../chunk-WLSAFSRN.js";
 
 // floe-cli/dist/identity/agent.js
 import { randomUUID } from "node:crypto";
@@ -9880,7 +9882,7 @@ var BusIdentityClient = class {
     const response = await this.call("/v1/identities", {
       method: "POST",
       headers: { ...hostHeaders(hostToken), "content-type": "application/json" },
-      body: JSON.stringify(input)
+      body: JSON.stringify({ ...input, until_revoked: true })
     });
     if (!response.ok)
       throw new Error(`The bus refused to admit the new identity to ${input.workspace_id} (${response.status}).`);

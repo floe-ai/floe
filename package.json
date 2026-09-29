@@ -1,6 +1,6 @@
 {
   "name": "floe",
-  "version": "0.3.9",
+  "version": "0.4.0",
   "description": "Floe — the local substrate and its command line, as one installable package.",
   "license": "UNLICENSED",
   "private": false,
@@ -16,6 +16,10 @@
     "./engines": {
       "types": "./floe-cli/dist/engines/client.d.ts",
       "default": "./floe-cli/dist/engines/client.js"
+    },
+    "./actors": {
+      "types": "./floe-bus/dist/actor-definition-contract.d.ts",
+      "default": "./floe-bus/dist/actor-definition-contract.js"
     },
     "./package.json": "./package.json"
   },

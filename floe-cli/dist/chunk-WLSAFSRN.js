@@ -4000,10 +4000,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4017,7 +4017,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep2) {
+          if (!keyProps.anchor && !keyProps.tag && !sep) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4041,7 +4041,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+        const valueProps = resolveProps.resolveProps(sep ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4057,7 +4057,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4148,7 +4148,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep2 = "";
+        let sep = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4162,13 +4162,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep2 + cb;
-              sep2 = "";
+                comment += sep + cb;
+              sep = "";
               break;
             }
             case "newline":
               if (comment)
-                sep2 += source;
+                sep += source;
               hasSpace = true;
               break;
             default:
@@ -4211,18 +4211,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep: sep2, value } = collItem;
+        const { start, key, sep, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep2?.[0],
+          next: key ?? sep?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep2 && !value) {
+          if (!props.anchor && !props.tag && !sep && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4276,8 +4276,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep2 && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
+        if (!isMap && !sep && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4289,7 +4289,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
+          const valueProps = resolveProps.resolveProps(sep ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4300,8 +4300,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap && !props.found && ctx.options.strict) {
-              if (sep2)
-                for (const st of sep2) {
+              if (sep)
+                for (const st of sep) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4318,7 +4318,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4498,7 +4498,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep2 = "";
+      let sep = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4515,24 +4515,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          value += sep + indent.slice(trimIndent) + content;
+          sep = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep2 === " ")
-            sep2 = "\n";
-          else if (!prevMoreIndented && sep2 === "\n")
-            sep2 = "\n\n";
-          value += sep2 + indent.slice(trimIndent) + content;
-          sep2 = "\n";
+          if (sep === " ")
+            sep = "\n";
+          else if (!prevMoreIndented && sep === "\n")
+            sep = "\n\n";
+          value += sep + indent.slice(trimIndent) + content;
+          sep = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep2 === "\n")
+          if (sep === "\n")
             value += "\n";
           else
-            sep2 = "\n";
+            sep = "\n";
         } else {
-          value += sep2 + content;
-          sep2 = " ";
+          value += sep + content;
+          sep = " ";
           prevMoreIndented = false;
         }
       }
@@ -4714,25 +4714,25 @@ var require_resolve_flow_scalar = __commonJS({
       if (!match)
         return source;
       let res = match[1];
-      let sep2 = " ";
+      let sep = " ";
       let pos = first.lastIndex;
       line.lastIndex = pos;
       while (match = line.exec(source)) {
         if (match[1] === "") {
-          if (sep2 === "\n")
-            res += sep2;
+          if (sep === "\n")
+            res += sep;
           else
-            sep2 = "\n";
+            sep = "\n";
         } else {
-          res += sep2 + match[1];
-          sep2 = " ";
+          res += sep + match[1];
+          sep = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep2 + (match?.[1] ?? "");
+      return res + sep + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5542,14 +5542,14 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep: sep2, value }) {
+    function stringifyItem({ start, key, sep, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep2)
-        for (const st of sep2)
+      if (sep)
+        for (const st of sep)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -6716,18 +6716,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep2;
+          let sep;
           if (scalar.end) {
-            sep2 = scalar.end;
-            sep2.push(this.sourceToken);
+            sep = scalar.end;
+            sep.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep2 = [this.sourceToken];
+            sep = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep: sep2 }]
+            items: [{ start, key: scalar, sep }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -6880,15 +6880,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep2 = it.sep;
-                  sep2.push(this.sourceToken);
+                  const sep = it.sep;
+                  sep.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep: sep2 }]
+                    items: [{ start: start2, key, sep }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7082,13 +7082,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep2 = fc.end.splice(1, fc.end.length);
-            sep2.push(this.sourceToken);
+            const sep = fc.end.splice(1, fc.end.length);
+            sep.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep: sep2 }]
+              items: [{ start, key: fc, sep }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -11561,701 +11561,6 @@ function ensureLocalDirs(configPath, config) {
     mkdirSync(resolveLocalPath(configPath, config.home, path), { recursive: true });
 }
 
-// floe-cli/dist/local-channel/protocol.js
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync2, renameSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { join as join2, resolve as resolve2 } from "node:path";
-var PROTOCOL_VERSION = 1;
-var MAX_LINE_BYTES = 1024 * 1024;
-function canonicalHome(home) {
-  const absolute = resolve2(home);
-  return process.platform === "win32" ? absolute.toLowerCase() : absolute;
-}
-function channelAddress(spec, home) {
-  if (process.platform === "win32") {
-    const digest = createHash("sha256").update(canonicalHome(home)).digest("hex").slice(0, 24);
-    return `\\\\.\\pipe\\floe-${spec.name}-${digest}`;
-  }
-  return join2(home, "run", spec.socketFile);
-}
-function runDir(home) {
-  return join2(home, "run");
-}
-function channelRunFilePath(spec, home) {
-  return join2(runDir(home), spec.runFile);
-}
-function newChannelSecret() {
-  return randomBytes(32).toString("hex");
-}
-function ensureRunDir(home) {
-  const dir = runDir(home);
-  mkdirSync2(dir, { recursive: true });
-  try {
-    chmodSync(dir, 448);
-  } catch {
-  }
-}
-function writeChannelRunFile(spec, home, run) {
-  ensureRunDir(home);
-  const path = channelRunFilePath(spec, home);
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync2(temporary, JSON.stringify(run, null, 2) + "\n", { encoding: "utf8", mode: 384 });
-  renameSync(temporary, path);
-}
-function readChannelRunFile(spec, home) {
-  const path = channelRunFilePath(spec, home);
-  if (!existsSync2(path))
-    return null;
-  try {
-    const value = JSON.parse(readFileSync2(path, "utf8"));
-    if (typeof value.secret !== "string" || typeof value.address !== "string" || typeof value.pid !== "number")
-      return null;
-    return value;
-  } catch {
-    return null;
-  }
-}
-function newNonce() {
-  return randomBytes(16).toString("hex");
-}
-function channelProof(spec, secret, role, nonce) {
-  return createHmac("sha256", Buffer.from(secret, "hex")).update(`floe-${spec.name}:${role}:${nonce}`).digest("hex");
-}
-function proofMatches(expected, received) {
-  if (typeof received !== "string" || received.length !== expected.length)
-    return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
-}
-function lineReader(onMessage, onError) {
-  let buffer = "";
-  return (chunk) => {
-    buffer += chunk.toString();
-    if (Buffer.byteLength(buffer) > MAX_LINE_BYTES && !buffer.includes("\n")) {
-      buffer = "";
-      onError("message too large");
-      return;
-    }
-    let index;
-    while ((index = buffer.indexOf("\n")) >= 0) {
-      const line = buffer.slice(0, index).trim();
-      buffer = buffer.slice(index + 1);
-      if (!line)
-        continue;
-      let parsed;
-      try {
-        parsed = JSON.parse(line);
-      } catch {
-        onError("invalid JSON");
-        return;
-      }
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        onError("message is not an object");
-        return;
-      }
-      onMessage(parsed);
-    }
-  };
-}
-function frame(message) {
-  return JSON.stringify(message) + "\n";
-}
-
-// floe-cli/dist/identity/protocol.js
-var IDENTITY_CHANNEL = {
-  name: "identity",
-  label: "Floe's identity agent",
-  runFile: "identity-agent.json",
-  socketFile: "identity.sock"
-};
-function runFilePath(home) {
-  return channelRunFilePath(IDENTITY_CHANNEL, home);
-}
-function readRunFile(home) {
-  return readChannelRunFile(IDENTITY_CHANNEL, home);
-}
-
-// floe-cli/dist/installation.js
-import { existsSync as existsSync4, readFileSync as readFileSync4, realpathSync as realpathSync2 } from "node:fs";
-import { basename as basename2, dirname as dirname3, join as join4 } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// floe-cli/dist/staging.js
-import { existsSync as existsSync3, mkdirSync as mkdirSync3, readdirSync, readFileSync as readFileSync3, realpathSync, renameSync as renameSync2, rmSync, statSync, writeFileSync as writeFileSync3 } from "node:fs";
-import { copyFile, link } from "node:fs/promises";
-import { createHash as createHash2, randomBytes as randomBytes2 } from "node:crypto";
-import { setTimeout as sleep } from "node:timers/promises";
-import { basename, dirname as dirname2, join as join3, relative, sep } from "node:path";
-var STAGE_MANIFEST = "stage.json";
-function isNpmInstalled(packageDir) {
-  return realpathSync(packageDir).split(sep).includes("node_modules");
-}
-function runtimeDir(home) {
-  return join3(home, "runtime");
-}
-function readJson(path) {
-  try {
-    return JSON.parse(readFileSync3(path, "utf8"));
-  } catch {
-    return null;
-  }
-}
-function resolvePackage(name, fromDir) {
-  let dir = fromDir;
-  for (; ; ) {
-    if (basename(dir) !== "node_modules") {
-      const candidate = join3(dir, "node_modules", ...name.split("/"));
-      if (existsSync3(join3(candidate, "package.json")))
-        return realpathSync(candidate);
-    }
-    const parent = dirname2(dir);
-    if (parent === dir)
-      return null;
-    dir = parent;
-  }
-}
-function dependencyClosure(packageDir) {
-  const root = realpathSync(packageDir);
-  const seen = /* @__PURE__ */ new Set([root]);
-  const queue = [root];
-  while (queue.length > 0) {
-    const dir = queue.shift();
-    const pkg = readJson(join3(dir, "package.json")) ?? {};
-    const names = /* @__PURE__ */ new Set([
-      ...Object.keys(pkg.dependencies ?? {}),
-      ...Object.keys(pkg.optionalDependencies ?? {}),
-      ...Object.keys(pkg.peerDependencies ?? {})
-    ]);
-    for (const name of names) {
-      const found = resolvePackage(name, dir);
-      if (found && !seen.has(found)) {
-        seen.add(found);
-        queue.push(found);
-      }
-    }
-  }
-  return [...seen].sort();
-}
-function commonAncestor(dirs) {
-  let common = dirs[0].split(sep);
-  for (const dir of dirs.slice(1)) {
-    const parts = dir.split(sep);
-    let i = 0;
-    while (i < common.length && i < parts.length && common[i].toLowerCase() === parts[i].toLowerCase())
-      i++;
-    common = common.slice(0, i);
-  }
-  let ancestor = common.join(sep) || sep;
-  const at = ancestor.split(sep).indexOf("node_modules");
-  if (at >= 0)
-    ancestor = ancestor.split(sep).slice(0, at).join(sep);
-  return ancestor;
-}
-function* packageFiles(dir, top = dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join3(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (dir === top && entry.name === "node_modules")
-        continue;
-      yield* packageFiles(path, top);
-    } else if (entry.isFile()) {
-      yield { path, entry };
-    }
-  }
-}
-function fingerprint(closure, root, packageDir) {
-  const hash = createHash2("sha256");
-  for (const dir of closure) {
-    hash.update(`${relative(root, dir)}@${readJson(join3(dir, "package.json"))?.version ?? ""}
-`);
-  }
-  for (const { path } of packageFiles(packageDir)) {
-    const stat = statSync(path);
-    hash.update(`${relative(packageDir, path)}:${stat.size}:${stat.mtimeMs}
-`);
-  }
-  return hash.digest("hex").slice(0, 12);
-}
-async function placeFile(from, to) {
-  try {
-    await link(from, to);
-  } catch (error) {
-    if (error?.code === "EEXIST")
-      return;
-    await copyFile(from, to);
-  }
-}
-async function buildTree(closure, root, tree) {
-  const files = [];
-  for (const dir of closure) {
-    for (const { path } of packageFiles(dir))
-      files.push([path, join3(tree, relative(root, path))]);
-  }
-  for (const target of new Set(files.map(([, to]) => dirname2(to))))
-    mkdirSync3(target, { recursive: true });
-  let next = 0;
-  const worker = async () => {
-    while (next < files.length) {
-      const [from, to] = files[next++];
-      await placeFile(from, to);
-    }
-  };
-  await Promise.all(Array.from({ length: 16 }, worker));
-}
-function makeStage(dir, manifest) {
-  const tree = join3(dir, "tree");
-  return {
-    dir,
-    manifest,
-    map(path) {
-      const real = realpathSync(path);
-      const rel = relative(manifest.root, real);
-      if (rel.startsWith(".."))
-        throw new Error(`Floe cannot stage ${real}: it is outside ${manifest.root}.`);
-      return join3(tree, rel);
-    }
-  };
-}
-async function ensureStage(home, source) {
-  const packageDir = realpathSync(source.packageDir);
-  const closure = dependencyClosure(packageDir);
-  const root = commonAncestor(closure);
-  const id = `${source.version ?? "unversioned"}-${fingerprint(closure, root, packageDir)}`;
-  const runtime = runtimeDir(home);
-  const dir = join3(runtime, id);
-  const existing = readJson(join3(dir, STAGE_MANIFEST));
-  if (existing?.kind === "floe-stage")
-    return makeStage(dir, existing);
-  const manifest = {
-    kind: "floe-stage",
-    version: source.version,
-    source: packageDir,
-    dependency_of: source.dependencyOf,
-    root,
-    created_at: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  const partial = join3(runtime, `.partial-${id}-${randomBytes2(4).toString("hex")}-${process.pid}`);
-  mkdirSync3(partial, { recursive: true });
-  await buildTree(closure, root, join3(partial, "tree"));
-  writeFileSync3(join3(partial, STAGE_MANIFEST), `${JSON.stringify(manifest, null, 2)}
-`, "utf8");
-  const placed = await placeStage(partial, dir);
-  return makeStage(dir, placed ?? manifest);
-}
-var RENAME_PATIENCE_MS = 3e4;
-async function placeStage(partial, dir) {
-  const deadline = Date.now() + RENAME_PATIENCE_MS;
-  for (let wait = 25; ; wait = Math.min(wait * 2, 1e3)) {
-    try {
-      renameSync2(partial, dir);
-      return null;
-    } catch (error) {
-      const placed = readJson(join3(dir, STAGE_MANIFEST));
-      if (placed?.kind === "floe-stage") {
-        discard(partial);
-        return placed;
-      }
-      if (!["EPERM", "EACCES", "EBUSY", "ENOTEMPTY", "EEXIST"].includes(error?.code) || Date.now() >= deadline) {
-        discard(partial);
-        throw new Error(`Floe could not finish preparing its runtime copy in ${dir}: another program kept its files in use (${error?.code ?? "unknown"}). Close anything scanning or using that folder, then start Floe again.`, { cause: error });
-      }
-      await sleep(wait);
-    }
-  }
-}
-function discard(partial) {
-  try {
-    rmSync(partial, { recursive: true, force: true, maxRetries: 3 });
-  } catch {
-  }
-}
-function stageOf(path) {
-  let dir = path;
-  for (; ; ) {
-    const parent = dirname2(dir);
-    if (parent === dir)
-      return null;
-    if (basename(dir) === "tree") {
-      const manifest = readJson(join3(parent, STAGE_MANIFEST));
-      if (manifest?.kind === "floe-stage")
-        return manifest;
-    }
-    dir = parent;
-  }
-}
-function pruneStages(home, keep, inUse) {
-  const runtime = runtimeDir(home);
-  if (!existsSync3(runtime))
-    return [];
-  const removed = [];
-  const live = inUse.map((p) => p.toLowerCase());
-  for (const name of readdirSync(runtime)) {
-    const dir = join3(runtime, name);
-    if (dir.toLowerCase() === keep.toLowerCase())
-      continue;
-    const partialPid = /^\.partial-.*-(\d+)$/.exec(name)?.[1];
-    if (partialPid && isAlive(Number(partialPid)))
-      continue;
-    const prefix = `${dir}${sep}`.toLowerCase();
-    if (live.some((p) => p.startsWith(prefix)))
-      continue;
-    try {
-      rmSync(dir, { recursive: true, force: true });
-      removed.push(dir);
-    } catch {
-    }
-  }
-  return removed;
-}
-function isAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// floe-cli/dist/installation.js
-function nearestPackageDir(start) {
-  let dir = start;
-  for (; ; ) {
-    if (existsSync4(join4(dir, "package.json")))
-      return dir;
-    const parent = dirname3(dir);
-    if (parent === dir)
-      return null;
-    dir = parent;
-  }
-}
-function readPackage(dir) {
-  try {
-    return JSON.parse(readFileSync4(join4(dir, "package.json"), "utf8"));
-  } catch {
-    return {};
-  }
-}
-function classifyPackageDir(packageDir) {
-  const pkg = readPackage(packageDir);
-  const version = typeof pkg.version === "string" ? pkg.version : null;
-  let holder = dirname3(packageDir);
-  if (basename2(holder).startsWith("@"))
-    holder = dirname3(holder);
-  if (basename2(holder) !== "node_modules")
-    return { packageDir, version, dependencyOf: null };
-  const owner = dirname3(holder);
-  if (!existsSync4(join4(owner, "package.json")))
-    return { packageDir, version, dependencyOf: null };
-  const ownerName = readPackage(owner).name;
-  return { packageDir, version, dependencyOf: typeof ownerName === "string" ? ownerName : owner };
-}
-var cached;
-function thisInstallation() {
-  if (cached)
-    return cached;
-  const moduleDir = realpathSync2(dirname3(fileURLToPath(import.meta.url)));
-  const packageDir = nearestPackageDir(moduleDir) ?? moduleDir;
-  const stage = stageOf(packageDir);
-  cached = stage ? { packageDir: stage.source, version: stage.version, dependencyOf: stage.dependency_of } : classifyPackageDir(packageDir);
-  return cached;
-}
-function directInstallRequiredMessage(installation) {
-  return `This copy of Floe was installed as part of ${installation.dependencyOf}, so it cannot set up
-start-at-login: uninstalling ${installation.dependencyOf} would remove it and silently break
-start-at-login. Install Floe directly for that, then run \`floe service install\`:
-  npm install -g github:floe-ai/floe`;
-}
-
-// floe-cli/dist/operation-client.js
-import { isAbsolute as isAbsolute2, relative as relative2, resolve as resolve3, dirname as dirname4 } from "node:path";
-import { randomBytes as randomBytes3 } from "node:crypto";
-import { spawn } from "node:child_process";
-import { existsSync as existsSync5 } from "node:fs";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
-var CliAuthorityBrokerUnavailableError = class extends Error {
-  constructor() {
-    super("Floe CLI cannot open a trusted local operation session: the native authority broker binary was not found. Build it with `npm run build --workspace floe-cli` (requires Rust/cargo), which compiles floe-native-authority and installs the broker into floe-cli/native/.");
-    this.name = "CliAuthorityBrokerUnavailableError";
-  }
-};
-var NativeCliOperationAuthorityBroker = class {
-  run;
-  constructor(run) {
-    this.run = run;
-  }
-  listLocalWorkspaces() {
-    return this.run({ command: "list_local_workspaces" });
-  }
-  discoverOperations(input) {
-    return this.run({
-      command: "discover_operations",
-      boundary: input.boundary,
-      ...input.query ? { query: input.query } : {},
-      ...input.category ? { category: input.category } : {},
-      ...input.target ? { target: input.target } : {}
-    });
-  }
-  invokeOperation(input) {
-    return this.run({ command: "invoke_operation", ...input });
-  }
-  confirmAndInvokeHostOperation(input) {
-    return this.run({ command: "confirm_and_invoke_host_operation", ...input });
-  }
-  confirmAndInvokeWorkspaceOperation(input) {
-    return this.run({ command: "confirm_and_invoke_workspace_operation", ...input });
-  }
-};
-function nativeOperationBroker(busHttpBase) {
-  return new NativeCliOperationAuthorityBroker((command) => runNativeAuthorityCommand(command, busHttpBase));
-}
-var CliOperationClient = class {
-  broker;
-  interactionSessionId;
-  constructor(broker, interactionSessionId) {
-    this.broker = broker;
-    this.interactionSessionId = interactionSessionId ?? `cli_${randomBytes3(18).toString("base64url")}`;
-  }
-  async listLocalWorkspaces() {
-    const response = await this.broker.listLocalWorkspaces();
-    if (!isRecord(response) || !Array.isArray(response.workspaces)) {
-      throw new Error("Floe returned an invalid local Workspace list.");
-    }
-    return response.workspaces.map(parseLocalWorkspace);
-  }
-  async discover(input) {
-    const response = await this.broker.discoverOperations(input);
-    if (!isRecord(response) || !Array.isArray(response.operations)) {
-      throw new Error("Floe returned an invalid semantic operation catalogue.");
-    }
-    return response.operations.map(parseOperationDescriptor);
-  }
-  async describe(boundary, operationId, target) {
-    const descriptors = await this.discover({ boundary, query: operationId, target });
-    const descriptor = descriptors.find((candidate) => candidate.operation_id === operationId);
-    if (!descriptor)
-      throw new Error(`Semantic operation '${operationId}' is not available in this authority boundary.`);
-    return descriptor;
-  }
-  async invokeSelected(input) {
-    const descriptor = await this.describe(input.boundary, input.operation_id, input.target);
-    const invocation = {
-      operation_id: descriptor.operation_id,
-      operation_version: descriptor.operation_version,
-      input_schema_version: descriptor.input.version,
-      target: input.target ?? null,
-      idempotency_key: resolveIdempotencyKey(descriptor, input.idempotency_key),
-      input: input.input,
-      ...input.expected_resource_revision !== void 0 ? { expected_resource_revision: input.expected_resource_revision } : {}
-    };
-    const confirmation = descriptor.interaction_constraints.confirmation;
-    if (confirmation?.required) {
-      if (!input.confirm || !await input.confirm(confirmation)) {
-        return {
-          kind: "cancelled",
-          operation_id: descriptor.operation_id,
-          prompt_id: confirmation.prompt_id
-        };
-      }
-      return input.boundary.kind === "workspace" ? this.broker.confirmAndInvokeWorkspaceOperation({
-        workspace_id: input.boundary.workspace_id,
-        interaction_session_id: this.interactionSessionId,
-        invocation
-      }) : this.broker.confirmAndInvokeHostOperation({
-        interaction_session_id: this.interactionSessionId,
-        invocation
-      });
-    }
-    return this.broker.invokeOperation({
-      boundary: input.boundary,
-      invocation
-    });
-  }
-};
-async function runNativeAuthorityCommand(command, busHttpBase) {
-  const helper = resolveNativeAuthorityBrokerPath();
-  if (!helper)
-    throw new CliAuthorityBrokerUnavailableError();
-  const payload = JSON.stringify(command);
-  const { FLOE_BUS_HTTP_BASE: _inherited, ...inherited } = process.env;
-  return new Promise((resolveResult, reject) => {
-    const child = spawn(helper, [], {
-      shell: false,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "ignore"],
-      env: busHttpBase ? { ...inherited, FLOE_BUS_HTTP_BASE: busHttpBase } : inherited
-    });
-    const chunks = [];
-    let bytes = 0;
-    let settled = false;
-    const timeout = setTimeout(() => {
-      child.kill();
-      if (!settled) {
-        settled = true;
-        reject(new Error("Floe's native authority broker did not respond."));
-      }
-    }, 2e4);
-    child.stdout.on("data", (chunk) => {
-      bytes += chunk.byteLength;
-      if (bytes > 2 * 1024 * 1024) {
-        child.kill();
-        return;
-      }
-      chunks.push(Buffer.from(chunk));
-    });
-    child.once("error", () => {
-      clearTimeout(timeout);
-      if (!settled) {
-        settled = true;
-        reject(new CliAuthorityBrokerUnavailableError());
-      }
-    });
-    child.once("close", () => {
-      clearTimeout(timeout);
-      if (settled)
-        return;
-      settled = true;
-      if (bytes > 2 * 1024 * 1024) {
-        reject(new Error("Floe's native authority response was invalid."));
-        return;
-      }
-      try {
-        const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-        if (!isRecord(parsed) || typeof parsed.ok !== "boolean")
-          throw new Error();
-        if (!parsed.ok) {
-          const message = isRecord(parsed.error) && typeof parsed.error.message === "string" ? parsed.error.message : "Floe's native authority broker refused the request.";
-          reject(new Error(message));
-          return;
-        }
-        resolveResult(parsed.result);
-      } catch {
-        reject(new Error("Floe's native authority response was invalid."));
-      }
-    });
-    child.stdin.end(payload, "utf8");
-  });
-}
-async function fetchHostControlToken(busHttpBase) {
-  const result = await runNativeAuthorityCommand({ command: "provide_host_control_token" }, busHttpBase);
-  if (!isRecord(result) || typeof result.token !== "string" || !result.token) {
-    throw new Error("Floe's native authority broker did not provide a host-control credential.");
-  }
-  return result.token;
-}
-async function fetchIdentityDeviceKey(home, create) {
-  const result = await runNativeAuthorityCommand({ command: "identity_device_key", home, create }, null);
-  if (!isRecord(result) || !("key" in result))
-    throw new Error("Floe's native authority broker returned no device key answer.");
-  if (result.key === null)
-    return null;
-  if (typeof result.key !== "string")
-    throw new Error("Floe's native authority broker returned an invalid device key.");
-  const key = new Uint8Array(Buffer.from(result.key, "base64url"));
-  if (key.length !== 32)
-    throw new Error("Floe's native authority broker returned an invalid device key.");
-  return key;
-}
-async function forgetIdentityDeviceKey(home) {
-  const result = await runNativeAuthorityCommand({ command: "forget_identity_device_key", home }, null);
-  return isRecord(result) && result.removed === true;
-}
-async function fetchBridgeServiceToken(bridgeId, busHttpBase) {
-  const result = await runNativeAuthorityCommand({
-    command: "provide_bridge_service_token",
-    bridge_id: bridgeId
-  }, busHttpBase);
-  if (!isRecord(result) || typeof result.token !== "string" || !result.token) {
-    throw new Error("Floe's native authority broker did not provide a Bridge service credential.");
-  }
-  return result.token;
-}
-async function registerLocalWorkspaceViaBroker(locator, initAuthorized, busHttpBase) {
-  const result = await runNativeAuthorityCommand({
-    command: "register_workspace",
-    locator,
-    init_authorized: initAuthorized
-  }, busHttpBase);
-  if (!isRecord(result) || !isRecord(result.workspace) || typeof result.workspace.workspace_id !== "string" || typeof result.workspace.name !== "string") {
-    throw new Error("Floe returned an invalid Workspace registration.");
-  }
-  return { workspace_id: result.workspace.workspace_id, name: result.workspace.name };
-}
-function resolveNativeAuthorityBrokerPath() {
-  const executable = process.platform === "win32" ? "floe-authority-broker.exe" : "floe-authority-broker";
-  const moduleDirectory = dirname4(fileURLToPath2(import.meta.url));
-  const candidates = [
-    resolve3(moduleDirectory, "..", "native", executable),
-    resolve3(dirname4(process.execPath), executable)
-  ];
-  return candidates.find((candidate) => existsSync5(candidate)) ?? null;
-}
-function selectLocalWorkspace(workspaces, explicitWorkspaceId, cwd = process.cwd()) {
-  if (explicitWorkspaceId) {
-    const exact = workspaces.find((workspace) => workspace.workspace_id === explicitWorkspaceId);
-    if (!exact)
-      throw new Error(`Workspace '${explicitWorkspaceId}' is not attached to this Floe host.`);
-    return exact;
-  }
-  const resolvedCwd = resolve3(cwd);
-  const matches = workspaces.filter((workspace) => {
-    if (!workspace.binding || workspace.binding.state === "superseded")
-      return false;
-    const resolvedLocator = resolve3(workspace.binding.locator);
-    const rel = relative2(resolvedLocator, resolvedCwd);
-    return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
-  }).sort((left, right) => resolve3(right.binding.locator).length - resolve3(left.binding.locator).length);
-  if (matches.length > 0)
-    return matches[0];
-  throw new Error("No attached Workspace contains the current directory. Use --workspace <workspace-id>.");
-}
-function parseLocalWorkspace(value) {
-  if (!isRecord(value) || typeof value.workspace_id !== "string" || typeof value.name !== "string") {
-    throw new Error("Floe returned an invalid local Workspace list.");
-  }
-  let binding = null;
-  if (value.binding_id !== null) {
-    if (typeof value.binding_id !== "string" || !value.binding_id || typeof value.locator !== "string" || !value.locator) {
-      throw new Error("Floe returned an invalid local Workspace binding.");
-    }
-    binding = { locator: value.locator };
-  } else if (value.locator !== null) {
-    throw new Error("Floe returned a locator without a current local Workspace binding.");
-  }
-  return { workspace_id: value.workspace_id, name: value.name, binding };
-}
-function parseOperationDescriptor(value) {
-  if (!isRecord(value) || typeof value.operation_id !== "string" || typeof value.operation_version !== "string" || typeof value.category !== "string" || typeof value.title !== "string" || typeof value.description !== "string" || !isRecord(value.effects) || !isRecord(value.target) || !isVersionedSchema(value.input) || !isVersionedSchema(value.result) || !isRecord(value.interaction_constraints) || !isRecord(value.availability) || typeof value.availability.available !== "boolean") {
-    throw new Error("Floe returned an invalid semantic operation descriptor.");
-  }
-  const confirmation = value.interaction_constraints.confirmation;
-  if (confirmation !== void 0 && !isOperationConfirmation(confirmation)) {
-    throw new Error("Floe returned an invalid semantic operation confirmation.");
-  }
-  return value;
-}
-function isVersionedSchema(value) {
-  return isRecord(value) && typeof value.version === "string" && isRecord(value.schema);
-}
-function isOperationConfirmation(value) {
-  return isRecord(value) && typeof value.required === "boolean" && typeof value.prompt_id === "string" && typeof value.title === "string" && typeof value.description === "string";
-}
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function requireText(value, label) {
-  if (!value.trim() || /[\u0000-\u001f\u007f]/.test(value))
-    throw new Error(`The ${label} is invalid.`);
-  return value;
-}
-function resolveIdempotencyKey(descriptor, provided) {
-  if (provided !== void 0 && provided.trim()) {
-    return requireText(provided, "idempotency key");
-  }
-  if (descriptor.effects.mode === "write") {
-    throw new Error(`Operation '${descriptor.operation_id}' writes, so it needs --idempotency-key <stable key> \u2014 a stable key lets a retry replay safely instead of applying twice.`);
-  }
-  return `read:${randomBytes3(12).toString("base64url")}`;
-}
-
 export {
   __require,
   __commonJS,
@@ -12263,36 +11568,8 @@ export {
   require_dist,
   external_exports,
   DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES,
+  resolveConfigPath,
   resolveLocalPath,
   ensureConfig,
-  ensureLocalDirs,
-  PROTOCOL_VERSION,
-  canonicalHome,
-  channelAddress,
-  channelRunFilePath,
-  newChannelSecret,
-  ensureRunDir,
-  writeChannelRunFile,
-  readChannelRunFile,
-  newNonce,
-  channelProof,
-  proofMatches,
-  lineReader,
-  frame,
-  IDENTITY_CHANNEL,
-  runFilePath,
-  readRunFile,
-  isNpmInstalled,
-  ensureStage,
-  pruneStages,
-  thisInstallation,
-  directInstallRequiredMessage,
-  nativeOperationBroker,
-  CliOperationClient,
-  fetchHostControlToken,
-  fetchIdentityDeviceKey,
-  forgetIdentityDeviceKey,
-  fetchBridgeServiceToken,
-  registerLocalWorkspaceViaBroker,
-  selectLocalWorkspace
+  ensureLocalDirs
 };

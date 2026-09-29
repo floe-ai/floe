@@ -63,8 +63,8 @@ declare const IdentityFileSchema: z.ZodObject<{
     protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
-    created_at: string;
     secret_kind: "phrase" | "nsec";
+    created_at: string;
     seal: {
         name: "scrypt";
         r: number;
@@ -86,8 +86,8 @@ declare const IdentityFileSchema: z.ZodObject<{
     protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
-    created_at: string;
     secret_kind: "phrase" | "nsec";
+    created_at: string;
     seal: {
         name: "scrypt";
         r: number;
