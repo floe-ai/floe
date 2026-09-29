@@ -7438,6 +7438,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
 import { defineTool } from "@github/copilot-sdk";
 var COMPLETE_FINISH_REASONS = /* @__PURE__ */ new Set(["stop", "end_turn", "completed", "success"]);
 var DEFAULT_QUIESCE_TIMEOUT_MS = 1e4;
+var PROCESS_EXECUTION_TOOLS = /* @__PURE__ */ new Set(["bash", "powershell"]);
 var TOKEN_USAGE_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
 function sdkError(code, message, status = 502, cause) {
   const error = new RuntimeFault(code, message, status);
@@ -7822,25 +7823,6 @@ var CopilotRuntime = class extends Runtime {
     } else if (event.type === "session.idle") {
       task.idle = true;
       task.aborted = data.aborted === true;
-      if (task.aborted) {
-        const endedAt = Date.now();
-        for (const [toolCallId, activity] of task.activities) {
-          this.publish(sessionId, "activity", {
-            runtime: "copilot",
-            sessionId,
-            turnId: task.turnId,
-            id: toolCallId,
-            kind: "tool",
-            status: "failed",
-            title: activity.title,
-            command: activity.command,
-            startedAt: activity.startedAt,
-            endedAt,
-            raw: event
-          });
-        }
-        task.activities.clear();
-      }
       this.#finishTask(sessionId, task);
     } else if (event.type === "model.call_failure") {
       task.modelCallFailure = data;
@@ -7920,6 +7902,7 @@ var CopilotRuntime = class extends Runtime {
       settled,
       idle: false,
       abortRequested: false,
+      unverifiedProcessTools: /* @__PURE__ */ new Set(),
       finished: false,
       timer: null,
       lastActivity: Date.now()
@@ -7998,6 +7981,9 @@ var CopilotRuntime = class extends Runtime {
     const task = this.turns.get(sessionId);
     if (!task) return;
     task.abortRequested = true;
+    for (const [toolCallId, activity] of task.activities) {
+      if (PROCESS_EXECUTION_TOOLS.has(activity.title)) task.unverifiedProcessTools.add(toolCallId);
+    }
     await this.sessionObjects.get(sessionId)?.abort();
   }
   async quiesce(sessionId) {
@@ -8009,6 +7995,12 @@ var CopilotRuntime = class extends Runtime {
     await this.interrupt(sessionId);
     try {
       await Promise.race([task.settled, new Promise((_, reject) => setTimeout(() => reject(sdkError("quiescence_unknown", "Copilot did not emit session.idle after abort.", 409)), this.quiesceTimeoutMs))]);
+      check(
+        task.unverifiedProcessTools.size === 0,
+        "quiescence_unknown",
+        "Copilot stopped the turn but did not prove that the cancelled shell process tree exited. Retire the session before reporting paused.",
+        409
+      );
     } finally {
       if (!this.turns.has(sessionId)) this.sessions.markStopped(sessionId);
     }

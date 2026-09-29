@@ -42313,9 +42313,9 @@ var require_lru_cache = __commonJS({
       LRUCache.prototype[Symbol.iterator] = LRUCache.prototype.entries;
     LRUCache.prototype.inspect = function() {
       var proxy = /* @__PURE__ */ new Map();
-      var iterator = this.entries(), step;
-      while (step = iterator.next(), !step.done)
-        proxy.set(step.value[0], step.value[1]);
+      var iterator = this.entries(), step2;
+      while (step2 = iterator.next(), !step2.done)
+        proxy.set(step2.value[0], step2.value[1]);
       Object.defineProperty(proxy, "constructor", {
         value: LRUCache,
         enumerable: false
@@ -57651,10 +57651,10 @@ var require_CronFieldCollection = __commonJS({
             return;
           }
           if (current.step === void 0 && nextItem !== void 0) {
-            const step = item - prevItem;
+            const step2 = item - prevItem;
             const nextStep = nextItem - item;
-            if (step <= nextStep) {
-              current = { ...current, count: 2, end: item, step };
+            if (step2 <= nextStep) {
+              current = { ...current, count: 2, end: item, step: step2 };
               return;
             }
             current.step = 1;
@@ -57692,15 +57692,15 @@ var require_CronFieldCollection = __commonJS({
        * @private
        */
       static #handleSingleRange(field, range, max) {
-        const step = range.step;
-        if (!step) {
+        const step2 = range.step;
+        if (!step2) {
           return null;
         }
-        if (step === 1 && range.start === field.min && range.end && range.end >= max) {
+        if (step2 === 1 && range.start === field.min && range.end && range.end >= max) {
           return field.hasQuestionMarkChar ? "?" : "*";
         }
-        if (step !== 1 && range.start === field.min && range.end && range.end >= max - step + 1) {
-          return `*/${step}`;
+        if (step2 !== 1 && range.start === field.min && range.end && range.end >= max - step2 + 1) {
+          return `*/${step2}`;
         }
         return null;
       }
@@ -57712,23 +57712,23 @@ var require_CronFieldCollection = __commonJS({
        * @private
        */
       static #handleMultipleRanges(range, max) {
-        const step = range.step;
-        if (step === 1) {
+        const step2 = range.step;
+        if (step2 === 1) {
           return `${range.start}-${range.end}`;
         }
         const multiplier = range.start === 0 ? range.count - 1 : range.count;
-        if (!step) {
+        if (!step2) {
           throw new Error("Unexpected range step");
         }
         if (!range.end) {
           throw new Error("Unexpected range end");
         }
-        if (step * multiplier > range.end) {
+        if (step2 * multiplier > range.end) {
           const mapFn = (_, index) => {
             if (typeof range.start !== "number") {
               throw new Error("Unexpected range start");
             }
-            return index % step === 0 ? range.start + index : null;
+            return index % step2 === 0 ? range.start + index : null;
           };
           if (typeof range.start !== "number") {
             throw new Error("Unexpected range start");
@@ -57736,7 +57736,7 @@ var require_CronFieldCollection = __commonJS({
           const seed = { length: range.end - range.start + 1 };
           return Array.from(seed, mapFn).filter((value) => value !== null).join(",");
         }
-        return range.end === max - step + 1 ? `${range.start}/${step}` : `${range.start}-${range.end}/${step}`;
+        return range.end === max - step2 + 1 ? `${range.start}/${step2}` : `${range.start}-${range.end}/${step2}`;
       }
       /**
        * Returns a string representation of the cron fields.
@@ -58481,11 +58481,11 @@ var require_CronExpressionParser = __commonJS({
        */
       static #parseHashed(value, constraints, rand) {
         const randomValue = rand();
-        return value.replace(/H(?:\((\d+)-(\d+)\))?(?:\/(\d+))?/g, (_, min, max, step) => {
-          if (min && max && step) {
+        return value.replace(/H(?:\((\d+)-(\d+)\))?(?:\/(\d+))?/g, (_, min, max, step2) => {
+          if (min && max && step2) {
             const minNum = parseInt(min, 10);
             const maxNum = parseInt(max, 10);
-            const stepNum = parseInt(step, 10);
+            const stepNum = parseInt(step2, 10);
             if (minNum > maxNum) {
               throw new Error(`Invalid range: ${minNum}-${maxNum}, min > max`);
             }
@@ -58508,8 +58508,8 @@ var require_CronExpressionParser = __commonJS({
               throw new Error(`Invalid range: ${minNum}-${maxNum}, min > max`);
             }
             return String(Math.floor(randomValue * (maxNum - minNum + 1)) + minNum);
-          } else if (step) {
-            const stepNum = parseInt(step, 10);
+          } else if (step2) {
+            const stepNum = parseInt(step2, 10);
             if (stepNum <= 0) {
               throw new Error(`Invalid step: ${stepNum}, must be positive`);
             }
@@ -60419,12 +60419,12 @@ ZodString.create = (params) => {
     ...processCreateParams(params)
   });
 };
-function floatSafeRemainder(val, step) {
+function floatSafeRemainder(val, step2) {
   const valDecCount = (val.toString().split(".")[1] || "").length;
-  const stepDecCount = (step.toString().split(".")[1] || "").length;
+  const stepDecCount = (step2.toString().split(".")[1] || "").length;
   const decCount = valDecCount > stepDecCount ? valDecCount : stepDecCount;
   const valInt = Number.parseInt(val.toFixed(decCount).replace(".", ""));
-  const stepInt = Number.parseInt(step.toFixed(decCount).replace(".", ""));
+  const stepInt = Number.parseInt(step2.toFixed(decCount).replace(".", ""));
   return valInt % stepInt / 10 ** decCount;
 }
 var ZodNumber = class _ZodNumber extends ZodType {
@@ -68990,6 +68990,23 @@ var actorInspectionSchema = {
     head_changes: { type: "array", items: actorHeadChangeSchema }
   }
 };
+var newActorToolAccessSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["limited_by_creator", "granted_operation_ids", "grant_ids", "not_granted"],
+  description: "Engine tool access the new Actor received from you, and anything you could not pass on.",
+  properties: {
+    limited_by_creator: { type: "boolean" },
+    granted_operation_ids: { type: "array", items: nonEmptyString },
+    grant_ids: { type: "array", items: nonEmptyString },
+    not_granted: { type: "array", items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["operation_id", "reason"],
+      properties: { operation_id: nonEmptyString, reason: nonEmptyString }
+    } }
+  }
+};
 var createdActorSchema = {
   type: "object",
   additionalProperties: false,
@@ -68997,23 +69014,7 @@ var createdActorSchema = {
   properties: {
     actor: actorSchema,
     draft: actorDefinitionRevisionSchema,
-    tool_access: {
-      type: "object",
-      additionalProperties: false,
-      required: ["limited_by_creator", "granted_operation_ids", "grant_ids", "not_granted"],
-      description: "Engine tool access the new Actor received from you, and anything you could not pass on.",
-      properties: {
-        limited_by_creator: { type: "boolean" },
-        granted_operation_ids: { type: "array", items: nonEmptyString },
-        grant_ids: { type: "array", items: nonEmptyString },
-        not_granted: { type: "array", items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["operation_id", "reason"],
-          properties: { operation_id: nonEmptyString, reason: nonEmptyString }
-        } }
-      }
-    }
+    tool_access: newActorToolAccessSchema
   }
 };
 var actorAndRevisionSchema = {
@@ -69258,7 +69259,7 @@ function createActorOperation(store, grants) {
     authority_boundary_kinds: ["workspace"],
     category: "actors",
     title: "Create Actor",
-    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits. It cannot receive work until you publish its definition (actor.definition.publish) and bind it to a runtime (actor.runtime-binding.create).",
+    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits. It cannot receive work until you publish its definition (actor.definition.publish) and bind it to a runtime (actor.runtime-binding.create). To do all of that in one all-or-nothing step, use actor.setup instead.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [CREATE_ACTOR_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
@@ -69268,52 +69269,66 @@ function createActorOperation(store, grants) {
     handler: (context, input) => handle2(() => {
       store.db.exec("SAVEPOINT create_actor");
       try {
-        const workspaceId4 = authorityWorkspaceId(context);
-        const actorId = workspaceActorId(workspaceId4, input.actor_id ? workspaceActorName(workspaceId4, input.actor_id) : `actor_${randomUUID8()}`);
-        if (store.getActor(actorId)) {
+        const created = createActorWithToolAccess(store, grants, context, input);
+        if ("refusal" in created) {
+          store.db.exec("ROLLBACK TO create_actor");
           store.db.exec("RELEASE create_actor");
-          return {
-            state: "refused",
-            refusal: refusal("actor_name_taken", `An Actor named ${JSON.stringify(workspaceActorName(workspaceId4, actorId))} already exists in this Workspace (${actorId}).`, false, requiredAction("choose_actor_name", "Choose another name", "Create the Actor with a name no other Actor in this Workspace uses, or revise the existing Actor instead."))
-          };
+          return { state: "refused", refusal: created.refusal };
         }
-        const created = store.createActor({
-          workspace_id: workspaceId4,
-          created_in_context_id: actorCreationContextId(store, context),
-          created_in_scope_execution_id: context.provenance.scope_execution_id,
-          created_by_principal_id: context.authority.principal_id,
-          definition: input.definition,
-          actor_id: actorId
-        });
-        const { draft, tool_access } = passOnEngineToolAccess({
-          grants,
-          actors: store,
-          authority: context.authority,
-          draft: created.draft,
-          chosen_operation_ids: input.engine_tool_operation_ids,
-          invocation_id: context.invocation_id
-        });
         store.db.exec("RELEASE create_actor");
         return {
           state: "completed",
-          result: { actor: created.actor, draft, tool_access },
-          changed_refs: [
-            actorRef(created.actor),
-            definitionRef(draft),
-            ...tool_access.grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null }))
-          ],
+          result: created,
+          changed_refs: createdActorRefs(created),
           audit_ref: auditRef2(context)
         };
       } catch (error) {
         store.db.exec("ROLLBACK TO create_actor");
         store.db.exec("RELEASE create_actor");
-        if (error instanceof ToolAccessWideningError) {
-          return { state: "refused", refusal: refusal("actor_tool_access_widened", error.message, false, null) };
-        }
         throw error;
       }
     })
   };
+}
+function createActorWithToolAccess(store, grants, context, input) {
+  const workspaceId4 = authorityWorkspaceId(context);
+  const actorId = workspaceActorId(workspaceId4, input.actor_id ? workspaceActorName(workspaceId4, input.actor_id) : `actor_${randomUUID8()}`);
+  if (store.getActor(actorId)) {
+    return {
+      refusal: refusal("actor_name_taken", `An Actor named ${JSON.stringify(workspaceActorName(workspaceId4, actorId))} already exists in this Workspace (${actorId}).`, false, requiredAction("choose_actor_name", "Choose another name", "Create the Actor with a name no other Actor in this Workspace uses, or revise the existing Actor instead."))
+    };
+  }
+  const created = store.createActor({
+    workspace_id: workspaceId4,
+    created_in_context_id: actorCreationContextId(store, context),
+    created_in_scope_execution_id: context.provenance.scope_execution_id,
+    created_by_principal_id: context.authority.principal_id,
+    definition: input.definition,
+    actor_id: actorId
+  });
+  try {
+    const { draft, tool_access } = passOnEngineToolAccess({
+      grants,
+      actors: store,
+      authority: context.authority,
+      draft: created.draft,
+      chosen_operation_ids: input.engine_tool_operation_ids,
+      invocation_id: context.invocation_id
+    });
+    return { actor: created.actor, draft, tool_access };
+  } catch (error) {
+    if (error instanceof ToolAccessWideningError) {
+      return { refusal: refusal("actor_tool_access_widened", error.message, false, null) };
+    }
+    throw error;
+  }
+}
+function createdActorRefs(created) {
+  return [
+    actorRef(created.actor),
+    definitionRef(created.draft),
+    ...created.tool_access.grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null }))
+  ];
 }
 function actorCreationContextId(store, context) {
   if (context.provenance.cause_event_id) {
@@ -69561,6 +69576,61 @@ var resultSchema = (properties) => ({ version: "1", schema: {
   required: Object.keys(properties),
   properties
 } });
+var delegationRequestSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["source_grant_id", "operation_ids"],
+  properties: {
+    source_grant_id: text3,
+    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
+    targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
+    until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
+    expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
+    delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
+  }
+};
+var capabilityGrantSchema = grantSchema;
+function delegateAccessToActor(deps, context, actorId, expectedActorRevision, input) {
+  const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
+  const actor = deps.actors.getActor(actorId);
+  if (!actor || actor.workspace_id !== workspaceId4 || actor.status !== "active") {
+    return { refusal: refusal("delegation_actor_unavailable", "Select an active Actor in this Workspace.", false, null) };
+  }
+  const expected = expectedActorRevision === NO_ACTOR_DEFINITION_REVISION ? null : expectedActorRevision;
+  if (expected !== actor.current_definition_revision_id) {
+    return { refusal: refusal("delegation_actor_changed", "The Actor changed. Inspect it before delegating access.", true, null) };
+  }
+  if (input.until_revoked === true === (input.expires_at !== void 0)) {
+    return { refusal: refusal("delegation_lifetime_required", "Choose exactly one lifetime: until_revoked, or expires_at.", false, null) };
+  }
+  const { until_revoked: _untilRevoked, ...request } = input;
+  deps.actors.db.exec("SAVEPOINT delegate_capability");
+  try {
+    const grant = deps.grants.delegateGrant({
+      ...request,
+      targets: request.targets,
+      expires_at: input.expires_at ?? null,
+      authority: context.authority,
+      principal_id: actor.actor_id,
+      recipient: { kind: "actor", id: actor.actor_id },
+      invocation_id: context.invocation_id
+    });
+    const constraint = deps.refs.getGrantConstraint(input.source_grant_id);
+    if (constraint)
+      deps.refs.attachGrantConstraint({
+        grant_id: grant.grant_id,
+        authority_boundary: context.authority.boundary,
+        secret_ref_id: constraint.secret_ref_id,
+        purposes: constraint.purposes
+      }, deps.grants);
+    deps.actors.db.exec("RELEASE delegate_capability");
+    return { grant, delegation: deps.grants.getDelegation(grant.grant_id) };
+  } catch (error) {
+    deps.actors.db.exec("ROLLBACK TO delegate_capability");
+    deps.actors.db.exec("RELEASE delegate_capability");
+    return { refusal: refusal("capability_delegation_refused", error.message, false, null) };
+  }
+}
 function capabilityGrantOperations(deps) {
   const common = {
     operation_version: "1",
@@ -69582,63 +69652,17 @@ function capabilityGrantOperations(deps) {
       required: ["source_grant_id", "authority_grant_id"],
       properties: { source_grant_id: text3, authority_grant_id: text3 }
     } }),
-    input: { version: "1", schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["source_grant_id", "operation_ids"],
-      properties: {
-        source_grant_id: text3,
-        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
-        targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
-        until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
-        expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
-        delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
-      }
-    } },
+    input: { version: "1", schema: delegationRequestSchema },
     handler: (context, input) => {
-      const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
-      const actor = deps.actors.getActor(context.target?.ref.id ?? "");
-      if (!actor || actor.workspace_id !== workspaceId4 || actor.status !== "active") {
-        return { state: "refused", refusal: refusal("delegation_actor_unavailable", "Select an active Actor in this Workspace.", false, null) };
-      }
-      const expected = context.expected_resource_revision === NO_ACTOR_DEFINITION_REVISION ? null : context.expected_resource_revision;
-      if (expected !== actor.current_definition_revision_id) {
-        return { state: "refused", refusal: refusal("delegation_actor_changed", "The Actor changed. Inspect it before delegating access.", true, null) };
-      }
-      if (input.until_revoked === true === (input.expires_at !== void 0)) {
-        return { state: "refused", refusal: refusal("delegation_lifetime_required", "Choose exactly one lifetime: until_revoked, or expires_at.", false, null) };
-      }
-      const { until_revoked: _untilRevoked, ...request } = input;
-      deps.actors.db.exec("SAVEPOINT delegate_capability");
-      try {
-        const grant = deps.grants.delegateGrant({
-          ...request,
-          expires_at: input.expires_at ?? null,
-          authority: context.authority,
-          principal_id: actor.actor_id,
-          recipient: { kind: "actor", id: actor.actor_id },
-          invocation_id: context.invocation_id
-        });
-        const constraint = deps.refs.getGrantConstraint(input.source_grant_id);
-        if (constraint)
-          deps.refs.attachGrantConstraint({
-            grant_id: grant.grant_id,
-            authority_boundary: context.authority.boundary,
-            secret_ref_id: constraint.secret_ref_id,
-            purposes: constraint.purposes
-          }, deps.grants);
-        deps.actors.db.exec("RELEASE delegate_capability");
-        return {
-          state: "completed",
-          result: { grant, delegation: deps.grants.getDelegation(grant.grant_id) },
-          changed_refs: [{ kind: "capability_grant", id: grant.grant_id, revision: null }],
-          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
-        };
-      } catch (error) {
-        deps.actors.db.exec("ROLLBACK TO delegate_capability");
-        deps.actors.db.exec("RELEASE delegate_capability");
-        return { state: "refused", refusal: refusal("capability_delegation_refused", error.message, false, null) };
-      }
+      const delegated = delegateAccessToActor(deps, context, context.target?.ref.id ?? "", context.expected_resource_revision, input);
+      if ("refusal" in delegated)
+        return { state: "refused", refusal: delegated.refusal };
+      return {
+        state: "completed",
+        result: delegated,
+        changed_refs: [{ kind: "capability_grant", id: delegated.grant.grant_id, revision: null }],
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
     }
   };
   return [{
@@ -91509,27 +91533,7 @@ function createActorRuntimeBindingOperation(store) {
     result: { version: "1", schema: bindingOnlySchema },
     availability: (context) => actorAvailability3(store, context, true),
     handler: (context, input) => handle5(() => {
-      const actor = workspaceActor(store, authorityWorkspaceId3(context), context.target.ref.id);
-      if (!actor)
-        throw new RuntimeProfileValidationError("Actor is not available in this Workspace");
-      const actorRevision = actor.current_definition_revision_id ?? NO_ACTOR_DEFINITION_REVISION;
-      if (actorRevision !== context.expected_resource_revision) {
-        throw new RuntimeProfileConflictError(actor.actor_id, context.expected_resource_revision, actorRevision);
-      }
-      const current = store.getCurrentActorBinding(actor.actor_id);
-      if (current) {
-        throw new ActorRuntimeBindingConflictError(actor.actor_id, null, current.actor_runtime_binding_id);
-      }
-      requireUsableRevision(store, authorityWorkspaceId3(context), input.runtime_profile_revision_id);
-      const binding = store.bindActor({
-        actor_id: actor.actor_id,
-        runtime_profile_revision_id: input.runtime_profile_revision_id,
-        endpoint_id: input.endpoint_id ?? actor.actor_id,
-        status: input.status,
-        unresolved_reasons: input.unresolved_reasons ?? [],
-        expected_current_binding_id: null,
-        created_by_principal_id: context.authority.principal_id
-      });
+      const binding = bindUnboundActor(store, context, context.target.ref.id, context.expected_resource_revision, input);
       return {
         state: "completed",
         result: { binding },
@@ -91538,6 +91542,29 @@ function createActorRuntimeBindingOperation(store) {
       };
     })
   };
+}
+function bindUnboundActor(store, context, actorId, expectedActorRevision, input) {
+  const actor = workspaceActor(store, authorityWorkspaceId3(context), actorId);
+  if (!actor)
+    throw new RuntimeProfileValidationError("Actor is not available in this Workspace");
+  const actorRevision = actor.current_definition_revision_id ?? NO_ACTOR_DEFINITION_REVISION;
+  if (actorRevision !== expectedActorRevision) {
+    throw new RuntimeProfileConflictError(actor.actor_id, expectedActorRevision, actorRevision);
+  }
+  const current = store.getCurrentActorBinding(actor.actor_id);
+  if (current) {
+    throw new ActorRuntimeBindingConflictError(actor.actor_id, null, current.actor_runtime_binding_id);
+  }
+  requireUsableRevision(store, authorityWorkspaceId3(context), input.runtime_profile_revision_id);
+  return store.bindActor({
+    actor_id: actor.actor_id,
+    runtime_profile_revision_id: input.runtime_profile_revision_id,
+    endpoint_id: input.endpoint_id ?? actor.actor_id,
+    status: input.status,
+    unresolved_reasons: input.unresolved_reasons ?? [],
+    expected_current_binding_id: null,
+    created_by_principal_id: context.authority.principal_id
+  });
 }
 function replaceActorRuntimeBindingOperation(store) {
   return {
@@ -91614,6 +91641,143 @@ function registerRuntimeProfileOperations(registry, store) {
   for (const definition2 of runtimeProfileOperationDefinitions(store))
     registry.register(definition2);
   return registry;
+}
+
+// floe-bus/dist/actor-setup-operation.js
+var SETUP_ACTOR_OPERATION_ID = "actor.setup";
+var setupInputSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["definition", "runtime_profile_revision_id"],
+  properties: {
+    ...createActorInputSchema.properties,
+    runtime_profile_revision_id: {
+      type: "string",
+      minLength: 1,
+      description: "The exact published Runtime Profile revision the Actor runs on. To run it the way you run, use the one from your own binding (actor.runtime-binding.inspect on yourself)."
+    },
+    grants: {
+      type: "array",
+      items: delegationRequestSchema,
+      description: "Optional further access to give the Actor, each a subset of one of your own session grants (see capability.grant.delegate). Access can only narrow, never widen."
+    }
+  }
+};
+var setupResultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["actor", "revision", "binding", "tool_access", "delegated_grants"],
+  properties: {
+    actor: actorSchema,
+    revision: actorDefinitionRevisionSchema,
+    binding: actorRuntimeBindingSchema,
+    tool_access: newActorToolAccessSchema,
+    delegated_grants: { type: "array", items: capabilityGrantSchema }
+  }
+};
+var STEP_NAMES = {
+  create: "creating the Actor",
+  bind_runtime: "binding it to its runtime",
+  delegate_access: "giving it access",
+  publish: "publishing it"
+};
+var SetupStepRefused = class extends Error {
+  step;
+  cause_refusal;
+  constructor(step2, cause_refusal) {
+    super(cause_refusal.message);
+    this.step = step2;
+    this.cause_refusal = cause_refusal;
+  }
+};
+function setupRefusal(step2, cause) {
+  return refusal("actor_setup_refused", `Setting up the Actor stopped at ${STEP_NAMES[step2]}: ${cause.message} Nothing was created.`, cause.retryable, cause.required_action, { step: step2, cause_code: cause.code, cause_details: cause.details });
+}
+function step(name, toRefusal, work) {
+  let outcome;
+  try {
+    outcome = work();
+  } catch (error) {
+    throw new SetupStepRefused(name, toRefusal(error));
+  }
+  if (outcome && typeof outcome === "object" && "refusal" in outcome)
+    throw new SetupStepRefused(name, outcome.refusal);
+  return outcome;
+}
+function setUp(deps, context, input) {
+  const created = step("create", actorOperationRefusal, () => createActorWithToolAccess(deps.actors, deps.grants, context, input));
+  const actorId = created.actor.actor_id;
+  const binding = step("bind_runtime", runtimeOperationRefusal, () => bindUnboundActor(deps.runtimes, context, actorId, NO_ACTOR_DEFINITION_REVISION, {
+    runtime_profile_revision_id: input.runtime_profile_revision_id,
+    status: "resolved"
+  }));
+  const delegated = (input.grants ?? []).map((request) => step("delegate_access", actorOperationRefusal, () => delegateAccessToActor(deps, context, actorId, NO_ACTOR_DEFINITION_REVISION, request)).grant);
+  const revision = step("publish", actorOperationRefusal, () => {
+    const draft = delegated.length === 0 ? created.draft : deps.actors.replaceDraft({
+      actor_definition_revision_id: created.draft.actor_definition_revision_id,
+      expected_digest: created.draft.semantic_digest,
+      definition: {
+        ...created.draft.content,
+        capability_grant_ids: [.../* @__PURE__ */ new Set([...created.draft.content.capability_grant_ids, ...delegated.map((grant) => grant.grant_id)])]
+      }
+    });
+    return deps.actors.publishDraft({
+      actor_definition_revision_id: draft.actor_definition_revision_id,
+      expected_current_revision_id: null,
+      changed_by_principal_id: context.authority.principal_id
+    });
+  });
+  return {
+    actor: deps.actors.requireActor(actorId),
+    revision,
+    binding,
+    tool_access: created.tool_access,
+    delegated_grants: delegated
+  };
+}
+function setupActorOperation(deps) {
+  return {
+    operation_id: SETUP_ACTOR_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "actors",
+    title: "Set up a working Actor",
+    description: "Create an Actor, bind it to a runtime, give it access, and publish it, in one step. Either every part happens or none does: if any part is refused, nothing is created and the refusal names the part and the reason. Requires the same permissions as doing each part yourself (actor.create, actor.runtime-binding.create, actor.definition.publish, and capability.grant.delegate when giving grants). The new Actor can receive work as soon as this completes.",
+    effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "reference" },
+    // No authority of its own: exactly the grants its steps require.
+    required_grants: [CREATE_ACTOR_OPERATION_ID, CREATE_ACTOR_RUNTIME_BINDING_OPERATION_ID, PUBLISH_ACTOR_DEFINITION_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: [], expected_revision: "not_applicable" },
+    input: { version: "1", schema: setupInputSchema },
+    result: { version: "1", schema: setupResultSchema },
+    // Synchronous on purpose: nothing else may run inside the savepoint, and
+    // a binding is announced only after the unit has been kept.
+    handler: (context, input) => {
+      deps.actors.db.exec("SAVEPOINT setup_actor");
+      try {
+        const result = setUp(deps, context, input);
+        deps.actors.db.exec("RELEASE setup_actor");
+        return {
+          state: "completed",
+          result,
+          changed_refs: [
+            actorRef(result.actor),
+            definitionRef(result.revision),
+            bindingRef2(result.binding),
+            ...[...result.tool_access.grant_ids, ...result.delegated_grants.map((grant) => grant.grant_id)].map((id) => ({ kind: "capability_grant", id, revision: null }))
+          ],
+          audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+        };
+      } catch (error) {
+        deps.actors.db.exec("ROLLBACK TO setup_actor");
+        deps.actors.db.exec("RELEASE setup_actor");
+        if (error instanceof SetupStepRefused) {
+          return { state: "refused", refusal: setupRefusal(error.step, error.cause_refusal) };
+        }
+        throw error;
+      }
+    }
+  };
 }
 
 // floe-bus/dist/connector-operations.js
@@ -103471,6 +103635,12 @@ var BusStore = class {
       cancel: (input) => this.cancelRuntimeDelivery(input, (type, payload = {}) => this.broadcastFn?.(type, payload))
     }));
     operationRegistry = registerRuntimeProfileOperations(operationRegistry, this.runtimeProfileStore);
+    operationRegistry.register(setupActorOperation({
+      actors: this.actorDefinitionStore,
+      runtimes: this.runtimeProfileStore,
+      grants: this.capabilityGrantStore,
+      refs: this.secretRefStore
+    }));
     const authDir = resolveLocalPath(configPath, config.home, "./auth");
     operationRegistry = registerCredentialOperations(operationRegistry, {
       secret_refs: this.secretRefStore,
@@ -116547,13 +116717,13 @@ var NegentropyStorageVector = class {
     let count2 = last - first;
     while (count2 > 0) {
       let it = first;
-      let step = Math.floor(count2 / 2);
-      it += step;
+      let step2 = Math.floor(count2 / 2);
+      it += step2;
       if (cmp(arr[it])) {
         first = ++it;
-        count2 -= step + 1;
+        count2 -= step2 + 1;
       } else {
-        count2 = step;
+        count2 = step2;
       }
     }
     return first;
