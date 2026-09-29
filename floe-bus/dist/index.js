@@ -76959,6 +76959,17 @@ var RuntimeProfileValidationError = class extends Error {
     this.name = "RuntimeProfileValidationError";
   }
 };
+var ActorEndpointOwnedError = class extends Error {
+  endpoint_id;
+  owner_actor_id;
+  code = "E_ACTOR_ENDPOINT_OWNED";
+  constructor(endpoint_id, owner_actor_id) {
+    super(`Endpoint '${endpoint_id}' belongs to Actor '${owner_actor_id}'`);
+    this.endpoint_id = endpoint_id;
+    this.owner_actor_id = owner_actor_id;
+    this.name = "ActorEndpointOwnedError";
+  }
+};
 var RuntimeProfileNotFoundError = class extends Error {
   runtime_profile_id;
   code = "E_RUNTIME_PROFILE_NOT_FOUND";
@@ -77252,6 +77263,16 @@ var RuntimeProfileStore = class {
     const current = this.getCurrentActorBinding(input.actor_id);
     if ((current?.actor_runtime_binding_id ?? null) !== input.expected_current_binding_id) {
       throw new ActorRuntimeBindingConflictError(input.actor_id, input.expected_current_binding_id, current?.actor_runtime_binding_id ?? null);
+    }
+    if (input.endpoint_id) {
+      const owner = this.db.prepare(`
+        SELECT actor_id FROM actor_runtime_bindings
+        WHERE endpoint_id = ? AND superseded_at IS NULL AND actor_id <> ?
+        UNION SELECT actor_id FROM actors WHERE actor_id = ? AND actor_id <> ?
+        LIMIT 1
+      `).get(input.endpoint_id, actor.actor_id, input.endpoint_id, actor.actor_id);
+      if (owner)
+        throw new ActorEndpointOwnedError(input.endpoint_id, owner.actor_id);
     }
     const profile = this.requireProfile(revision.runtime_profile_id);
     const at = this.now();
@@ -91073,6 +91094,9 @@ function bindingAvailability(store, context) {
 function runtimeOperationRefusal(error) {
   if (error instanceof RuntimeProfileConflictError || error instanceof ActorRuntimeBindingConflictError) {
     return refusal("runtime_profile_revision_conflict", "The Runtime Profile or Actor Runtime Binding changed before this operation completed.", true, requiredAction("refresh_runtime_profile", "Review current runtime state", "Refresh the exact Runtime Profile and Actor Runtime Binding before retrying."));
+  }
+  if (error instanceof ActorEndpointOwnedError) {
+    return refusal("actor_endpoint_owned_by_other_actor", `Endpoint '${error.endpoint_id}' belongs to another Actor, so this Actor cannot be bound to it.`, false, requiredAction("use_own_endpoint", "Use this Actor's own address", "Omit endpoint_id so the Actor is bound to its own address, or choose an endpoint no other Actor uses."));
   }
   if (error instanceof RuntimeProfileImmutableError) {
     return refusal("runtime_profile_revision_immutable", "Published or withdrawn Runtime Profile revisions cannot be replaced.", false, requiredAction("create_runtime_profile_draft", "Create a new draft", "Create a new Runtime Profile draft based on a retained revision."));
@@ -107600,9 +107624,6 @@ var BusStore = class {
         claimedFromPush = true;
       }
       const canonical = this.rowToDelivery(delivery);
-      if (isAuthorityRenewal && !canonical.operation_authority_session_id) {
-        throw new Error(`Injected Delivery '${input.delivery_id}' has no prepared runtime authority to renew.`);
-      }
       let processingContract;
       let executionAttemptId = canonical.execution_attempt_id;
       if (canonical.node_execution_id) {
@@ -107638,11 +107659,18 @@ var BusStore = class {
       if (canonical.operation_authority_session_id) {
         this.operationAuthoritySessions.revokeSession(canonical.operation_authority_session_id);
       }
+      const inspected = this.capabilityGrantStore.inspectSessionGrantIds({
+        principal_id: processingContract.operation_authority.principal_id,
+        boundary: { kind: "workspace", workspace_id: processingContract.workspace_id },
+        grant_ids: processingContract.operation_authority.capability_grant_ids
+      });
+      const liveGrantIds = [...inspected.active_grants, ...inspected.delegable_grants].map((grant) => grant.grant_id);
+      const mayIssue = liveGrantIds.length > 0 && (isInitialPreparation || canonical.operation_authority_session_id !== null);
       const expiresAt = new Date(Date.now() + 15 * 6e4).toISOString();
-      const issued = this.operationAuthoritySessions.issueSession({
+      const issued = !mayIssue ? null : this.operationAuthoritySessions.issueSession({
         principal_id: processingContract.operation_authority.principal_id,
         workspace_id: processingContract.workspace_id,
-        grant_ids: processingContract.operation_authority.capability_grant_ids,
+        grant_ids: liveGrantIds,
         interaction: {
           mode: "unattended",
           session_id: `runtime:${canonical.delivery_id}`
@@ -107662,14 +107690,14 @@ var BusStore = class {
             WHERE delivery_id = ?
               AND state = 'delivered_to_bridge'
               AND operation_authority_session_id IS ?
-          `).run(executionAttemptId, issued.session.authority_session_id, input.delivery_id, canonical.operation_authority_session_id) : this.db.prepare(`
+          `).run(executionAttemptId, issued?.session.authority_session_id ?? null, input.delivery_id, canonical.operation_authority_session_id) : this.db.prepare(`
             UPDATE delivery_bundles
             SET operation_authority_session_id = ?
             WHERE delivery_id = ?
               AND state = 'injected_to_runtime'
               AND execution_attempt_id IS ?
               AND operation_authority_session_id IS ?
-          `).run(issued.session.authority_session_id, input.delivery_id, executionAttemptId, canonical.operation_authority_session_id);
+          `).run(issued?.session.authority_session_id ?? null, input.delivery_id, executionAttemptId, canonical.operation_authority_session_id);
       if (Number(updated.changes) !== 1) {
         throw new Error(`Delivery '${input.delivery_id}' changed while runtime authority was being issued.`);
       }
@@ -107677,16 +107705,12 @@ var BusStore = class {
       prepared = {
         delivery: this.rowToDelivery(updatedDelivery),
         processing_contract: processingContract,
-        operation_authority_session: {
+        operation_authority_session: issued && {
           authority_session_id: issued.session.authority_session_id,
           bearer_token: issued.bearer_token,
           expires_at: issued.session.expires_at
         },
-        engine_tool_operation_ids: [...new Set(this.capabilityGrantStore.inspectSessionGrantIds({
-          principal_id: issued.session.principal_id,
-          boundary: issued.session.boundary,
-          grant_ids: issued.session.grant_ids
-        }).active_grants.flatMap((grant) => grant.operation_ids).filter(isEngineToolOperation))].sort()
+        engine_tool_operation_ids: !issued ? [] : [...new Set(inspected.active_grants.flatMap((grant) => grant.operation_ids).filter(isEngineToolOperation))].sort()
       };
     });
     if (claimedFromPush) {
@@ -107848,8 +107872,9 @@ var BusStore = class {
     }
     const delivery = this.rowToDelivery(row);
     const session = delivery.operation_authority_session_id ? this.operationAuthoritySessions.getSession(delivery.operation_authority_session_id) : null;
-    if (!session)
+    if (delivery.operation_authority_session_id && !session) {
       throw new Error(`Delivery '${deliveryId}' has no prepared runtime authority.`);
+    }
     const contract = delivery.node_execution_id ? this.getRuntimeProcessingContract(delivery.execution_attempt_id) : this.resolveDirectRuntimeProcessingContract(delivery);
     return {
       delivery,
@@ -107860,8 +107885,8 @@ var BusStore = class {
     };
   }
   evaluateToolFacts(inputs, operationId, toolFacts) {
-    const { session, contract, definition: definition2, scoped } = inputs;
-    const sessionLive = session.revoked_at === null && Date.parse(session.expires_at) > Date.now();
+    const { session, contract, definition: definition2, scoped, delivery } = inputs;
+    const sessionLive = session !== null && session.revoked_at === null && Date.parse(session.expires_at) > Date.now();
     const grants = sessionLive ? this.capabilityGrantStore.inspectSessionGrantIds({
       principal_id: session.principal_id,
       boundary: session.boundary,
@@ -107880,7 +107905,7 @@ var BusStore = class {
     }
     const roles = this.actorRoleAuthorityStore.resolveCurrent({
       workspace_id: contract.workspace_id,
-      principal_id: session.principal_id,
+      principal_id: contract.operation_authority.principal_id,
       target: {
         scope_id: scoped?.scope_execution.scope_id ?? null,
         scope_composition_revision_id: scoped?.node_execution.revision_id ?? null,
@@ -107892,11 +107917,17 @@ var BusStore = class {
     const evaluation = this.policyStore.evaluate({
       authority_boundary: { kind: "workspace", workspace_id: contract.workspace_id },
       workspace_id: contract.workspace_id,
-      principal_id: session.principal_id,
+      principal_id: contract.operation_authority.principal_id,
       principal_roles: roles.roles,
       actor_role_evidence: roles.evidence,
-      interaction_mode: session.interaction_mode,
-      provenance: session.provenance,
+      interaction_mode: session?.interaction_mode ?? "unattended",
+      provenance: session?.provenance ?? {
+        cause_event_id: delivery.trigger_event_id,
+        delivery_ids: delivery.stable_delivery_ids,
+        execution_attempt_id: delivery.execution_attempt_id,
+        node_execution_id: delivery.node_execution_id,
+        scope_execution_id: delivery.scope_execution_id
+      },
       operation_id: operationId,
       target: null,
       effects: toolOperationEffects(operationId),

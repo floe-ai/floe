@@ -8040,6 +8040,9 @@ async function requireOperationAuthority(bus, turn) {
     turn.operation_authority_session = session;
     turn.processing_contract_id = prepared.processing_contract.processing_contract_id;
   }
+  if (!session) {
+    throw new Error("This Actor holds no permissions, so it cannot use Floe operations. It can still reply and send messages.");
+  }
   return session;
 }
 
@@ -12377,7 +12380,7 @@ var BridgeDaemon = class {
           throw new RuntimeAuthError("runtime_profile_provider_mismatch", `The pinned runtime profile requires adapter '${pinned.adapter_id}', but this Bridge runs '${this.adapter.name}'.`);
         }
         delivery.processing_contract = contract;
-        operationAuthoritySession = prepared.operation_authority_session;
+        operationAuthoritySession = prepared.operation_authority_session ?? void 0;
         engineToolOperationIds = prepared.engine_tool_operation_ids ?? [];
         if (contract.contract_kind === "scope_node") {
           preparedAttemptId = contract.execution_attempt.attempt_id;
