@@ -67589,10 +67589,12 @@ var SqliteCapabilityGrantStore = class {
   db;
   now;
   grantIdFactory;
+  onRevoked;
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? isoNow3;
     this.grantIdFactory = dependencies.grant_id_factory ?? (() => `capgrant_${randomUUID6()}`);
+    this.onRevoked = dependencies.on_revoked ?? null;
   }
   issueGrant(input) {
     assertNonEmpty("principal_id", input.principal_id);
@@ -67860,7 +67862,22 @@ var SqliteCapabilityGrantStore = class {
       SET revoked_at = ?
       WHERE grant_id = ? AND revoked_at IS NULL
     `).run(revokedAt, grantId);
-    return Number(result.changes) === 1;
+    const revoked = Number(result.changes) === 1;
+    if (revoked)
+      this.onRevoked?.(this.getGrant(grantId));
+    return revoked;
+  }
+  /** The grant and every grant delegated from it or under its authority, at any depth. */
+  dependentGrantIds(grantId) {
+    return this.db.prepare(`
+      WITH RECURSIVE lost(grant_id) AS (
+        SELECT ?
+        UNION
+        SELECT delegation.grant_id FROM capability_grant_delegations delegation
+        JOIN lost ON delegation.source_grant_id = lost.grant_id OR delegation.authority_grant_id = lost.grant_id
+      )
+      SELECT grant_id FROM lost ORDER BY grant_id
+    `).all(grantId).map((row) => row.grant_id);
   }
   listActiveGrantsForPrincipalBoundary(principalId, boundaryValue) {
     assertNonEmpty("principal_id", principalId);
@@ -68458,7 +68475,7 @@ function runtimeToolResolution(evaluation, requests, outcome) {
       tool_call_id: tool.tool_call_id,
       operation_id: operationId,
       rule_id: `approval.${outcome}`,
-      reason: RESOLUTION_REASONS[outcome]
+      reason: outcome === "unavailable" ? requests.find((request) => request.status === "invalidated")?.decision_reason ?? RESOLUTION_REASONS[outcome] : RESOLUTION_REASONS[outcome]
     } : null,
     approval_request_ids: requests.map((request) => request.approval_request_id),
     responder_principal_ids: [...new Set(requests.flatMap((request) => request.decisions.map((decision) => decision.principal_id)))].sort()
@@ -77838,7 +77855,7 @@ var ApprovalStore = class {
       context_id: request.context_id,
       decision_binding: request.decision_binding
     })) {
-      reason = "The exact action, evidence, authority, or Policy is no longer current.";
+      reason = input.stale_action_reason ?? "The exact action, evidence, authority, or Policy is no longer current.";
     } else {
       const invalidDecision = activeApprovalDecisions(request.decisions).find((decision) => !this.decisionAuthorityIsCurrent(request, decision));
       if (invalidDecision) {
@@ -87354,6 +87371,78 @@ function exportArtefactVersionOperation(store, workspaceLocator) {
   };
 }
 
+// floe-bus/dist/actor-tool-access.js
+var ALL_ENGINE_TOOL_OPERATION_IDS = Object.values(ENGINE_TOOL_OPERATIONS).sort();
+var ToolAccessWideningError = class extends Error {
+};
+function passOnEngineToolAccess(input) {
+  const limited = input.chosen_operation_ids !== void 0;
+  const wanted = [...new Set(input.chosen_operation_ids ?? ALL_ENGINE_TOOL_OPERATION_IDS)].sort();
+  const held = heldGrants(input.grants, input.authority);
+  const notGranted = [];
+  const granted = [];
+  const covered = /* @__PURE__ */ new Set();
+  for (const operationId of wanted) {
+    if (!held.some((grant) => grant.operation_ids.includes(operationId))) {
+      if (limited)
+        throw new ToolAccessWideningError(`You cannot give '${operationId}' because you do not hold it.`);
+      notGranted.push({ operation_id: operationId, reason: "The creator does not hold this engine tool." });
+    }
+  }
+  for (const source of held) {
+    const operations = source.operation_ids.filter((id) => wanted.includes(id) && !covered.has(id));
+    if (operations.length === 0)
+      continue;
+    try {
+      granted.push(input.grants.delegateGrant({
+        authority: input.authority,
+        source_grant_id: source.grant_id,
+        principal_id: input.draft.actor_id,
+        recipient: { kind: "actor", id: input.draft.actor_id },
+        operation_ids: operations,
+        invocation_id: input.invocation_id
+      }));
+      for (const id of operations)
+        covered.add(id);
+    } catch (error) {
+      if (limited)
+        throw new ToolAccessWideningError(error.message);
+      for (const id of operations)
+        notGranted.push({ operation_id: id, reason: error.message });
+    }
+  }
+  const grantIds = granted.map((grant) => grant.grant_id);
+  const draft = grantIds.length === 0 ? input.draft : input.actors.replaceDraft({
+    actor_definition_revision_id: input.draft.actor_definition_revision_id,
+    expected_digest: input.draft.semantic_digest,
+    definition: {
+      ...input.draft.content,
+      capability_grant_ids: [.../* @__PURE__ */ new Set([...input.draft.content.capability_grant_ids, ...grantIds])]
+    }
+  });
+  const settled = /* @__PURE__ */ new Map();
+  for (const item of notGranted)
+    if (!covered.has(item.operation_id))
+      settled.set(item.operation_id, item);
+  return {
+    draft,
+    tool_access: {
+      limited_by_creator: limited,
+      granted_operation_ids: [...covered].sort(),
+      grant_ids: grantIds,
+      not_granted: [...settled.values()].sort((a, b) => a.operation_id.localeCompare(b.operation_id))
+    }
+  };
+}
+function heldGrants(grants, authority) {
+  const inspection = grants.inspectSessionGrantIds({
+    principal_id: authority.principal_id,
+    boundary: authority.boundary,
+    grant_ids: authority.session_capability_grant_ids ?? []
+  });
+  return [...inspection.active_grants, ...inspection.delegable_grants].filter((grant) => grant.operation_ids.some((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id))).sort((a, b) => b.expires_at.localeCompare(a.expires_at) || a.grant_id.localeCompare(b.grant_id));
+}
+
 // floe-bus/dist/actor-definition-operations.js
 function authorityWorkspaceId2(context) {
   return requireWorkspaceAuthorityId(context.authority);
@@ -87422,7 +87511,7 @@ var ACTOR_DEFINITION_CONTENT_SCHEMA = {
       type: "array",
       items: nonEmptyString2,
       uniqueItems: true,
-      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list, discover permission delegation, then publish its own grants. Never copy another Actor's grant IDs. Every Actor may use every engine tool (engine.tool.*) by default: unless a person chose limits for the new Actor, delegate your engine tool access to it unchanged."
+      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list; actor.create adds its engine tool access for you. Delegate any other access it needs, then publish its own grants. Never copy another Actor's grant IDs."
     },
     policy_refs: {
       type: "object",
@@ -87550,11 +87639,31 @@ var actorInspectionSchema = {
     head_changes: { type: "array", items: actorHeadChangeSchema }
   }
 };
-var actorAndDraftSchema = {
+var createdActorSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["actor", "draft"],
-  properties: { actor: actorSchema, draft: actorDefinitionRevisionSchema }
+  required: ["actor", "draft", "tool_access"],
+  properties: {
+    actor: actorSchema,
+    draft: actorDefinitionRevisionSchema,
+    tool_access: {
+      type: "object",
+      additionalProperties: false,
+      required: ["limited_by_creator", "granted_operation_ids", "grant_ids", "not_granted"],
+      description: "Engine tool access the new Actor received from you, and anything you could not pass on.",
+      properties: {
+        limited_by_creator: { type: "boolean" },
+        granted_operation_ids: { type: "array", items: nonEmptyString2 },
+        grant_ids: { type: "array", items: nonEmptyString2 },
+        not_granted: { type: "array", items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["operation_id", "reason"],
+          properties: { operation_id: nonEmptyString2, reason: nonEmptyString2 }
+        } }
+      }
+    }
+  }
 };
 var actorAndRevisionSchema = {
   type: "object",
@@ -87582,7 +87691,16 @@ var createActorInputSchema = {
   type: "object",
   additionalProperties: false,
   required: ["definition"],
-  properties: { actor_id: nonEmptyString2, definition: ACTOR_DEFINITION_CONTENT_SCHEMA }
+  properties: {
+    actor_id: nonEmptyString2,
+    definition: ACTOR_DEFINITION_CONTENT_SCHEMA,
+    engine_tool_operation_ids: {
+      type: "array",
+      uniqueItems: true,
+      items: { enum: [...ALL_ENGINE_TOOL_OPERATION_IDS] },
+      description: "Optional limit. The new Actor may use every engine tool you hold by default. List only the engine tools it may use, or [] for none. You cannot give a tool you do not hold."
+    }
+  }
 };
 var createDraftInputSchema2 = {
   type: "object",
@@ -87773,33 +87891,56 @@ function getActorDefinitionOperation(store) {
     })
   };
 }
-function createActorOperation(store) {
+function createActorOperation(store, grants) {
   return {
     operation_id: CREATE_ACTOR_OPERATION_ID,
     operation_version: "1",
     authority_boundary_kinds: ["workspace"],
     category: "actors",
     title: "Create Actor",
-    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace.",
+    description: "Create a stable Actor identity and its first unpublished definition draft in this Workspace. The new Actor may use every engine tool you hold, unless you choose limits.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     required_grants: [CREATE_ACTOR_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     input: { version: "1", schema: createActorInputSchema },
-    result: { version: "1", schema: actorAndDraftSchema },
+    result: { version: "1", schema: createdActorSchema },
     handler: (context, input) => handle4(() => {
-      const created = store.createActor({
-        workspace_id: authorityWorkspaceId2(context),
-        created_by_principal_id: context.authority.principal_id,
-        definition: input.definition,
-        ...input.actor_id ? { actor_id: input.actor_id } : {}
-      });
-      return {
-        state: "completed",
-        result: created,
-        changed_refs: [actorRef(created.actor), definitionRef(created.draft)],
-        audit_ref: auditRef7(context)
-      };
+      store.db.exec("SAVEPOINT create_actor");
+      try {
+        const created = store.createActor({
+          workspace_id: authorityWorkspaceId2(context),
+          created_by_principal_id: context.authority.principal_id,
+          definition: input.definition,
+          ...input.actor_id ? { actor_id: input.actor_id } : {}
+        });
+        const { draft, tool_access } = passOnEngineToolAccess({
+          grants,
+          actors: store,
+          authority: context.authority,
+          draft: created.draft,
+          chosen_operation_ids: input.engine_tool_operation_ids,
+          invocation_id: context.invocation_id
+        });
+        store.db.exec("RELEASE create_actor");
+        return {
+          state: "completed",
+          result: { actor: created.actor, draft, tool_access },
+          changed_refs: [
+            actorRef(created.actor),
+            definitionRef(draft),
+            ...tool_access.grant_ids.map((id) => ({ kind: "capability_grant", id, revision: null }))
+          ],
+          audit_ref: auditRef7(context)
+        };
+      } catch (error) {
+        store.db.exec("ROLLBACK TO create_actor");
+        store.db.exec("RELEASE create_actor");
+        if (error instanceof ToolAccessWideningError) {
+          return { state: "refused", refusal: refusal("actor_tool_access_widened", error.message, false, null) };
+        }
+        throw error;
+      }
     })
   };
 }
@@ -87969,12 +88110,12 @@ function actorStatusOperation(store, status) {
     })
   };
 }
-function actorDefinitionOperationDefinitions(store) {
+function actorDefinitionOperationDefinitions(store, grants) {
   return [
     listActorsOperation(store),
     inspectActorOperation(store),
     getActorDefinitionOperation(store),
-    createActorOperation(store),
+    createActorOperation(store, grants),
     createActorDefinitionDraftOperation(store),
     replaceActorDefinitionDraftOperation(store),
     publishActorDefinitionOperation(store),
@@ -87983,8 +88124,8 @@ function actorDefinitionOperationDefinitions(store) {
     actorStatusOperation(store, "active")
   ];
 }
-function registerActorDefinitionOperations(registry, store) {
-  for (const definition2 of actorDefinitionOperationDefinitions(store))
+function registerActorDefinitionOperations(registry, store, grants) {
+  for (const definition2 of actorDefinitionOperationDefinitions(store, grants))
     registry.register(definition2);
   return registry;
 }
@@ -100336,7 +100477,9 @@ var BusStore = class {
       get_event: (eventId) => this.getEvent(eventId)
     });
     this.operationInvocationLedger = new SqliteOperationInvocationLedger(this.db);
-    this.capabilityGrantStore = new SqliteCapabilityGrantStore(this.db);
+    this.capabilityGrantStore = new SqliteCapabilityGrantStore(this.db, {
+      on_revoked: (grant) => this.settleApprovalsAfterRevocation(grant)
+    });
     this.secretRefStore = new SqliteSecretRefStore(this.db);
     const credentialBrokers = process.platform === "win32" ? [new WindowsCredentialBroker(WINDOWS_DPAPI_CREDENTIAL_BROKER_ID, new WindowsDpapiCredentialProtector())] : [];
     this.credentialBrokerService = new CredentialBrokerService(this.secretRefStore, this.capabilityGrantStore, credentialBrokers);
@@ -100348,7 +100491,7 @@ var BusStore = class {
     this.clientIdentityStore = new SqliteClientIdentityStore(this.db);
     let operationRegistry = registerArtefactOperations(new SemanticOperationRegistry(new AjvOperationSchemaValidator(), this.operationInvocationLedger, new BusOperationGovernanceControlPlane(this)), this.artefactStore, (input) => this.publishArtefactVersion(input));
     operationRegistry.register(exportArtefactVersionOperation(this.artefactStore, (workspaceId4) => this.getWorkspaceLocator(workspaceId4)));
-    operationRegistry = registerActorDefinitionOperations(operationRegistry, this.actorDefinitionStore);
+    operationRegistry = registerActorDefinitionOperations(operationRegistry, this.actorDefinitionStore, this.capabilityGrantStore);
     for (const operation of capabilityGrantOperations({
       actors: this.actorDefinitionStore,
       grants: this.capabilityGrantStore,
@@ -100415,6 +100558,37 @@ var BusStore = class {
     });
     this.endpointWatermarkStore = new EndpointWatermarkStore(this.db);
     this.importLegacyScopeCompositions();
+  }
+  /**
+   * A pending approval must not outlive the access it would use. After any
+   * revocation, each pending request in the affected Workspace is checked now,
+   * a stale one is closed with its reason, and the change is pushed so a
+   * waiting Bridge settles its call immediately.
+   */
+  settleApprovalsAfterRevocation(grant) {
+    const lost = new Set(this.capabilityGrantStore.dependentGrantIds(grant.grant_id));
+    const pending = grant.boundary.kind === "workspace" ? this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending' AND workspace_id = ?").all(grant.boundary.workspace_id) : this.db.prepare("SELECT approval_request_id, workspace_id FROM approval_requests WHERE status = 'pending'").all();
+    const invalidated = [];
+    for (const row of pending) {
+      const request = this.approvalStore.requireRequestForWorkspace(row.approval_request_id, row.workspace_id);
+      const result = this.approvalStore.refreshRequestValidity({
+        workspace_id: row.workspace_id,
+        approval_request_id: row.approval_request_id,
+        invalidated_by_principal_id: "system:capability-revocation",
+        ...request.action.capability_grant_ids.some((id) => lost.has(id)) ? { stale_action_reason: "The access this request depended on was revoked." } : {}
+      });
+      if (result.invalidated)
+        invalidated.push(row);
+    }
+    if (invalidated.length === 0)
+      return;
+    queueMicrotask(() => {
+      for (const row of invalidated) {
+        const request = this.approvalStore.getRequest(row.approval_request_id);
+        if (request?.status === "invalidated")
+          this.broadcastFn?.("approval_invalidated", { request });
+      }
+    });
   }
   /**
    * Inject the broadcast function so the store can drive lease-expiry requeue

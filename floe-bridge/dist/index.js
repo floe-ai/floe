@@ -4464,7 +4464,7 @@ function bridgeWsBase(config) {
 }
 
 // floe-bridge/dist/daemon.js
-import { existsSync as existsSync8 } from "node:fs";
+import { existsSync as existsSync9 } from "node:fs";
 import { isAbsolute as isAbsolute4, relative as relative3, resolve as resolve5 } from "node:path";
 
 // floe-bridge/dist/auth.js
@@ -5284,6 +5284,58 @@ function slug(value) {
   return value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+// floe-bridge/dist/template-scope-migration.js
+var import_yaml3 = __toESM(require_dist(), 1);
+import { existsSync as existsSync4, readFileSync as readFileSync5, writeFileSync as writeFileSync4 } from "node:fs";
+import { join as join4 } from "node:path";
+var TEMPLATE_SCOPE_BLOCK = ["scope:", "  paths:", "    - ./", "  services: []"];
+var TEMPLATE_TAIL = ["extensions: []", "skills:", "  - ../skills/substrate-build", "mcp: []", "pulse:", "  inherit: true"];
+var TEMPLATE_APPLIED = ["applied_from:", "  config_id: cfg_composition_floe_default", "  version: 1"];
+var TEMPLATE_HEAD = ["schema: floe.agent.v1", "agent_id: floe", "label: Floe"];
+var SCOPED_TEMPLATE_FRONTMATTERS = [
+  [],
+  ["runtime:", "  engine: pi"],
+  ["runtime:", "  engine: pi", "  provider: openai-codex", "  model: gpt-5.4-mini"],
+  ["runtime:", "  engine: pi", "  provider: openai-codex", "  model: gpt-5.4-mini", "  auth_profile: default"],
+  ["runtime:", "  engine: pi", "  provider: configured_by_pi_ai", "  options: {}"]
+].map((runtime) => [...TEMPLATE_HEAD, ...runtime, ...TEMPLATE_APPLIED, ...TEMPLATE_TAIL, ...TEMPLATE_SCOPE_BLOCK].join("\n"));
+var WHOLE_FOLDER = /* @__PURE__ */ new Set(["./", ".", ""]);
+function migrateTemplateDefaultScope(workspacePath) {
+  const path3 = join4(workspacePath, ".floe", "agents", "floe.md");
+  if (!existsSync4(path3))
+    return { outcome: "no_scope", path: path3 };
+  const content = readFileSync5(path3, "utf8");
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const lines = content.split(/\r?\n/);
+  const end = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+  if (end < 0)
+    return { outcome: "no_scope", path: path3 };
+  const frontmatter = lines.slice(1, end).map((line) => line.trimEnd());
+  const scopeIndex = frontmatter.findIndex((line) => /^scope\s*:/.test(line));
+  if (scopeIndex < 0)
+    return { outcome: "no_scope", path: path3 };
+  if (SCOPED_TEMPLATE_FRONTMATTERS.includes(frontmatter.join("\n"))) {
+    const kept = [lines[0], ...frontmatter.slice(0, -TEMPLATE_SCOPE_BLOCK.length), ...lines.slice(end)];
+    writeFileSync4(path3, kept.join(eol), "utf8");
+    return { outcome: "removed", path: path3 };
+  }
+  if (!declaresWholeFolder(frontmatter.join("\n")))
+    return { outcome: "person_set", path: path3 };
+  return {
+    outcome: "kept_uncertain",
+    path: path3,
+    reason: "floe.md declares the whole-folder scope, but its settings differ from every template Floe wrote, so a person may have chosen it."
+  };
+}
+function declaresWholeFolder(frontmatter) {
+  try {
+    const paths = import_yaml3.default.parse(frontmatter)?.scope?.paths;
+    return Array.isArray(paths) && paths.length > 0 && paths.every((path3) => WHOLE_FOLDER.has(String(path3).trim()));
+  } catch {
+    return false;
+  }
+}
+
 // floe-bridge/dist/engines/engine-control.js
 var EngineControl = class {
   accounts;
@@ -5450,17 +5502,17 @@ function runtimeEndpointRegistration(workspaceId, runtime, engine, heldForEngine
 }
 
 // floe-cli/dist/installation.js
-import { existsSync as existsSync5, readFileSync as readFileSync6, realpathSync as realpathSync2 } from "node:fs";
-import { basename as basename3, dirname as dirname4, join as join5 } from "node:path";
+import { existsSync as existsSync6, readFileSync as readFileSync7, realpathSync as realpathSync2 } from "node:fs";
+import { basename as basename3, dirname as dirname4, join as join6 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // floe-cli/dist/staging.js
-import { existsSync as existsSync4, mkdirSync as mkdirSync4, readdirSync as readdirSync2, readFileSync as readFileSync5, realpathSync, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2, writeFileSync as writeFileSync4 } from "node:fs";
-import { basename as basename2, dirname as dirname3, join as join4, relative as relative2, sep } from "node:path";
+import { existsSync as existsSync5, mkdirSync as mkdirSync4, readdirSync as readdirSync2, readFileSync as readFileSync6, realpathSync, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2, writeFileSync as writeFileSync5 } from "node:fs";
+import { basename as basename2, dirname as dirname3, join as join5, relative as relative2, sep } from "node:path";
 var STAGE_MANIFEST = "stage.json";
 function readJson(path3) {
   try {
-    return JSON.parse(readFileSync5(path3, "utf8"));
+    return JSON.parse(readFileSync6(path3, "utf8"));
   } catch {
     return null;
   }
@@ -5472,7 +5524,7 @@ function stageOf(path3) {
     if (parent === dir)
       return null;
     if (basename2(dir) === "tree") {
-      const manifest = readJson(join4(parent, STAGE_MANIFEST));
+      const manifest = readJson(join5(parent, STAGE_MANIFEST));
       if (manifest?.kind === "floe-stage")
         return manifest;
     }
@@ -5484,7 +5536,7 @@ function stageOf(path3) {
 function nearestPackageDir(start) {
   let dir = start;
   for (; ; ) {
-    if (existsSync5(join5(dir, "package.json")))
+    if (existsSync6(join6(dir, "package.json")))
       return dir;
     const parent = dirname4(dir);
     if (parent === dir)
@@ -5494,7 +5546,7 @@ function nearestPackageDir(start) {
 }
 function readPackage(dir) {
   try {
-    return JSON.parse(readFileSync6(join5(dir, "package.json"), "utf8"));
+    return JSON.parse(readFileSync7(join6(dir, "package.json"), "utf8"));
   } catch {
     return {};
   }
@@ -5508,7 +5560,7 @@ function classifyPackageDir(packageDir) {
   if (basename3(holder) !== "node_modules")
     return { packageDir, version, dependencyOf: null };
   const owner = dirname4(holder);
-  if (!existsSync5(join5(owner, "package.json")))
+  if (!existsSync6(join6(owner, "package.json")))
     return { packageDir, version, dependencyOf: null };
   const ownerName = readPackage(owner).name;
   return { packageDir, version, dependencyOf: typeof ownerName === "string" ? ownerName : owner };
@@ -5843,7 +5895,7 @@ import { EventEmitter as EventEmitter2 } from "node:events";
 
 // node_modules/floe-runtime/src/jsonrpc.mjs
 import { spawn } from "node:child_process";
-import { existsSync as existsSync6 } from "node:fs";
+import { existsSync as existsSync7 } from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { EventEmitter } from "node:events";
@@ -5899,7 +5951,7 @@ function resolveExecutable(command, env = process.env) {
       candidates.push(path.join(dir, command));
     }
   }
-  const resolved = candidates.find((candidate) => existsSync6(candidate));
+  const resolved = candidates.find((candidate) => existsSync7(candidate));
   const file = resolved || command;
   const ext = path.extname(file).toLowerCase();
   return { file, needsShellWrapper: ext === ".cmd" || ext === ".bat" };
@@ -8162,11 +8214,11 @@ function resolvedScopeIdFromCreatePulseResult(result2) {
   return typeof scopeId === "string" && scopeId ? scopeId : void 0;
 }
 async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
-  const { readFileSync: readFileSync7, writeFileSync: writeFileSync5 } = await import("node:fs");
-  const { join: join8 } = await import("node:path");
-  const YAML3 = (await import("./dist-BSYBXLJX.js")).default;
-  const yamlPath = join8(workspaceLocator, ".floe", "floe.yaml");
-  const doc = YAML3.parseDocument(readFileSync7(yamlPath, "utf8"));
+  const { readFileSync: readFileSync8, writeFileSync: writeFileSync6 } = await import("node:fs");
+  const { join: join9 } = await import("node:path");
+  const YAML4 = (await import("./dist-BSYBXLJX.js")).default;
+  const yamlPath = join9(workspaceLocator, ".floe", "floe.yaml");
+  const doc = YAML4.parseDocument(readFileSync8(yamlPath, "utf8"));
   if (!doc.get("pulses"))
     doc.set("pulses", doc.createNode([]));
   const entry = {
@@ -8180,7 +8232,7 @@ async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
   if (pulseDef.subscribers.length > 0)
     entry.subscribers = pulseDef.subscribers;
   doc.get("pulses").add(doc.createNode(entry));
-  writeFileSync5(yamlPath, doc.toString(), "utf8");
+  writeFileSync6(yamlPath, doc.toString(), "utf8");
 }
 async function executeCreatePulse(bus, turn, params) {
   if (params?.persistence !== void 0 && params.persistence !== "workspace" && params.persistence !== "local") {
@@ -8352,15 +8404,15 @@ Continue this version with offset: ${nextOffset}.`}`
 }
 
 // floe-bridge/dist/runtime-core/worklog.js
-import { existsSync as existsSync7, mkdirSync as mkdirSync5, appendFileSync } from "node:fs";
-import { join as join6 } from "node:path";
+import { existsSync as existsSync8, mkdirSync as mkdirSync5, appendFileSync } from "node:fs";
+import { join as join7 } from "node:path";
 function appendWorkLog(workspaceLocator, entry) {
   const date = entry.started_at.slice(0, 10);
-  const dir = join6(workspaceLocator, ".floe", "agents", entry.agent_id, "worklogs");
-  if (!existsSync7(dir)) {
+  const dir = join7(workspaceLocator, ".floe", "agents", entry.agent_id, "worklogs");
+  if (!existsSync8(dir)) {
     mkdirSync5(dir, { recursive: true });
   }
-  const filePath = join6(dir, `${date}.md`);
+  const filePath = join7(dir, `${date}.md`);
   const markdown = renderWorkLogEntry(entry);
   appendFileSync(filePath, markdown, "utf-8");
 }
@@ -10902,7 +10954,7 @@ var HookRegistry = class {
 // floe-bridge/dist/folder-watcher.js
 import { createHash as createHash5 } from "node:crypto";
 import { statSync as statSync3, watch as fsWatch } from "node:fs";
-import { extname, join as join7, resolve as resolve4 } from "node:path";
+import { extname, join as join8, resolve as resolve4 } from "node:path";
 function watchFolder(folderPath, onFile, options = {}) {
   let watcher;
   const settleMs = Math.max(0, options.settle_ms ?? 250);
@@ -10940,7 +10992,7 @@ function watchFolder(folderPath, onFile, options = {}) {
       if (!filename)
         return;
       const fileName = filename.toString();
-      const filePath = join7(folderPath, fileName);
+      const filePath = join8(folderPath, fileName);
       const existing = pending.get(filePath);
       if (existing)
         clearTimeout(existing);
@@ -11761,7 +11813,7 @@ var BridgeDaemon = class {
     const workspaceId = String(workspace.workspace_id);
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!this.config.bridge.workspace_access.local_paths || !existsSync8(locator)) {
+    if (!this.config.bridge.workspace_access.local_paths || !existsSync9(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -11776,6 +11828,7 @@ var BridgeDaemon = class {
       let importError = null;
       try {
         ensureProjectTemplate(locator, String(workspace.name ?? "Floe Project"));
+        reportTemplateScopeMigration(workspaceId, migrateTemplateDefaultScope(locator));
         project = loadProject(locator);
         canonicalImport = await this.importProjectConfiguration(workspaceId, bindingId, project);
       } catch (error) {
@@ -11859,8 +11912,8 @@ var BridgeDaemon = class {
           console.error("[bridge] watcher path escapes workspace \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           return;
         }
-        if (!existsSync8(watchPath) || startedWatchers.has(watcherKey)) {
-          if (!existsSync8(watchPath)) {
+        if (!existsSync9(watchPath) || startedWatchers.has(watcherKey)) {
+          if (!existsSync9(watchPath)) {
             console.error("[bridge] watcher path does not exist \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           }
           return;
@@ -11944,7 +11997,7 @@ var BridgeDaemon = class {
       return;
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!existsSync8(locator))
+    if (!existsSync9(locator))
       return;
     const project = loadProject(locator);
     await this.importProjectConfiguration(workspaceId, bindingId, project);
@@ -11959,7 +12012,7 @@ var BridgeDaemon = class {
       return;
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!existsSync8(locator)) {
+    if (!existsSync9(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -12400,6 +12453,13 @@ function extractRuntimeConfig(frontmatter) {
     model: typeof runtime.model === "string" ? runtime.model : void 0,
     auth_profile: typeof runtime.auth_profile === "string" ? runtime.auth_profile : void 0
   };
+}
+function reportTemplateScopeMigration(workspaceId, migration) {
+  if (migration.outcome === "removed") {
+    console.log("[floe-bridge] removed Floe's template folder scope; the Floe Actor is unrestricted by default", { workspace_id: workspaceId, path: migration.path });
+  } else if (migration.outcome === "kept_uncertain") {
+    console.warn("[floe-bridge] kept a whole-folder scope Floe cannot attribute to its template", { workspace_id: workspaceId, path: migration.path, reason: migration.reason });
+  }
 }
 
 // floe-bridge/dist/index.js
