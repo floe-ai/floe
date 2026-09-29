@@ -18,8 +18,8 @@ function canonicalHome(home) {
 }
 function channelAddress(spec, home) {
   if (process.platform === "win32") {
-    const digest2 = createHash("sha256").update(canonicalHome(home)).digest("hex").slice(0, 24);
-    return `\\\\.\\pipe\\floe-${spec.name}-${digest2}`;
+    const digest3 = createHash("sha256").update(canonicalHome(home)).digest("hex").slice(0, 24);
+    return `\\\\.\\pipe\\floe-${spec.name}-${digest3}`;
   }
   return join(home, "run", spec.socketFile);
 }
@@ -42,17 +42,17 @@ function ensureRunDir(home) {
 }
 function writeChannelRunFile(spec, home, run) {
   ensureRunDir(home);
-  const path2 = channelRunFilePath(spec, home);
-  const temporary = `${path2}.${process.pid}.tmp`;
+  const path3 = channelRunFilePath(spec, home);
+  const temporary = `${path3}.${process.pid}.tmp`;
   writeFileSync(temporary, JSON.stringify(run, null, 2) + "\n", { encoding: "utf8", mode: 384 });
-  renameSync(temporary, path2);
+  renameSync(temporary, path3);
 }
 function readChannelRunFile(spec, home) {
-  const path2 = channelRunFilePath(spec, home);
-  if (!existsSync(path2))
+  const path3 = channelRunFilePath(spec, home);
+  if (!existsSync(path3))
     return null;
   try {
-    const value = JSON.parse(readFileSync(path2, "utf8"));
+    const value = JSON.parse(readFileSync(path3, "utf8"));
     if (typeof value.secret !== "string" || typeof value.address !== "string" || typeof value.pid !== "number")
       return null;
     return value;
@@ -769,8 +769,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path2, errorMaps, issueData } = params;
-  const fullPath = [...path2, ...issueData.path || []];
+  const { data, path: path3, errorMaps, issueData } = params;
+  const fullPath = [...path3, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -886,11 +886,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path2, key) {
+  constructor(parent, value, path3, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path2;
+    this._path = path3;
     this._key = key;
   }
   get path() {
@@ -4527,10 +4527,10 @@ var BusClient = class {
     this.#authorityStateValue = { status: "unavailable", reason };
   }
   async health() {
-    const path2 = "/health";
-    const response = await fetch(`${this.baseUrl}${path2}`);
+    const path3 = "/health";
+    const response = await fetch(`${this.baseUrl}${path3}`);
     if (!response.ok)
-      throw new Error(`GET ${path2} failed: ${response.status} ${await response.text()}`);
+      throw new Error(`GET ${path3} failed: ${response.status} ${await response.text()}`);
     return response.json();
   }
   async registerBridge(capabilities) {
@@ -4559,8 +4559,8 @@ var BusClient = class {
   /** The same authenticated, digest-checked exact-content read used by clients. */
   async readArtefactVersionContent(workspaceId, versionId, bearerToken) {
     const maximumBytes = 20 * 1024 * 1024;
-    const path2 = `/v1/workspaces/${encodeURIComponent(workspaceId)}/artefact-versions/${encodeURIComponent(versionId)}/content`;
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+    const path3 = `/v1/workspaces/${encodeURIComponent(workspaceId)}/artefact-versions/${encodeURIComponent(versionId)}/content`;
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       headers: this.operationAuthorityHeaders(bearerToken),
       redirect: "error"
     });
@@ -4620,12 +4620,12 @@ var BusClient = class {
    * (the bridge falls back to an empty participants list and logs a warning).
    */
   async getContext(contextId) {
-    const path2 = `/v1/contexts/${encodeURIComponent(contextId)}`;
-    const response = await fetch(`${this.baseUrl}${path2}`, { headers: this.authorizedHeaders() });
+    const path3 = `/v1/contexts/${encodeURIComponent(contextId)}`;
+    const response = await fetch(`${this.baseUrl}${path3}`, { headers: this.authorizedHeaders() });
     if (response.status === 404)
       return null;
     if (!response.ok)
-      throw await this.responseError("GET", path2, response);
+      throw await this.responseError("GET", path3, response);
     return response.json();
   }
   async registerEndpoint(input) {
@@ -4657,14 +4657,20 @@ var BusClient = class {
   async prepareRuntimeDelivery(deliveryId) {
     return this.post(`/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-prepare`, {});
   }
+  async evaluateRuntimeToolCall(deliveryId, request) {
+    return this.post(`/v1/delivery/${encodeURIComponent(deliveryId)}/tool-policy/evaluate`, request);
+  }
+  async resolveRuntimeToolApproval(deliveryId, evaluationId, abandon) {
+    return this.post(`/v1/delivery/${encodeURIComponent(deliveryId)}/tool-policy/${encodeURIComponent(evaluationId)}/resolve`, { abandon });
+  }
   async readRuntimeCredential(deliveryId, secretRefId) {
-    const path2 = `/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-credentials/${encodeURIComponent(secretRefId)}`;
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+    const path3 = `/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-credentials/${encodeURIComponent(secretRefId)}`;
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       headers: this.authorizedHeaders({ accept: "application/octet-stream" }),
       cache: "no-store"
     });
     if (!response.ok)
-      throw await this.responseError("GET", path2, response);
+      throw await this.responseError("GET", path3, response);
     const length = Number(response.headers.get("content-length") ?? "0");
     if (Number.isFinite(length) && length > 1024 * 1024) {
       throw new Error("The runtime credential response exceeded its bounded transport contract.");
@@ -4680,15 +4686,15 @@ var BusClient = class {
     if (!(material instanceof Uint8Array) || material.byteLength === 0 || material.byteLength > 1024 * 1024) {
       throw new Error("The refreshed runtime credential is invalid.");
     }
-    const path2 = `/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-credentials/${encodeURIComponent(secretRefId)}`;
+    const path3 = `/v1/delivery/${encodeURIComponent(deliveryId)}/runtime-credentials/${encodeURIComponent(secretRefId)}`;
     const body = material.buffer.slice(material.byteOffset, material.byteOffset + material.byteLength);
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       method: "PUT",
       headers: this.authorizedHeaders({ "content-type": "application/octet-stream" }),
       body
     });
     if (!response.ok)
-      throw await this.responseError("PUT", path2, response);
+      throw await this.responseError("PUT", path3, response);
   }
   async emit(event) {
     return this.post("/v1/events/emit", event);
@@ -4850,48 +4856,48 @@ var BusClient = class {
     return result2.contexts;
   }
   // ---------------------------------------------------------------------------
-  async _delete(path2) {
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+  async _delete(path3) {
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       method: "DELETE",
       headers: this.authorizedHeaders()
     });
     if (!response.ok)
-      throw await this.responseError("DELETE", path2, response);
+      throw await this.responseError("DELETE", path3, response);
     return response.json();
   }
-  async get(path2) {
-    const response = await fetch(`${this.baseUrl}${path2}`, { headers: this.authorizedHeaders() });
+  async get(path3) {
+    const response = await fetch(`${this.baseUrl}${path3}`, { headers: this.authorizedHeaders() });
     if (!response.ok)
-      throw await this.responseError("GET", path2, response);
+      throw await this.responseError("GET", path3, response);
     return response.json();
   }
-  async post(path2, body) {
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+  async post(path3, body) {
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       method: "POST",
       headers: this.authorizedHeaders({ "content-type": "application/json" }),
       body: JSON.stringify(body)
     });
     if (!response.ok)
-      throw await this.responseError("POST", path2, response);
+      throw await this.responseError("POST", path3, response);
     return response.json();
   }
-  async getWithBearer(path2, bearerToken) {
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+  async getWithBearer(path3, bearerToken) {
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       headers: this.operationAuthorityHeaders(bearerToken)
     });
     if (!response.ok) {
-      throw new Error(`GET ${path2} failed: ${response.status} ${await response.text()}`);
+      throw new Error(`GET ${path3} failed: ${response.status} ${await response.text()}`);
     }
     return response.json();
   }
-  async postWithBearer(path2, body, bearerToken) {
-    const response = await fetch(`${this.baseUrl}${path2}`, {
+  async postWithBearer(path3, body, bearerToken) {
+    const response = await fetch(`${this.baseUrl}${path3}`, {
       method: "POST",
       headers: this.operationAuthorityHeaders(bearerToken, { "content-type": "application/json" }),
       body: JSON.stringify(body)
     });
     if (!response.ok) {
-      throw new Error(`POST ${path2} failed: ${response.status} ${await response.text()}`);
+      throw new Error(`POST ${path3} failed: ${response.status} ${await response.text()}`);
     }
     return response.json();
   }
@@ -4914,10 +4920,10 @@ var BusClient = class {
       authorization: `Bearer ${this.#bearerToken}`
     };
   }
-  async responseError(method, path2, response) {
+  async responseError(method, path3, response) {
     if (response.status === 401) {
       const bridgeReadPath = "/v1/bridge/workspace-bindings";
-      let bridgeRejected = path2 === bridgeReadPath;
+      let bridgeRejected = path3 === bridgeReadPath;
       if (!bridgeRejected && this.#bearerToken) {
         try {
           const probe = await fetch(`${this.baseUrl}${bridgeReadPath}`, {
@@ -4934,7 +4940,7 @@ var BusClient = class {
         return new BridgeTransportUnavailableError("credential_not_accepted");
       }
     }
-    return new Error(`${method} ${path2} failed: ${response.status} ${await response.text()}`);
+    return new Error(`${method} ${path3} failed: ${response.status} ${await response.text()}`);
   }
 };
 function isCredentialTransportSecure(value) {
@@ -5015,10 +5021,6 @@ skills:
 mcp: []
 pulse:
   inherit: true
-scope:
-  paths:
-    - ./
-  services: []
 ---
 ${DEFAULT_FLOE_AGENT_BODY}
 `, "utf8");
@@ -5029,10 +5031,10 @@ ${DEFAULT_FLOE_AGENT_BODY}
   writeIfMissing(join3(floeDir, "state", "README.md"), "# State\n\nEphemeral project-local Floe runtime state may be placed here.\n", "utf8");
   writeIfMissing(join3(floeDir, "state", ".gitignore"), "*\n!.gitignore\n!README.md\n", "utf8");
 }
-function writeIfMissing(path2, data, encoding) {
-  if (existsSync3(path2))
+function writeIfMissing(path3, data, encoding) {
+  if (existsSync3(path3))
     return;
-  writeFileSync3(path2, data, encoding);
+  writeFileSync3(path3, data, encoding);
 }
 function loadProject(workspacePath) {
   const floeDir = join3(workspacePath, ".floe");
@@ -5266,12 +5268,12 @@ function isUnderDir(filePath, dir) {
 function listFiles(root) {
   const results = [];
   for (const name of readdirSync(root)) {
-    const path2 = resolve3(root, name);
-    const stat = statSync(path2);
+    const path3 = resolve3(root, name);
+    const stat = statSync(path3);
     if (stat.isDirectory())
-      results.push(...listFiles(path2));
+      results.push(...listFiles(path3));
     if (stat.isFile())
-      results.push(path2);
+      results.push(path3);
   }
   return results.sort();
 }
@@ -5428,6 +5430,25 @@ async function vendor(action) {
   }
 }
 
+// floe-bridge/dist/runtime-endpoint-registration.js
+function runtimeEndpointRegistration(workspaceId, runtime, engine, heldForEngine) {
+  return {
+    endpoint_id: runtime.endpoint_id,
+    workspace_id: workspaceId,
+    name: runtime.name,
+    agent_id: runtime.agent_id,
+    status: runtime.runtime_status === "resolved" && !heldForEngine ? "idle" : "runtime_unconfigured",
+    metadata: {
+      runtime_adapter: runtime.adapter_id,
+      engine,
+      actor_definition_revision_id: runtime.actor_definition_revision_id,
+      runtime_profile_revision_id: runtime.runtime_profile_revision_id,
+      actor_runtime_binding_id: runtime.actor_runtime_binding_id,
+      runtime_unresolved_reasons: runtime.unresolved_reasons
+    }
+  };
+}
+
 // floe-cli/dist/installation.js
 import { existsSync as existsSync5, readFileSync as readFileSync6, realpathSync as realpathSync2 } from "node:fs";
 import { basename as basename3, dirname as dirname4, join as join5 } from "node:path";
@@ -5437,15 +5458,15 @@ import { fileURLToPath } from "node:url";
 import { existsSync as existsSync4, mkdirSync as mkdirSync4, readdirSync as readdirSync2, readFileSync as readFileSync5, realpathSync, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2, writeFileSync as writeFileSync4 } from "node:fs";
 import { basename as basename2, dirname as dirname3, join as join4, relative as relative2, sep } from "node:path";
 var STAGE_MANIFEST = "stage.json";
-function readJson(path2) {
+function readJson(path3) {
   try {
-    return JSON.parse(readFileSync5(path2, "utf8"));
+    return JSON.parse(readFileSync5(path3, "utf8"));
   } catch {
     return null;
   }
 }
-function stageOf(path2) {
-  let dir = path2;
+function stageOf(path3) {
+  let dir = path3;
   for (; ; ) {
     const parent = dirname3(dir);
     if (parent === dir)
@@ -5815,7 +5836,7 @@ function firstText(event) {
 }
 
 // floe-bridge/dist/adapters/floe-runtime-adapter.js
-import { randomUUID as randomUUID5 } from "node:crypto";
+import { randomUUID as randomUUID6 } from "node:crypto";
 
 // node_modules/floe-runtime/src/runtime.mjs
 import { EventEmitter as EventEmitter2 } from "node:events";
@@ -6506,11 +6527,363 @@ function unsupported(backend, feature) {
 
 // node_modules/floe-runtime/src/adapters/copilot.mjs
 import { CopilotClient as CopilotClient2 } from "@github/copilot-sdk";
+
+// node_modules/floe-runtime/src/adapters/copilot-tools.mjs
+import { createHash as createHash3, randomUUID as randomUUID3 } from "node:crypto";
+var COPILOT_TOOL_MANIFEST_VERSION = "copilot-cli-1.0.83-win32-v3";
+var DEFAULT_CATALOG = "default";
+var CODEX_CATALOG = "codex";
+var descriptor = (operationId, catalogs = [DEFAULT_CATALOG, CODEX_CATALOG]) => Object.freeze({ operationId, catalogs: Object.freeze(catalogs) });
+var COPILOT_BUILTIN_TOOL_MANIFEST = Object.freeze({
+  win32: Object.freeze({
+    powershell: descriptor("engine.tool.process.execute"),
+    read_powershell: descriptor("engine.tool.process.execute"),
+    stop_powershell: descriptor("engine.tool.process.execute"),
+    list_powershell: descriptor("engine.tool.process.execute"),
+    view: descriptor("engine.tool.filesystem.read"),
+    grep: descriptor("engine.tool.filesystem.read", [DEFAULT_CATALOG]),
+    rg: descriptor("engine.tool.filesystem.read", [CODEX_CATALOG]),
+    glob: descriptor("engine.tool.filesystem.read"),
+    create: descriptor("engine.tool.filesystem.write", [DEFAULT_CATALOG]),
+    edit: descriptor("engine.tool.filesystem.write", [DEFAULT_CATALOG]),
+    apply_patch: descriptor("engine.tool.filesystem.write", [CODEX_CATALOG]),
+    web_fetch: descriptor("engine.tool.network.fetch")
+  })
+});
+function fault(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+function digest2(value) {
+  return createHash3("sha256").update(canonicalJson(value)).digest("hex");
+}
+function stringArray(value) {
+  if (typeof value === "string") return [value];
+  return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+}
+function requireObject(value, toolName) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw fault("copilot_tool_arguments_invalid", `Copilot tool '${toolName}' did not provide object arguments.`);
+  }
+  return value;
+}
+function requireString(value, field, toolName) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw fault("copilot_tool_arguments_invalid", `Copilot tool '${toolName}' did not provide '${field}'.`);
+  }
+  return value;
+}
+function catalogForModel(model) {
+  return typeof model === "string" && /(?:^|[-_.])codex(?:$|[-_.])/i.test(model) ? CODEX_CATALOG : DEFAULT_CATALOG;
+}
+function copilotToolCatalogForModel(model, platform = process.platform) {
+  const manifest = COPILOT_BUILTIN_TOOL_MANIFEST[platform] || {};
+  const catalog = catalogForModel(model);
+  return Object.freeze(
+    Object.keys(manifest).filter((name) => manifest[name].catalogs.includes(catalog)).sort()
+  );
+}
+function resolveCopilotToolSelection({
+  tools = [],
+  availableTools,
+  excludedTools,
+  model,
+  platform = process.platform
+} = {}) {
+  if (excludedTools?.length) {
+    throw fault("copilot_tool_selection_invalid", "Copilot uses an exact allowlist; excludedTools is not supported.");
+  }
+  const manifest = COPILOT_BUILTIN_TOOL_MANIFEST[platform] || {};
+  const activeBuiltins = new Set(copilotToolCatalogForModel(model, platform));
+  const customNames = /* @__PURE__ */ new Set();
+  for (const tool of tools) {
+    if (customNames.has(tool.name)) {
+      throw fault("copilot_tool_selection_invalid", `Copilot tool '${tool.name}' is registered more than once.`);
+    }
+    if (Object.hasOwn(manifest, tool.name)) {
+      throw fault("copilot_tool_selection_invalid", `Custom tool '${tool.name}' conflicts with a governed Copilot built-in.`);
+    }
+    customNames.add(tool.name);
+  }
+  const requested = availableTools ?? [
+    ...activeBuiltins,
+    ...customNames
+  ].map((name) => `${customNames.has(name) ? "custom" : "builtin"}:${name}`);
+  if (!Array.isArray(requested)) {
+    throw fault("copilot_tool_selection_invalid", "Copilot availableTools must be an exact array.");
+  }
+  const filters = [];
+  const expectedNames = /* @__PURE__ */ new Set();
+  const builtins = /* @__PURE__ */ new Map();
+  for (const entry of requested) {
+    if (typeof entry !== "string" || !entry.trim() || entry.includes("*")) {
+      throw fault("copilot_tool_selection_invalid", `Copilot tool filter '${String(entry)}' is not an exact tool name.`);
+    }
+    let source;
+    let name;
+    if (entry.startsWith("builtin:") || entry.startsWith("custom:")) {
+      [source, name] = entry.split(":", 2);
+    } else if (entry.includes(":")) {
+      throw fault("copilot_tool_selection_invalid", `Copilot tool source in '${entry}' is not allowed.`);
+    } else if (customNames.has(entry)) {
+      source = "custom";
+      name = entry;
+    } else {
+      throw fault("copilot_tool_selection_invalid", `Copilot built-in '${entry}' must be source-qualified and present in the pinned manifest.`);
+    }
+    if (source === "custom" && !customNames.has(name)) {
+      throw fault("copilot_tool_selection_invalid", `Copilot custom tool '${name}' is not registered.`);
+    }
+    if (source === "builtin") {
+      const builtIn = manifest[name];
+      if (!builtIn) {
+        throw fault("copilot_tool_selection_invalid", `Copilot built-in '${name}' is not governed by manifest '${COPILOT_TOOL_MANIFEST_VERSION}'.`);
+      }
+      if (!activeBuiltins.has(name)) continue;
+      builtins.set(name, builtIn);
+    }
+    const qualified = `${source}:${name}`;
+    if (!filters.includes(qualified)) filters.push(qualified);
+    expectedNames.add(name);
+  }
+  return Object.freeze({
+    filters: Object.freeze(filters),
+    expectedNames: Object.freeze([...expectedNames].sort()),
+    builtins,
+    customNames: Object.freeze([...customNames].sort()),
+    catalog: catalogForModel(model),
+    manifestVersion: COPILOT_TOOL_MANIFEST_VERSION
+  });
+}
+function parsePatch(patch) {
+  if (typeof patch !== "string") {
+    throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch did not provide a patch string.");
+  }
+  const lines = patch.replace(/\r\n/g, "\n").split("\n");
+  if (lines.shift() !== "*** Begin Patch") {
+    throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch is missing the begin marker.");
+  }
+  const changes = [];
+  while (lines.length && lines[0] !== "*** End Patch") {
+    const header = lines.shift();
+    let match;
+    if (match = /^\*\*\* Add File: (.+)$/.exec(header)) {
+      const content = [];
+      while (lines.length && !lines[0].startsWith("*** ")) {
+        const line = lines.shift();
+        if (!line.startsWith("+")) throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch add lines must start with +.");
+        content.push(line.slice(1));
+      }
+      if (content.length === 0) throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch add hunk is empty.");
+      changes.push({ kind: "add", path: match[1], content: content.join("\n") });
+    } else if (match = /^\*\*\* Delete File: (.+)$/.exec(header)) {
+      changes.push({ kind: "delete", path: match[1] });
+    } else if (match = /^\*\*\* Update File: (.+)$/.exec(header)) {
+      const change = { kind: "update", path: match[1], moveTo: null, diff: [] };
+      if (lines[0]?.startsWith("*** Move to: ")) {
+        change.moveTo = requireString(lines.shift().slice("*** Move to: ".length), "moveTo", "apply_patch");
+      }
+      while (lines.length && lines[0] !== "*** End Patch" && !/^\*\*\* (?:Add|Delete|Update) File: /.test(lines[0])) {
+        const line = lines.shift();
+        if (line !== "*** End of File" && !line.startsWith("@@") && !/^[+ -]/.test(line)) {
+          throw fault("copilot_tool_arguments_invalid", `Copilot apply_patch contains an invalid update line: '${line}'.`);
+        }
+        change.diff.push(line);
+      }
+      if (change.diff.length === 0) throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch update hunk is empty.");
+      changes.push(change);
+    } else {
+      throw fault("copilot_tool_arguments_invalid", `Copilot apply_patch contains an unknown hunk: '${header}'.`);
+    }
+  }
+  if (lines.shift() !== "*** End Patch" || lines.some((line) => line !== "")) {
+    throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch is missing the end marker or has trailing content.");
+  }
+  if (changes.length === 0) throw fault("copilot_tool_arguments_invalid", "Copilot apply_patch contains no changes.");
+  return changes;
+}
+function toolFacts(toolName, toolArgs) {
+  const common = { paths: [], urls: [], requestSandboxBypass: false, arguments: toolArgs };
+  if (toolName === "apply_patch") {
+    const changes = parsePatch(toolArgs);
+    return {
+      ...common,
+      paths: changes.flatMap((change) => [change.path, ...change.moveTo ? [change.moveTo] : []]),
+      patch: toolArgs,
+      changes
+    };
+  }
+  const args = requireObject(toolArgs, toolName);
+  if (toolName === "powershell") {
+    const command = requireString(args.command, "command", toolName);
+    return { ...common, fullCommandText: command, commandSegments: [{ identifier: null, fullCommandText: command }] };
+  }
+  if (toolName === "view") {
+    return { ...common, paths: [requireString(args.path, "path", toolName)] };
+  }
+  if (toolName === "grep" || toolName === "rg" || toolName === "glob") {
+    return { ...common, paths: stringArray(args.paths) };
+  }
+  if (toolName === "create") {
+    const path3 = requireString(args.path, "path", toolName);
+    if (typeof args.file_text !== "string") throw fault("copilot_tool_arguments_invalid", "Copilot tool 'create' did not provide 'file_text'.");
+    return { ...common, paths: [path3], createsFile: true, fileText: args.file_text };
+  }
+  if (toolName === "edit") {
+    const path3 = requireString(args.path, "path", toolName);
+    if (typeof args.old_str !== "string" || typeof args.new_str !== "string") {
+      throw fault("copilot_tool_arguments_invalid", "Copilot tool 'edit' did not provide 'old_str' and 'new_str'.");
+    }
+    return { ...common, paths: [path3], createsFile: false, oldText: args.old_str, newText: args.new_str };
+  }
+  if (toolName === "web_fetch") {
+    return { ...common, urls: [requireString(args.url, "url", toolName)] };
+  }
+  return common;
+}
+function normalizeCopilotToolCall(input, invocation, selection, toolCallId) {
+  const toolName = requireString(input?.toolName, "toolName", "unknown");
+  const descriptor2 = selection.builtins.get(toolName);
+  if (!descriptor2) {
+    throw fault("copilot_tool_not_governed", `Copilot tool '${toolName}' is not in the active governed catalog.`);
+  }
+  const facts = toolFacts(toolName, input.toolArgs);
+  return {
+    runtime: "copilot",
+    sessionId: invocation?.sessionId || input?.sessionId || "",
+    id: toolCallId,
+    title: toolName,
+    kind: descriptor2.operationId,
+    operationId: descriptor2.operationId,
+    nativeToolCandidates: [toolName],
+    manifestVersion: selection.manifestVersion,
+    facts: { ...facts, argumentDigest: digest2({ toolName, arguments: input.toolArgs }) },
+    options: [
+      { id: "approve", decision: "allow_once", label: "Allow once" },
+      { id: "reject", decision: "reject_once", label: "Reject" }
+    ],
+    raw: input
+  };
+}
+function structuredRefusal(outcome, request) {
+  const decision = typeof outcome === "string" ? outcome : outcome?.decision;
+  const supplied = typeof outcome === "object" && outcome?.refusal ? outcome.refusal : {};
+  return {
+    code: decision === "cancel" ? "tool_policy_cancelled" : "tool_policy_denied",
+    tool_call_id: request?.id || null,
+    operation_id: request?.operationId || null,
+    rule_id: supplied.rule_id || null,
+    reason: supplied.reason || (decision === "cancel" ? "Floe cancelled this operation." : "Floe denied this operation.")
+  };
+}
+function denied(outcome, request) {
+  return {
+    permissionDecision: "deny",
+    permissionDecisionReason: JSON.stringify(structuredRefusal(outcome, request))
+  };
+}
+function createCopilotToolHook({
+  selection,
+  policy,
+  timeoutMs,
+  toolCallId = () => `tool-call-${randomUUID3()}`,
+  onDiagnostic = () => {
+  }
+}) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new TypeError("Copilot tool policy timeout must be a positive finite number.");
+  }
+  return async (input, invocation = {}) => {
+    let normalized;
+    try {
+      if (selection.customNames.includes(input?.toolName)) return { permissionDecision: "allow" };
+      normalized = normalizeCopilotToolCall(input, invocation, selection, toolCallId());
+      if (!policy) return { permissionDecision: "allow" };
+      let timer;
+      let outcome;
+      try {
+        outcome = await Promise.race([
+          Promise.resolve(policy(normalized)),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              const error = fault("tool_policy_timeout", `Floe did not decide tool call '${normalized.id}' before the policy timeout.`);
+              reject(error);
+            }, timeoutMs);
+          })
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+      const decision = typeof outcome === "string" ? outcome : outcome?.decision;
+      if (decision === "allow_once") return { permissionDecision: "allow" };
+      if (decision === "reject_once" || decision === "cancel") return denied(outcome, normalized);
+      return denied({
+        decision: "reject_once",
+        refusal: { reason: `Floe returned unsupported tool decision '${String(decision)}'.` }
+      }, normalized);
+    } catch (error) {
+      onDiagnostic(`Copilot tool policy failed closed: ${error.message}`);
+      return denied({
+        decision: "reject_once",
+        refusal: { reason: `Floe could not safely evaluate this tool call: ${error.message}` }
+      }, normalized);
+    }
+  };
+}
+async function prepareCopilotToolSession(session, selection, workingDirectory) {
+  const permissions = session?.rpc?.permissions;
+  const tools = session?.rpc?.tools;
+  if (!permissions || !tools) {
+    throw fault("copilot_tool_catalog_unavailable", "Copilot did not expose its session tool and permission controls.");
+  }
+  await permissions.configure({
+    approveAllToolPermissionRequests: false,
+    approveAllReadPermissionRequests: false,
+    rules: { approved: [], denied: [] },
+    paths: {
+      unrestricted: true,
+      additionalDirectories: [],
+      includeTempDirectory: true,
+      workspacePath: workingDirectory
+    },
+    urls: { unrestricted: true, initialAllowed: [] }
+  });
+  await permissions.setApproveAll({ enabled: false });
+  const mode = await permissions.setMode({ mode: "manual" });
+  if (mode?.success === false || mode?.mode && mode.mode !== "manual") {
+    throw fault("copilot_permission_mode_unsafe", "Copilot refused manual permission mode.");
+  }
+  await permissions.resetSessionApprovals({ includeLocation: false });
+  await tools.initializeAndValidate();
+  const metadata = await tools.getCurrentMetadata();
+  if (!Array.isArray(metadata?.tools)) {
+    throw fault("copilot_tool_catalog_unavailable", "Copilot did not return its initialized tool catalog.");
+  }
+  const actual = [...new Set(metadata.tools.map((tool) => tool?.name).filter((name) => typeof name === "string"))].sort();
+  const expected = [...selection.expectedNames];
+  if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index])) {
+    throw fault(
+      "copilot_tool_catalog_drift",
+      `Copilot tool catalog drifted from '${selection.manifestVersion}/${selection.catalog}': expected [${expected.join(", ")}], received [${actual.join(", ")}].`
+    );
+  }
+  return { manifestVersion: selection.manifestVersion, catalog: selection.catalog, tools: actual };
+}
+
+// node_modules/floe-runtime/src/adapters/copilot.mjs
 import { defineTool } from "@github/copilot-sdk";
 
 // node_modules/floe-runtime/src/adapters/copilot-account.mjs
 import { spawn as spawn2 } from "node:child_process";
-import { randomUUID as randomUUID3 } from "node:crypto";
+import { randomUUID as randomUUID4 } from "node:crypto";
 import { EventEmitter as EventEmitter3 } from "node:events";
 import { CopilotClient } from "@github/copilot-sdk";
 var CREDENTIAL_ENVIRONMENT_KEYS = /* @__PURE__ */ new Set([
@@ -6530,6 +6903,12 @@ var POLICY_BLOCKED_CODES = /* @__PURE__ */ new Set([
   "organization_policy_blocked",
   "policy_blocked"
 ]);
+var PROCESS_GLOBAL_AUTH_MESSAGES = Object.freeze({
+  env: "Copilot isn't signed in for Floe. Floe found Copilot credentials in environment variables, but doesn't use them. Sign in to use Copilot here.",
+  token: "Copilot isn't signed in for Floe. Floe found a process-level GitHub token, but doesn't use it as your Copilot account. Sign in to use Copilot here.",
+  "api-key": "Copilot isn't signed in for Floe. Floe found an API key, but doesn't use it as your Copilot account. Sign in to use Copilot here.",
+  "gh-cli": "Copilot isn't signed in for Floe. Floe found your GitHub CLI login, but doesn't use it. Sign in to use Copilot here."
+});
 function copilotChildEnvironment(environment = process.env) {
   return Object.fromEntries(
     Object.entries(environment).filter(([key]) => !CREDENTIAL_ENVIRONMENT_KEYS.has(key.toUpperCase()))
@@ -6549,7 +6928,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
     environment = process.env,
     spawnProcess = spawn2,
     now = () => (/* @__PURE__ */ new Date()).toISOString(),
-    operationId = () => randomUUID3()
+    operationId = () => randomUUID4()
   } = {}) {
     super();
     this.clientFactory = clientFactory;
@@ -6640,7 +7019,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
           access: "unknown",
           reachability: "reachable",
           action: "sign_in",
-          message: "Copilot found process-global credentials. Sign in with the vendor OAuth flow."
+          message: PROCESS_GLOBAL_AUTH_MESSAGES[auth.authType]
         });
       }
       const account = accountOf(auth);
@@ -6725,7 +7104,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
       operation.child = this.spawnProcess(command, args, {
         env: copilotChildEnvironment(this.environment),
         stdio: "inherit",
-        windowsHide: false
+        windowsHide: true
       });
     } catch {
       void this.#finishSignIn(operation, "failed");
@@ -6733,7 +7112,11 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
     }
     operation.child.once("spawn", () => {
       if (!operation.finished) {
-        this.#publishSignIn(operation, "waiting_for_person", "Finish signing in with GitHub.");
+        this.#publishSignIn(
+          operation,
+          "waiting_for_person",
+          mode === "browser" ? "A browser should open for GitHub sign-in. If it doesn't, cancel this sign-in and run the official Copilot CLI sign-in in a terminal, then try again." : "Finish GitHub device sign-in in the terminal running Floe. If you can't see the code, cancel this sign-in and run the official Copilot CLI sign-in in a terminal, then try again."
+        );
       }
     });
     operation.child.once("error", () => void this.#finishSignIn(operation, "failed"));
@@ -6876,25 +7259,33 @@ var CopilotRuntime = class extends Runtime {
     availableTools,
     excludedTools,
     permissionPolicy,
-    defaultPermissionDecision = "reject_once",
+    defaultPermissionDecision = "allow_once",
+    toolPolicyTimeoutMs = timeoutMs,
     ...legacyOptions
   } = {}) {
     super({ command: "copilot-sdk", unavailableCode: "copilot_unavailable", permissionPolicy, defaultPermissionDecision, ...legacyOptions });
+    if (defaultPermissionDecision !== "allow_once") {
+      throw new TypeError("Copilot allows engine tools unless a configured policy restricts them; defaultPermissionDecision must be allow_once.");
+    }
+    if (!Number.isFinite(toolPolicyTimeoutMs) || toolPolicyTimeoutMs <= 0) {
+      throw new TypeError("Copilot toolPolicyTimeoutMs must be a positive finite number.");
+    }
     this.model = model;
     this.timeoutMs = timeoutMs;
     this.quiesceTimeoutMs = quiesceTimeoutMs;
     this.client = client;
     this.clientFactory = clientFactory || ((options) => new CopilotClient2(options));
-    this.clientOptions = clientOptions;
+    this.clientOptions = { ...clientOptions, mode: "empty" };
     this.systemMessage = systemMessage;
     this.tools = tools.map(normalizeTool);
     this.availableTools = availableTools;
     this.excludedTools = excludedTools;
+    this.toolPolicyTimeoutMs = toolPolicyTimeoutMs;
     this.sessions = new SessionRegistry();
     this.sessionObjects = /* @__PURE__ */ new Map();
+    this.sessionContexts = /* @__PURE__ */ new Map();
     this.turns = /* @__PURE__ */ new Map();
     this.commands = /* @__PURE__ */ new Map();
-    this.pendingPermissions = /* @__PURE__ */ new Map();
     this.starting = null;
   }
   capabilities() {
@@ -6946,81 +7337,99 @@ var CopilotRuntime = class extends Runtime {
     const models = await this.client.listModels();
     return (models || []).map((model) => ({ ...model, modelId: model.modelId || model.id }));
   }
-  #permissionResult(decision) {
-    if (decision === "allow_once") return { kind: "approve-once" };
-    if (decision === "allow_always") return { kind: "approve-for-session" };
-    return { kind: "reject", feedback: decision === "cancel" ? "Floe cancelled this operation." : "Floe denied this operation." };
-  }
-  #manualPermission(request, normalized) {
-    return new Promise((resolve6) => {
-      const timer = setTimeout(() => {
-        this.pendingPermissions.delete(normalized.id);
-        resolve6(this.#permissionResult("reject_once"));
-      }, this.unhandledRequestTimeoutMs);
-      timer.unref?.();
-      this.pendingPermissions.set(normalized.id, { resolve: resolve6, timer });
-      this.emit("request", { id: normalized.id, method: "permission/request", params: normalized, raw: request });
+  #toolHook(selection) {
+    return createCopilotToolHook({
+      selection,
+      policy: this.permissionPolicy,
+      timeoutMs: this.toolPolicyTimeoutMs,
+      toolCallId: () => id("tool-call"),
+      onDiagnostic: (message) => this.emit("diagnostic", message)
     });
   }
-  #permissionHandler() {
-    return async (request, invocation = {}) => {
-      const normalized = {
-        runtime: "copilot",
-        sessionId: invocation.sessionId || "",
-        id: request.toolCallId || id("permission"),
-        title: request.toolName || request.kind || "Permission requested",
-        kind: request.kind || "tool",
-        options: [
-          { id: "approve", decision: "allow_once", label: "Allow once" },
-          { id: "reject", decision: "reject_once", label: "Reject" }
-        ],
-        raw: request
-      };
-      if (this.listenerCount("request") > 0) return this.#manualPermission(request, normalized);
-      let decision = this.defaultPermissionDecision;
-      if (this.permissionPolicy) {
-        try {
-          decision = await this.permissionPolicy(normalized);
-        } catch (error) {
-          this.emit("diagnostic", `permissionPolicy threw; falling back to the default decision: ${error.message}`);
-        }
-      }
-      return this.#permissionResult(decision);
+  #permissionBackstop(request) {
+    return {
+      kind: "reject",
+      feedback: JSON.stringify({
+        code: "tool_policy_denied",
+        tool_call_id: request?.toolCallId || null,
+        operation_id: null,
+        rule_id: null,
+        reason: "Copilot requested permission outside Floe's pre-tool policy gate."
+      })
     };
   }
   #sessionConfig(cwd, model, settings = {}, sessionId) {
     const systemMessage = settings.systemMessage || this.systemMessage;
+    const tools = [...this.tools, ...settings.tools || []].map(normalizeTool);
+    const selection = resolveCopilotToolSelection({
+      tools,
+      availableTools: settings.availableTools ?? this.availableTools,
+      excludedTools: settings.excludedTools ?? this.excludedTools,
+      model
+    });
     const config = {
       ...sessionId ? { sessionId } : {},
       model: model || void 0,
       workingDirectory: cwd,
       streaming: true,
-      tools: [...this.tools, ...settings.tools || []].map(normalizeTool),
-      availableTools: settings.availableTools ?? this.availableTools,
-      excludedTools: settings.excludedTools ?? this.excludedTools,
-      onPermissionRequest: this.#permissionHandler()
+      tools,
+      availableTools: selection.filters,
+      excludedTools: [],
+      hooks: { onPreToolUse: this.#toolHook(selection) },
+      onPermissionRequest: (request) => this.#permissionBackstop(request),
+      enableConfigDiscovery: false,
+      enableFileHooks: false,
+      enableHostGitOperations: false,
+      enableSessionStore: false,
+      enableSkills: false,
+      includedBuiltinSkills: [],
+      toolSearch: { enabled: false },
+      memory: { enabled: false },
+      mcpServers: {},
+      requestExtensions: false
     };
     if (systemMessage) config.systemMessage = typeof systemMessage === "string" ? { mode: "append", content: systemMessage } : systemMessage;
-    return config;
+    return { config, selection };
+  }
+  async #prepareSession(session, cwd, selection) {
+    try {
+      return await prepareCopilotToolSession(session, selection, cwd);
+    } catch (error) {
+      try {
+        await session.disconnect();
+      } catch {
+      }
+      throw sdkError(error.code || "copilot_tool_catalog_unavailable", error.message, 503, error);
+    }
   }
   async #getSession(cwd, model, settings, continuation) {
     if (continuation.sessionId && this.sessionObjects.has(continuation.sessionId)) {
       const session2 = this.sessionObjects.get(continuation.sessionId);
+      const { selection: selection2 } = this.#sessionConfig(cwd, model, settings, continuation.sessionId);
+      await this.#prepareSession(session2, cwd, selection2);
+      this.sessionContexts.set(continuation.sessionId, { cwd, settings });
       this.sessions.get(continuation.sessionId).stopped = true;
       return { session: session2, sessionId: continuation.sessionId, reused: true, reason: "Continuing the same session." };
     }
     if (continuation.sessionId && continuation.resumable !== false) {
       try {
-        const session2 = await this.client.resumeSession(continuation.sessionId, this.#sessionConfig(cwd, model, settings, continuation.sessionId));
+        const { config: config2, selection: selection2 } = this.#sessionConfig(cwd, model, settings, continuation.sessionId);
+        const session2 = await this.client.resumeSession(continuation.sessionId, config2);
+        await this.#prepareSession(session2, cwd, selection2);
         this.sessionObjects.set(session2.sessionId, session2);
+        this.sessionContexts.set(session2.sessionId, { cwd, settings });
         this.sessions.set(session2.sessionId, { key: null, result: { sessionId: session2.sessionId } });
         return { session: session2, sessionId: session2.sessionId, reused: true, reason: "Resumed persisted session." };
       } catch (error) {
+        if (String(error?.code || "").startsWith("copilot_tool_") || error?.code === "copilot_permission_mode_unsafe") throw error;
         this.emit("diagnostic", `Could not resume session ${continuation.sessionId}: ${error.message}`);
       }
     }
-    const session = await this.client.createSession(this.#sessionConfig(cwd, model, settings));
+    const { config, selection } = this.#sessionConfig(cwd, model, settings);
+    const session = await this.client.createSession(config);
+    await this.#prepareSession(session, cwd, selection);
     this.sessionObjects.set(session.sessionId, session);
+    this.sessionContexts.set(session.sessionId, { cwd, settings });
     return { session, sessionId: session.sessionId, reused: false, reason: continuation.sessionId ? "The prior session was unavailable." : "A fresh session was requested." };
   }
   #publishStream(sessionId, task, kind, delta, raw) {
@@ -7193,15 +7602,15 @@ var CopilotRuntime = class extends Runtime {
         clearTimeout(task.timer);
         this.turns.delete(sessionId);
         task.unsubscribe?.();
-        const fault = typeof error?.code === "string" ? error : sdkError("model_call_failure", `Copilot model call failed: ${error.message}`, 502, error);
+        const fault2 = typeof error?.code === "string" ? error : sdkError("model_call_failure", `Copilot model call failed: ${error.message}`, 502, error);
         this.publish(sessionId, "turn", {
           runtime: "copilot",
           sessionId,
           turnId: task.turnId,
-          phase: fault.code === "interrupted" ? "interrupted" : "failed",
-          stopReason: fault.code
+          phase: fault2.code === "interrupted" ? "interrupted" : "failed",
+          stopReason: fault2.code
         });
-        rejectResult(fault);
+        rejectResult(fault2);
         settle();
       }
     }
@@ -7210,24 +7619,33 @@ var CopilotRuntime = class extends Runtime {
   async setModel(sessionId, modelId) {
     const session = this.sessionObjects.get(sessionId);
     check(session, "session_unavailable", `Copilot session '${sessionId}' is unavailable.`, 404);
-    await session.setModel(modelId);
-    const record = this.sessions.get(sessionId);
-    if (record) record.currentModelId = modelId;
-  }
-  respond(requestId, result2) {
-    const pending = this.pendingPermissions.get(String(requestId));
-    if (!pending) return super.respond(requestId, result2);
-    this.pendingPermissions.delete(String(requestId));
-    clearTimeout(pending.timer);
-    const selected = result2?.outcome?.optionId || result2?.decision || result2;
-    pending.resolve(this.#permissionResult(selected === "allow" ? "allow_once" : selected === "reject" ? "reject_once" : selected));
-  }
-  respondError(requestId, message, code) {
-    const pending = this.pendingPermissions.get(String(requestId));
-    if (!pending) return super.respondError(requestId, message, code);
-    this.pendingPermissions.delete(String(requestId));
-    clearTimeout(pending.timer);
-    pending.resolve(this.#permissionResult("reject_once"));
+    const context = this.sessionContexts.get(sessionId);
+    check(context, "session_unavailable", `Copilot session '${sessionId}' has no tool-catalog context.`, 404);
+    try {
+      await session.setModel(modelId);
+      const { config, selection } = this.#sessionConfig(context.cwd, modelId, context.settings, sessionId);
+      session.registerHooks?.(config.hooks);
+      const updated = await session.rpc?.options?.update?.({
+        availableTools: selection.filters,
+        excludedTools: [],
+        toolFilterPrecedence: "excluded"
+      });
+      if (!updated || updated.success === false) {
+        throw sdkError("copilot_tool_catalog_unavailable", "Copilot could not update its exact tool allowlist after the model changed.", 503);
+      }
+      await this.#prepareSession(session, context.cwd, selection);
+      const record = this.sessions.get(sessionId);
+      if (record) record.currentModelId = modelId;
+    } catch (error) {
+      try {
+        await session.disconnect();
+      } catch {
+      }
+      this.sessionObjects.delete(sessionId);
+      this.sessionContexts.delete(sessionId);
+      this.sessions.delete(sessionId);
+      throw error;
+    }
   }
   async interrupt(sessionId) {
     const task = this.turns.get(sessionId);
@@ -7254,13 +7672,17 @@ var CopilotRuntime = class extends Runtime {
     check(!this.turns.has(sessionId), "quiescence_unknown", "Confirm the assignment stopped before retiring its session.", 409);
     await session.disconnect();
     this.sessionObjects.delete(sessionId);
+    this.sessionContexts.delete(sessionId);
     this.sessions.delete(sessionId);
     return { status: "retiredLocally" };
   }
   async resume(sessionId, cwd) {
     await this.start();
-    const session = await this.client.resumeSession(sessionId, this.#sessionConfig(cwd, this.model, {}, sessionId));
+    const { config, selection } = this.#sessionConfig(cwd, this.model, {}, sessionId);
+    const session = await this.client.resumeSession(sessionId, config);
+    await this.#prepareSession(session, cwd, selection);
     this.sessionObjects.set(sessionId, session);
+    this.sessionContexts.set(sessionId, { cwd, settings: {} });
     this.sessions.set(sessionId, { key: null, result: { sessionId } });
     return sessionId;
   }
@@ -7305,12 +7727,8 @@ var CopilotRuntime = class extends Runtime {
     await this.onClosing();
     if (this.client) await this.client.stop();
     this.sessionObjects.clear();
+    this.sessionContexts.clear();
     this.sessions.clear();
-    for (const pending of this.pendingPermissions.values()) {
-      clearTimeout(pending.timer);
-      pending.resolve(this.#permissionResult("reject_once"));
-    }
-    this.pendingPermissions.clear();
     this.ready = false;
     this.client = null;
   }
@@ -7480,7 +7898,7 @@ async function requireOperationAuthority(bus, turn) {
 }
 
 // floe-bridge/dist/runtime-core/substrate-capability-tools.js
-import { randomUUID as randomUUID4 } from "node:crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 function failure(message, error, details = {}) {
   return {
     content: [{ type: "text", text: message }],
@@ -7527,7 +7945,7 @@ async function executeUseCapability(bus, workspaceId, turn, params) {
   }
   try {
     const authority = await requireOperationAuthority(bus, turn);
-    const idempotencyKey = typeof params?.idempotency_key === "string" && params.idempotency_key.trim() ? params.idempotency_key.trim() : `runtime:${turn.delivery_id}:${randomUUID4()}`;
+    const idempotencyKey = typeof params?.idempotency_key === "string" && params.idempotency_key.trim() ? params.idempotency_key.trim() : `runtime:${turn.delivery_id}:${randomUUID5()}`;
     const response = await bus.invokeOperation(workspaceId, authority.bearer_token, {
       operation_id: operationId,
       operation_version: operationVersion,
@@ -7862,7 +8280,7 @@ function executeCancelPulse(bus, params) {
 }
 
 // floe-bridge/dist/runtime-core/substrate-artefact-tools.js
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 var MAX_TEXT_UNITS = 16e3;
 function failure3(message, versionId) {
@@ -7911,17 +8329,17 @@ async function executeReadArtefact(bus, turn, params) {
       for (let at = text.indexOf("\n"); at >= 0 && at < offset; at = text.indexOf("\n", at + 1))
         firstLine++;
       const page = { offset, returned_units: end - offset, total_units: text.length, first_line: firstLine, next_offset: nextOffset };
-      const digest2 = { algorithm: "sha256", value: createHash3("sha256").update(bytes).digest("hex") };
+      const digest3 = { algorithm: "sha256", value: createHash4("sha256").update(bytes).digest("hex") };
       return {
         content: [
           {
             type: "text",
-            text: `Exact saved text: ${JSON.stringify({ ...details, digest: digest2, ...page })}${nextOffset === null ? "\nEnd of saved text." : `
+            text: `Exact saved text: ${JSON.stringify({ ...details, digest: digest3, ...page })}${nextOffset === null ? "\nEnd of saved text." : `
 Continue this version with offset: ${nextOffset}.`}`
           },
           { type: "text", text: text.slice(offset, end) }
         ],
-        details: { ok: true, ...details, digest: digest2, ...page, truncated: nextOffset !== null }
+        details: { ok: true, ...details, digest: digest3, ...page, truncated: nextOffset !== null }
       };
     }
     return {
@@ -9654,7 +10072,284 @@ function createCopilotAccount(options = {}) {
   });
 }
 
+// floe-bridge/dist/adapters/engine-tool-gate.js
+import { realpathSync as realpathSync3 } from "node:fs";
+import path2 from "node:path";
+
+// floe-bridge/dist/adapters/powershell-evidence.js
+var URL_PATTERN = /\b[a-z][a-z0-9+.-]*:\/\/[^\s'"`;|()<>{}]+/gi;
+var EXECUTABLE_SUFFIX = /\.(exe|cmd|bat|com)$/;
+var PLAIN_NAME = /^[A-Za-z0-9_.:\\/ -]+$/;
+function powershellEvidence(command) {
+  const urls = [...new Set(command.match(URL_PATTERN) ?? [])];
+  const split = splitSegments(command);
+  if (!split)
+    return { executables: [null], write_redirection: /[>]/.test(command), urls };
+  return {
+    executables: split.segments.filter((segment) => segment.tokens.length > 0 || segment.complex).map(executableOf),
+    write_redirection: split.writeRedirection,
+    urls
+  };
+}
+function executableOf(segment) {
+  if (segment.complex)
+    return null;
+  let [first, second] = segment.tokens;
+  if (first === "&" || first === ".")
+    first = second;
+  if (!first || first.startsWith("$") || first.startsWith("-") || !PLAIN_NAME.test(first))
+    return null;
+  const name = first.split(/[\\/]/).pop().toLowerCase().replace(EXECUTABLE_SUFFIX, "");
+  return name || null;
+}
+function splitSegments(text) {
+  const segments = [];
+  let segment = { tokens: [], complex: false };
+  let token = "";
+  let quoted = false;
+  let writeRedirection = false;
+  const endToken = () => {
+    if (token || quoted)
+      segment.tokens.push(token);
+    token = "";
+    quoted = false;
+  };
+  const endSegment = () => {
+    endToken();
+    segments.push(segment);
+    segment = { tokens: [], complex: false };
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "'") {
+      const close = singleQuoteEnd(text, i + 1);
+      if (close < 0)
+        return null;
+      token += text.slice(i + 1, close).replace(/''/g, "'");
+      quoted = true;
+      i = close;
+    } else if (ch === '"') {
+      const close = doubleQuoteEnd(text, i + 1);
+      if (close < 0)
+        return null;
+      const body = text.slice(i + 1, close);
+      if (/[$`]/.test(body))
+        segment.complex = true;
+      token += body;
+      quoted = true;
+      i = close;
+    } else if (ch === "`" || ch === "(" || ch === ")" || ch === "{" || ch === "}" || ch === "@" && /["'({]/.test(text[i + 1] ?? "") || ch === "[" && !token) {
+      segment.complex = true;
+      token += ch;
+      if (ch === "`")
+        i++;
+    } else if (ch === ">") {
+      if (!/^>&\d/.test(text.slice(i, i + 3)))
+        writeRedirection = true;
+      if (/\d$/.test(token))
+        token = token.slice(0, -1);
+      endToken();
+      segment.complex = segment.complex || !segment.tokens.length;
+      i = skipRedirectTarget(text, i);
+    } else if (ch === "<") {
+      segment.complex = true;
+    } else if (ch === ";" || ch === "\n" || ch === "\r" || ch === "|") {
+      endSegment();
+      if (text[i + 1] === ch)
+        i++;
+    } else if (ch === "&") {
+      if (text[i + 1] === "&") {
+        endSegment();
+        i++;
+      } else if (!token && segment.tokens.length === 0) {
+        segment.tokens.push("&");
+      } else {
+        endSegment();
+      }
+    } else if (/\s/.test(ch)) {
+      endToken();
+    } else {
+      token += ch;
+    }
+  }
+  endSegment();
+  return { segments, writeRedirection };
+}
+function skipRedirectTarget(text, at) {
+  let i = at;
+  while (text[i + 1] === ">" || text[i + 1] === "&")
+    i++;
+  while (i + 1 < text.length && /[ \t]/.test(text[i + 1]))
+    i++;
+  while (i + 1 < text.length && !/[\s;|&]/.test(text[i + 1]))
+    i++;
+  return i;
+}
+function singleQuoteEnd(text, from) {
+  for (let i = from; i < text.length; i++) {
+    if (text[i] !== "'")
+      continue;
+    if (text[i + 1] === "'") {
+      i++;
+      continue;
+    }
+    return i;
+  }
+  return -1;
+}
+function doubleQuoteEnd(text, from) {
+  for (let i = from; i < text.length; i++) {
+    if (text[i] === "`") {
+      i++;
+      continue;
+    }
+    if (text[i] === '"')
+      return i;
+  }
+  return -1;
+}
+
+// floe-bridge/dist/adapters/engine-tool-gate.js
+var SHELL_OPERATION = "engine.tool.process.execute";
+function realpathAllowingMissing(target) {
+  const missing = [];
+  let current = target;
+  for (; ; ) {
+    try {
+      return path2.join(realpathSync3.native(current), ...missing.reverse());
+    } catch {
+      const parent = path2.dirname(current);
+      if (parent === current)
+        throw new Error(`Cannot resolve '${target}'.`);
+      missing.push(path2.basename(current));
+      current = parent;
+    }
+  }
+}
+function workspaceRelativePath(workspaceLocator, reported) {
+  if (!workspaceLocator || !reported.trim())
+    return null;
+  try {
+    const root = realpathSync3.native(workspaceLocator);
+    const resolved = realpathAllowingMissing(path2.resolve(root, reported));
+    const relative4 = path2.relative(root, resolved);
+    if (relative4.startsWith("..") || path2.isAbsolute(relative4))
+      return null;
+    return relative4 ? relative4.split(path2.sep).join("/") : ".";
+  } catch {
+    return null;
+  }
+}
+function toolCallFacts(request, workspaceLocator) {
+  const facts = request.facts;
+  const shell = request.operationId === SHELL_OPERATION && typeof facts.fullCommandText === "string" ? powershellEvidence(facts.fullCommandText) : null;
+  return {
+    operation_id: request.operationId ?? "",
+    tool_call_id: request.id,
+    engine: request.runtime,
+    manifest_version: request.manifestVersion,
+    native_tools: [...request.nativeToolCandidates],
+    paths: facts.paths.map((reported) => workspaceRelativePath(workspaceLocator, reported)),
+    executables: shell?.executables ?? [],
+    urls: [.../* @__PURE__ */ new Set([...facts.urls, ...shell?.urls ?? []])],
+    write_redirection: shell?.write_redirection ?? false,
+    sandbox_bypass: facts.requestSandboxBypass === true,
+    argument_digest: facts.argumentDigest
+  };
+}
+function refused(refusal, fallback, decision = "reject_once") {
+  return {
+    decision,
+    refusal: {
+      code: decision === "cancel" ? "tool_policy_cancelled" : "tool_policy_denied",
+      rule_id: refusal?.rule_id ?? null,
+      reason: refusal?.reason ?? fallback
+    }
+  };
+}
+var EngineToolGate = class {
+  waiters = /* @__PURE__ */ new Set();
+  async decide(input) {
+    if (!input.request.operationId)
+      return refused(null, "This tool is not governed by Floe.");
+    const decision = await input.bus.evaluateRuntimeToolCall(input.deliveryId, toolCallFacts(input.request, input.workspaceLocator));
+    if (decision.decision === "allow" && !decision.refusal)
+      return "allow_once";
+    if (decision.decision !== "require_approval" || decision.approval_request_ids.length === 0) {
+      return refused(decision.refusal, "Floe refused this tool call.");
+    }
+    const resolution = await this.waitForAnswer(input.bus, input.deliveryId, decision);
+    if (resolution?.outcome === "allowed")
+      return "allow_once";
+    if (resolution?.outcome === "cancelled")
+      return refused(resolution.refusal, "The Floe turn stopped.", "cancel");
+    return refused(resolution?.refusal ?? null, "The approval for this tool call is no longer available.");
+  }
+  /** A pushed approval answer or invalidation for one of the waiting requests. */
+  approvalChanged(approvalRequestId) {
+    for (const waiter of this.waiters) {
+      if (waiter.requestIds.includes(approvalRequestId))
+        this.check(waiter, null);
+    }
+  }
+  /** The Delivery stopped: its waiting calls are answered as cancelled. */
+  abandonDelivery(deliveryId, reason = "cancelled") {
+    for (const waiter of this.waiters) {
+      if (waiter.deliveryId === deliveryId)
+        this.check(waiter, reason);
+    }
+  }
+  waitForAnswer(bus, deliveryId, decision) {
+    return new Promise((resolve6) => {
+      const waiter = {
+        bus,
+        deliveryId,
+        evaluationId: decision.evaluation_id,
+        requestIds: decision.approval_request_ids,
+        settle: resolve6,
+        chain: Promise.resolve(),
+        timer: null,
+        done: false
+      };
+      this.waiters.add(waiter);
+      const expiresIn = decision.approval_expires_at ? Date.parse(decision.approval_expires_at) - Date.now() : 0;
+      waiter.timer = setTimeout(() => this.check(waiter, "unavailable"), Math.max(0, Math.min(expiresIn, 2 ** 31 - 1)));
+      this.check(waiter, null);
+    });
+  }
+  check(waiter, abandon) {
+    waiter.chain = waiter.chain.then(async () => {
+      if (waiter.done)
+        return;
+      let resolution;
+      try {
+        resolution = await waiter.bus.resolveRuntimeToolApproval(waiter.deliveryId, waiter.evaluationId, abandon);
+      } catch (error) {
+        console.error("[bridge] tool approval resolution failed", {
+          delivery_id: waiter.deliveryId,
+          evaluation_id: waiter.evaluationId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        if (!abandon)
+          return;
+        resolution = null;
+      }
+      if (resolution?.outcome === "pending")
+        return;
+      waiter.done = true;
+      if (waiter.timer)
+        clearTimeout(waiter.timer);
+      this.waiters.delete(waiter);
+      waiter.settle(resolution);
+    });
+  }
+};
+
 // floe-bridge/dist/adapters/floe-runtime-adapter.js
+function grantedBuiltinTools(operationIds = [], model, platform = process.platform) {
+  const manifest = COPILOT_BUILTIN_TOOL_MANIFEST[platform] ?? {};
+  return copilotToolCatalogForModel(model, platform).filter((name) => operationIds.includes(manifest[name].operationId)).map((name) => `builtin:${name}`).sort();
+}
 function recordToolActivity(turn, entry) {
   const existing = entry.call_id ? turn.tool_activity.find((activity) => activity.call_id === entry.call_id) : void 0;
   if (!existing) {
@@ -9688,8 +10383,25 @@ var FloeRuntimeAdapter = class {
   // floe-runtime holds no credentials; the vendor CLI authenticates itself.
   sessions = /* @__PURE__ */ new Map();
   runtimeFactory;
+  toolGate = new EngineToolGate();
   constructor(options) {
-    this.runtimeFactory = options?.runtimeFactory ?? (() => new CopilotRuntime({ clientOptions: { env: copilotEnvironment() } }));
+    this.runtimeFactory = options?.runtimeFactory ?? ((runtimeOptions) => new CopilotRuntime({ ...runtimeOptions, clientOptions: { env: copilotEnvironment() } }));
+  }
+  approvalChanged(approvalRequestId) {
+    this.toolGate.approvalChanged(approvalRequestId);
+  }
+  async decideToolCall(session, request) {
+    const turn = session.activeTurn;
+    const context = session.context;
+    if (!turn || turn.finalized || turn.cancelled || !context) {
+      return { decision: "cancel", refusal: { code: "tool_policy_cancelled", reason: "No Floe turn is running." } };
+    }
+    return this.toolGate.decide({
+      bus: context.bus,
+      deliveryId: turn.delivery_id,
+      workspaceLocator: context.workspace_locator ?? null,
+      request
+    });
   }
   createEngineAccount() {
     return createCopilotAccount();
@@ -9777,8 +10489,16 @@ var FloeRuntimeAdapter = class {
       // session; a resumed session already holds them, so this is 0 there.
       system_message_bytes: systemMessage.length
     });
+    const availableTools = [
+      ...session.directTools.map((tool) => tool.name),
+      ...grantedBuiltinTools(context.engine_tool_operation_ids, model)
+    ];
     try {
       await this.throwIfCancelled(session, turn);
+      const offeredTools = JSON.stringify(availableTools);
+      if (session.sessionId && session.offeredTools !== null && session.offeredTools !== offeredTools) {
+        await session.runtime.retire(session.sessionId);
+      }
       if (session.sessionId && model && session.model !== model) {
         await session.runtime.setModel(session.sessionId, model);
       }
@@ -9788,19 +10508,18 @@ var FloeRuntimeAdapter = class {
         await this.throwIfCancelled(session, turn);
       }, {
         ...model ? { model } : {},
-        ...session.directTools.length ? {
-          tools: session.directTools,
-          availableTools: session.directTools.map((tool) => tool.name)
-        } : {},
+        ...session.directTools.length ? { tools: session.directTools } : {},
+        availableTools,
         ...systemMessage ? { systemMessage: { mode: "append", content: systemMessage } } : {}
       }, session.sessionId ? { sessionId: session.sessionId, scope: session.contextId } : { scope: session.contextId });
+      session.offeredTools = offeredTools;
       await this.throwIfCancelled(session, turn);
       turn.visible_output = typeof result2.text === "string" ? result2.text : "";
       if (model)
         session.model = model;
       await this.appendTelemetry(context, turn, "sdk_tool_evidence", {
         sdk_session_id: result2.sessionId,
-        offered_tool_names: session.directTools.map((tool) => tool.name),
+        offered_tool_names: availableTools,
         registration_acknowledgement: {
           exposed: false,
           reason: "copilot_sdk_does_not_expose_tool_registration_acknowledgement"
@@ -9866,6 +10585,7 @@ var FloeRuntimeAdapter = class {
         });
       }
       turn.finalized = true;
+      this.toolGate.abandonDelivery(turn.delivery_id);
       if (session.activeTurn === turn)
         session.activeTurn = void 0;
       this.writeWorkLog(context, bundle, turn, "error");
@@ -9878,6 +10598,7 @@ var FloeRuntimeAdapter = class {
       if (!turn || turn.delivery_id !== deliveryId || turn.finalized)
         continue;
       turn.cancelled = true;
+      this.toolGate.abandonDelivery(deliveryId);
       this.beginCancellation(session, turn);
       return true;
     }
@@ -9902,16 +10623,19 @@ var FloeRuntimeAdapter = class {
       existing.context = context;
       return existing;
     }
-    const runtime = this.runtimeFactory();
     const session = {
-      runtime,
       sessionId: null,
       endpointId: bundle.endpoint_id,
       contextId,
       workspaceId: bundle.workspace_id,
       directTools: [],
+      offeredTools: null,
       context
     };
+    const runtime = this.runtimeFactory({
+      permissionPolicy: (request) => this.decideToolCall(session, request)
+    });
+    session.runtime = runtime;
     const toolHandle = {
       getBus: () => session.context?.bus ?? context.bus,
       getAnchor: () => session.activeTurn && !session.activeTurn.finalized && !session.activeTurn.cancelled ? this.turnAnchor(session.activeTurn) : null,
@@ -9985,7 +10709,7 @@ var FloeRuntimeAdapter = class {
     const threadId = contextId ?? trigger?.thread_id ?? `thread:${bundle.workspace_id}:floe-runtime`;
     const sourceEndpoint = trigger?.source_endpoint_id || `actor:${bundle.workspace_id}:operator`;
     return {
-      runtime_turn_id: `rt_${randomUUID5()}`,
+      runtime_turn_id: `rt_${randomUUID6()}`,
       delivery_id: bundle.delivery_id,
       started_at: (/* @__PURE__ */ new Date()).toISOString(),
       endpoint_id: bundle.endpoint_id,
@@ -10176,7 +10900,7 @@ var HookRegistry = class {
 };
 
 // floe-bridge/dist/folder-watcher.js
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 import { statSync as statSync3, watch as fsWatch } from "node:fs";
 import { extname, join as join7, resolve as resolve4 } from "node:path";
 function watchFolder(folderPath, onFile, options = {}) {
@@ -10200,7 +10924,7 @@ function watchFolder(folderPath, onFile, options = {}) {
     }
     if (!stat.isFile())
       return;
-    const arrivalId = createHash4("sha256").update(`${resolve4(filePath).toLowerCase()}\0${stat.size}\0${stat.mtimeMs}`).digest("hex");
+    const arrivalId = createHash5("sha256").update(`${resolve4(filePath).toLowerCase()}\0${stat.size}\0${stat.mtimeMs}`).digest("hex");
     if (lastArrivalByPath.get(filePath) === arrivalId)
       return;
     lastArrivalByPath.set(filePath, arrivalId);
@@ -10339,7 +11063,7 @@ function fail(reason) {
 }
 
 // floe-bridge/dist/workspace-config-inventory.js
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { isAbsolute as isAbsolute3 } from "node:path";
 var WorkspaceConfigurationInventoryError = class extends Error {
   reason;
@@ -10413,7 +11137,8 @@ function actorInventory(agent, runtime) {
     instructions,
     knowledge_refs: parseRefs(frontmatter.knowledge_refs),
     policy_refs: parsePolicyRefs(frontmatter.policy_refs),
-    escalation_rules: parseEscalationRules(frontmatter.escalation_rules)
+    escalation_rules: parseEscalationRules(frontmatter.escalation_rules),
+    ...parseScope(frontmatter.scope, agent.agent_id)
   };
   const checkpointPolicy = normalizeCheckpointPolicy(runtime.checkpoint_policy);
   const runtimeInventory = {
@@ -10432,7 +11157,7 @@ function actorInventory(agent, runtime) {
     source: {
       kind: "workspace_actor_file",
       path: sourcePath,
-      source_fingerprint: sha256(canonicalJson({
+      source_fingerprint: sha256(canonicalJson2({
         file: sourcePath,
         name: label,
         frontmatter,
@@ -10532,6 +11257,17 @@ function parseEscalationRules(value) {
     };
   });
 }
+function parseScope(value, agentId) {
+  if (value == null)
+    return {};
+  const paths = plainObject(value, `Actor '${agentId}' scope`).paths;
+  if (paths == null)
+    return {};
+  if (!Array.isArray(paths)) {
+    throw new WorkspaceConfigurationInventoryError(`Actor '${agentId}' scope.paths must be a list`);
+  }
+  return { scope: { paths: paths.map((path3, index) => requiredText(path3, `Actor '${agentId}' scope.paths[${index}]`)) } };
+}
 function normalizeCheckpointPolicy(value) {
   if (!value)
     return { mode: "none", schema_ref: null };
@@ -10547,11 +11283,11 @@ function normalizeCheckpointPolicy(value) {
   };
 }
 function safeWorkspacePath(value) {
-  const path2 = requiredText(value, "workspace-relative source path").replace(/\\/g, "/");
-  if (isAbsolute3(path2) || path2.startsWith("/") || path2.split("/").includes("..")) {
+  const path3 = requiredText(value, "workspace-relative source path").replace(/\\/g, "/");
+  if (isAbsolute3(path3) || path3.startsWith("/") || path3.split("/").includes("..")) {
     throw new WorkspaceConfigurationInventoryError("source path must stay within the Workspace");
   }
-  return path2.replace(/^\.\//, "");
+  return path3.replace(/^\.\//, "");
 }
 function plainObject(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -10571,31 +11307,31 @@ function cleanText(value) {
 function normalizeTextSet(values) {
   return [...new Set(values.map((value) => requiredText(value, "runtime capability id")))].sort((left, right) => left.localeCompare(right));
 }
-function assertSafeJson(value, path2) {
+function assertSafeJson(value, path3) {
   if (value === null || ["string", "number", "boolean"].includes(typeof value))
     return;
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertSafeJson(item, `${path2}[${index}]`));
+    value.forEach((item, index) => assertSafeJson(item, `${path3}[${index}]`));
     return;
   }
   if (!value || typeof value !== "object") {
-    throw new WorkspaceConfigurationInventoryError(`${path2} must contain JSON data only`);
+    throw new WorkspaceConfigurationInventoryError(`${path3} must contain JSON data only`);
   }
   for (const [key, item] of Object.entries(value)) {
     if (/api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|authorization|client[_-]?secret|private[_-]?key|password|secret|credential/i.test(key)) {
-      throw new WorkspaceConfigurationInventoryError(`${path2}.${key} must not contain secret material`);
+      throw new WorkspaceConfigurationInventoryError(`${path3}.${key} must not contain secret material`);
     }
-    assertSafeJson(item, `${path2}.${key}`);
+    assertSafeJson(item, `${path3}.${key}`);
   }
 }
 function sha256(value) {
-  return `sha256:${createHash5("sha256").update(value, "utf8").digest("hex")}`;
+  return `sha256:${createHash6("sha256").update(value, "utf8").digest("hex")}`;
 }
-function canonicalJson(value) {
+function canonicalJson2(value) {
   if (Array.isArray(value))
-    return `[${value.map(canonicalJson).join(",")}]`;
+    return `[${value.map(canonicalJson2).join(",")}]`;
   if (value && typeof value === "object") {
-    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
+    return `{${Object.entries(value).filter(([, item]) => item !== void 0).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson2(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -10845,6 +11581,9 @@ var BridgeDaemon = class {
       this.cancelledDeliveries.add(deliveryId);
       await this.adapter.cancelDelivery?.(deliveryId);
     }
+    if ((message.type === "approval_decided" || message.type === "approval_invalidated") && typeof message.payload?.request?.approval_request_id === "string") {
+      this.adapter.approvalChanged?.(message.payload.request.approval_request_id);
+    }
     if (message.type === "workspace_registered" || message.type === "workspace_selected" || message.type === "workspace_attachment_requested" || message.type === "config_snapshot_requested" || message.type === "scope_graph_created" || message.type === "scope_graph_updated" || message.type === "scope_graph_deleted" || message.type === "scope_retired" || message.type === "actor_runtime_binding_changed" || message.type === "runtime_binding_updated" || message.type === "runtime_binding_cleared") {
       await this.attachKnownWorkspaces();
       await this.processDeliveries();
@@ -11061,20 +11800,7 @@ var BridgeDaemon = class {
         });
         if (this.processingEndpoints.has(runtime.endpoint_id))
           continue;
-        await this.bus.registerEndpoint({
-          endpoint_id: runtime.endpoint_id,
-          workspace_id: workspaceId,
-          name: runtime.name,
-          agent_id: runtime.agent_id,
-          status: runtime.runtime_status === "resolved" && !this.heldForEngine.has(runtime.endpoint_id) ? "idle" : "runtime_unconfigured",
-          metadata: {
-            runtime_adapter: runtime.adapter_id,
-            actor_definition_revision_id: runtime.actor_definition_revision_id,
-            runtime_profile_revision_id: runtime.runtime_profile_revision_id,
-            actor_runtime_binding_id: runtime.actor_runtime_binding_id,
-            runtime_unresolved_reasons: runtime.unresolved_reasons
-          }
-        });
+        await this.bus.registerEndpoint(runtimeEndpointRegistration(workspaceId, runtime, this.adapter.engine ?? null, this.heldForEngine.has(runtime.endpoint_id)));
       }
       const hookRegistry = new HookRegistry();
       this.registerNodeInstructionsHook(hookRegistry);
@@ -11325,6 +12051,7 @@ var BridgeDaemon = class {
       const instructions = endpointEntry?.instructions;
       let preparedAttemptId = null;
       let operationAuthoritySession;
+      let engineToolOperationIds = [];
       let effectiveRuntime;
       const hasCanonicalRuntimePins = Boolean(delivery.processing_contract || delivery.node_execution_id || delivery.actor_definition_revision_id && delivery.runtime_profile_revision_id && delivery.actor_runtime_binding_id);
       if (hasCanonicalRuntimePins) {
@@ -11340,6 +12067,7 @@ var BridgeDaemon = class {
         }
         delivery.processing_contract = contract;
         operationAuthoritySession = prepared.operation_authority_session;
+        engineToolOperationIds = prepared.engine_tool_operation_ids ?? [];
         if (contract.contract_kind === "scope_node") {
           preparedAttemptId = contract.execution_attempt.attempt_id;
           delivery.execution_attempt_id = preparedAttemptId;
@@ -11381,7 +12109,8 @@ var BridgeDaemon = class {
         workspace_locator: this.workspaceLocators.get(delivery.workspace_id),
         agent_id: endpointEntry?.agent_id,
         hooks: hookRegistry,
-        operation_authority_session: operationAuthoritySession
+        operation_authority_session: operationAuthoritySession,
+        engine_tool_operation_ids: engineToolOperationIds
       }, delivery, effectiveRuntime);
       if (this.cancelledDeliveries.delete(delivery.delivery_id)) {
         await this.reportTurnEndSafely(delivery.endpoint_id);

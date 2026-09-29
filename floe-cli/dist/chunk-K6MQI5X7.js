@@ -391,8 +391,11 @@ async function ensureSubstrateForClient(configPath, config) {
   const plan = planSubstrateStart(reachable, config.services.start_on_demand);
   if (plan === "start")
     await startAll(configPath, config);
-  if (plan === "connect" && config.services.start_on_demand)
+  if (plan === "connect" && config.services.start_on_demand) {
     await ensureIdentityAgent(configPath, config);
+    if ((await classifyRunningBus(configPath, config)).state === "mine")
+      await ensureBridge(configPath, config);
+  }
   return plan;
 }
 function floeHome(configPath, config) {
@@ -434,10 +437,15 @@ async function startAll(configPath, config) {
       throw new ForeignBusError(busUrl, after.state === "foreign" ? after.detail : "it stopped answering immediately after start");
     }
   }
-  const bridgeServiceToken = await fetchBridgeServiceToken("bridge:local", busUrl);
-  const bridge = await startService(configPath, config, "bridge", { FLOE_BRIDGE_SERVICE_TOKEN: bridgeServiceToken });
   await ensureIdentityAgent(configPath, config);
+  await ensureBridge(configPath, config);
+}
+async function ensureBridge(configPath, config) {
   const home = floeHome(configPath, config);
+  if (await probeChannel(ENGINES_CHANNEL, home))
+    return;
+  const bridgeServiceToken = await fetchBridgeServiceToken("bridge:local", config.bus.http_base_url);
+  const bridge = await startService(configPath, config, "bridge", { FLOE_BRIDGE_SERVICE_TOKEN: bridgeServiceToken });
   await waitUntilAnswering("Floe's bridge", bridge, () => probeChannel(ENGINES_CHANNEL, home));
 }
 function sleep(ms) {

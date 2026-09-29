@@ -589,8 +589,8 @@ var require_Node = __commonJS({
         };
         const res = toJS.toJS(this, "", ctx);
         if (typeof onAnchor === "function")
-          for (const { count, res: res2 } of ctx.anchors.values())
-            onAnchor(res2, count);
+          for (const { count: count2, res: res2 } of ctx.anchors.values())
+            onAnchor(res2, count2);
         return typeof reviver === "function" ? applyReviver.applyReviver(reviver, { "": res }, "", res) : res;
       }
     };
@@ -696,13 +696,13 @@ var require_Alias = __commonJS({
         const anchor = anchors2 && source && anchors2.get(source);
         return anchor ? anchor.count * anchor.aliasCount : 0;
       } else if (identity.isCollection(node)) {
-        let count = 0;
+        let count2 = 0;
         for (const item of node.items) {
           const c = getAliasCount(doc, item, anchors2);
-          if (c > count)
-            count = c;
+          if (c > count2)
+            count2 = c;
         }
-        return count;
+        return count2;
       } else if (identity.isPair(node)) {
         const kc = getAliasCount(doc, node.key, anchors2);
         const vc = getAliasCount(doc, node.value, anchors2);
@@ -986,14 +986,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text11, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text12, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text11;
+        return text12;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text11.length <= endStep)
-        return text11;
+      if (text12.length <= endStep)
+        return text12;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1010,14 +1010,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i3 = consumeMoreIndentedLines(text11, i3, indent.length);
+        i3 = consumeMoreIndentedLines(text12, i3, indent.length);
         if (i3 !== -1)
           end = i3 + endStep;
       }
-      for (let ch; ch = text11[i3 += 1]; ) {
+      for (let ch; ch = text12[i3 += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i3;
-          switch (text11[i3 + 1]) {
+          switch (text12[i3 + 1]) {
             case "x":
               i3 += 3;
               break;
@@ -1034,12 +1034,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i3 = consumeMoreIndentedLines(text11, i3, indent.length);
+            i3 = consumeMoreIndentedLines(text12, i3, indent.length);
           end = i3 + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text11[i3 + 1];
+            const next = text12[i3 + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i3;
           }
@@ -1051,12 +1051,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text11[i3 += 1];
+                ch = text12[i3 += 1];
                 overflow = true;
               }
               const j = i3 > escEnd + 1 ? i3 - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text11;
+                return text12;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1071,39 +1071,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text11;
+        return text12;
       if (onFold)
         onFold();
-      let res = text11.slice(0, folds[0]);
+      let res = text12.slice(0, folds[0]);
       for (let i4 = 0; i4 < folds.length; ++i4) {
         const fold = folds[i4];
-        const end2 = folds[i4 + 1] || text11.length;
+        const end2 = folds[i4 + 1] || text12.length;
         if (fold === 0)
           res = `
-${indent}${text11.slice(0, end2)}`;
+${indent}${text12.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text11[fold]}\\`;
+            res += `${text12[fold]}\\`;
           res += `
-${indent}${text11.slice(fold + 1, end2)}`;
+${indent}${text12.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text11, i3, indent) {
+    function consumeMoreIndentedLines(text12, i3, indent) {
       let end = i3;
       let start = i3 + 1;
-      let ch = text11[start];
+      let ch = text12[start];
       while (ch === " " || ch === "	") {
         if (i3 < start + indent) {
-          ch = text11[++i3];
+          ch = text12[++i3];
         } else {
           do {
-            ch = text11[++i3];
+            ch = text12[++i3];
           } while (ch && ch !== "\n");
           end = i3;
           start = i3 + 1;
-          ch = text11[start];
+          ch = text12[start];
         }
       }
       return end;
@@ -3655,8 +3655,8 @@ var require_Document = __commonJS({
         };
         const res = toJS.toJS(this.contents, jsonArg ?? "", ctx);
         if (typeof onAnchor === "function")
-          for (const { count, res: res2 } of ctx.anchors.values())
-            onAnchor(res2, count);
+          for (const { count: count2, res: res2 } of ctx.anchors.values())
+            onAnchor(res2, count2);
         return typeof reviver === "function" ? applyReviver.applyReviver(reviver, { "": res }, "", res) : res;
       }
       /**
@@ -3733,12 +3733,12 @@ var require_errors = __commonJS({
         lineStr = prev + lineStr;
       }
       if (/[^ ]/.test(lineStr)) {
-        let count = 1;
+        let count2 = 1;
         const end = error.linePos[1];
         if (end?.line === line && end.col > col) {
-          count = Math.max(1, Math.min(end.col - col, 80 - ci));
+          count2 = Math.max(1, Math.min(end.col - col, 80 - ci));
         }
-        const pointer = " ".repeat(ci) + "^".repeat(count);
+        const pointer = " ".repeat(ci) + "^".repeat(count2);
         error.message += `:
 
 ${lineStr}
@@ -18534,13 +18534,13 @@ var require_context = __commonJS({
       this.server = server;
     }
     function defaultSchemaErrorFormatter(errors, dataVar) {
-      let text11 = "";
+      let text12 = "";
       const separator = ", ";
       for (let i3 = 0; i3 !== errors.length; ++i3) {
         const e = errors[i3];
-        text11 += dataVar + (e.instancePath || "") + " " + e.message + separator;
+        text12 += dataVar + (e.instancePath || "") + " " + e.message + separator;
       }
-      return new Error(text11.slice(0, -separator.length));
+      return new Error(text12.slice(0, -separator.length));
     }
     module.exports = Context;
   }
@@ -19236,20 +19236,20 @@ var require_secure_json_parse = __commonJS({
     var hasBuffer = typeof Buffer !== "undefined";
     var suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
     var suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
-    function _parse(text11, reviver, options) {
+    function _parse(text12, reviver, options) {
       if (options == null) {
         if (reviver !== null && typeof reviver === "object") {
           options = reviver;
           reviver = void 0;
         }
       }
-      if (hasBuffer && Buffer.isBuffer(text11)) {
-        text11 = text11.toString();
+      if (hasBuffer && Buffer.isBuffer(text12)) {
+        text12 = text12.toString();
       }
-      if (text11 && text11.charCodeAt(0) === 65279) {
-        text11 = text11.slice(1);
+      if (text12 && text12.charCodeAt(0) === 65279) {
+        text12 = text12.slice(1);
       }
-      const obj = JSON.parse(text11, reviver);
+      const obj = JSON.parse(text12, reviver);
       if (obj === null || typeof obj !== "object") {
         return obj;
       }
@@ -19259,15 +19259,15 @@ var require_secure_json_parse = __commonJS({
         return obj;
       }
       if (protoAction !== "ignore" && constructorAction !== "ignore") {
-        if (suspectProtoRx.test(text11) === false && suspectConstructorRx.test(text11) === false) {
+        if (suspectProtoRx.test(text12) === false && suspectConstructorRx.test(text12) === false) {
           return obj;
         }
       } else if (protoAction !== "ignore" && constructorAction === "ignore") {
-        if (suspectProtoRx.test(text11) === false) {
+        if (suspectProtoRx.test(text12) === false) {
           return obj;
         }
       } else {
-        if (suspectConstructorRx.test(text11) === false) {
+        if (suspectConstructorRx.test(text12) === false) {
           return obj;
         }
       }
@@ -19305,20 +19305,20 @@ var require_secure_json_parse = __commonJS({
       }
       return obj;
     }
-    function parse5(text11, reviver, options) {
+    function parse5(text12, reviver, options) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text11, reviver, options);
+        return _parse(text12, reviver, options);
       } finally {
         Error.stackTraceLimit = stackTraceLimit;
       }
     }
-    function safeParse(text11, reviver) {
+    function safeParse(text12, reviver) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text11, reviver, { safe: true });
+        return _parse(text12, reviver, { safe: true });
       } catch {
         return void 0;
       } finally {
@@ -21866,20 +21866,20 @@ var require_resolve = __commonJS({
       return false;
     }
     function countKeys(schema) {
-      let count = 0;
+      let count2 = 0;
       for (const key in schema) {
         if (key === "$ref")
           return Infinity;
-        count++;
+        count2++;
         if (SIMPLE_INLINED.has(key))
           continue;
         if (typeof schema[key] == "object") {
-          (0, util_1.eachItem)(schema[key], (sch) => count += countKeys(sch));
+          (0, util_1.eachItem)(schema[key], (sch) => count2 += countKeys(sch));
         }
-        if (count === Infinity)
+        if (count2 === Infinity)
           return Infinity;
       }
-      return count;
+      return count2;
     }
     function getFullPath(resolver, id = "", normalize) {
       if (normalize !== false)
@@ -23961,7 +23961,7 @@ var require_core = __commonJS({
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
         if (!errors || errors.length === 0)
           return "No errors";
-        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text11, msg) => text11 + separator + msg);
+        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text12, msg) => text12 + separator + msg);
       }
       $dataMetaSchema(metaSchema, keywordsJsonPointers) {
         const rules = this.RULES.all;
@@ -25051,8 +25051,8 @@ var require_contains = __commonJS({
         cxt.result(valid, () => cxt.reset());
         function validateItemsWithCount() {
           const schValid = gen.name("_valid");
-          const count = gen.let("count", 0);
-          validateItems(schValid, () => gen.if(schValid, () => checkLimits(count)));
+          const count2 = gen.let("count", 0);
+          validateItems(schValid, () => gen.if(schValid, () => checkLimits(count2)));
         }
         function validateItems(_valid, block) {
           gen.forRange("i", 0, len, (i3) => {
@@ -25065,16 +25065,16 @@ var require_contains = __commonJS({
             block();
           });
         }
-        function checkLimits(count) {
-          gen.code((0, codegen_1._)`${count}++`);
+        function checkLimits(count2) {
+          gen.code((0, codegen_1._)`${count2}++`);
           if (max === void 0) {
-            gen.if((0, codegen_1._)`${count} >= ${min}`, () => gen.assign(valid, true).break());
+            gen.if((0, codegen_1._)`${count2} >= ${min}`, () => gen.assign(valid, true).break());
           } else {
-            gen.if((0, codegen_1._)`${count} > ${max}`, () => gen.assign(valid, false).break());
+            gen.if((0, codegen_1._)`${count2} > ${max}`, () => gen.assign(valid, false).break());
             if (min === 1)
               gen.assign(valid, true);
             else
-              gen.if((0, codegen_1._)`${count} >= ${min}`, () => gen.assign(valid, true));
+              gen.if((0, codegen_1._)`${count2} >= ${min}`, () => gen.assign(valid, true));
           }
         }
       }
@@ -27421,9 +27421,9 @@ var require_parseJson = __commonJS({
             pos++;
           } else if (c === "u") {
             pos++;
-            let count = 4;
+            let count2 = 4;
             let code = 0;
-            while (count--) {
+            while (count2--) {
               code <<= 4;
               c = s[pos];
               if (c === void 0) {
@@ -41858,7 +41858,7 @@ var require_plugin2 = __commonJS({
     "use strict";
     var getPluginName = require_getPluginName();
     var toCamelCase = require_toCamelCase();
-    var count = 0;
+    var count2 = 0;
     function plugin(fn, options = {}) {
       let autoName = false;
       if (fn.default !== void 0) {
@@ -41882,7 +41882,7 @@ var require_plugin2 = __commonJS({
       }
       if (!options.name) {
         autoName = true;
-        options.name = getPluginName(fn) + "-auto-" + count++;
+        options.name = getPluginName(fn) + "-auto-" + count2++;
       }
       fn[/* @__PURE__ */ Symbol.for("skip-override")] = options.encapsulate !== true;
       fn[/* @__PURE__ */ Symbol.for("fastify.display-name")] = options.name;
@@ -47196,13 +47196,13 @@ var require_stream_writable = __commonJS({
         var buffer = new Array(l);
         var holder = state.corkedRequestsFree;
         holder.entry = entry;
-        var count = 0;
+        var count2 = 0;
         var allBuffers = true;
         while (entry) {
-          buffer[count] = entry;
+          buffer[count2] = entry;
           if (!entry.isBuf) allBuffers = false;
           entry = entry.next;
-          count += 1;
+          count2 += 1;
         }
         buffer.allBuffers = allBuffers;
         doWrite(stream, state, true, state.length, buffer, "", holder.finish);
@@ -50854,16 +50854,16 @@ var require_luxon = __commonJS({
           this.rtf = getCachedRTF(intl, opts);
         }
       }
-      format(count, unit) {
+      format(count2, unit) {
         if (this.rtf) {
-          return this.rtf.format(count, unit);
+          return this.rtf.format(count2, unit);
         } else {
-          return formatRelativeTime(unit, count, this.opts.numeric, this.opts.style !== "long");
+          return formatRelativeTime(unit, count2, this.opts.numeric, this.opts.style !== "long");
         }
       }
-      formatToParts(count, unit) {
+      formatToParts(count2, unit) {
         if (this.rtf) {
-          return this.rtf.formatToParts(count, unit);
+          return this.rtf.formatToParts(count2, unit);
         } else {
           return [];
         }
@@ -51949,7 +51949,7 @@ var require_luxon = __commonJS({
     function eraForDateTime(dt, length) {
       return eras(length)[dt.year < 0 ? 0 : 1];
     }
-    function formatRelativeTime(unit, count, numeric = "always", narrow = false) {
+    function formatRelativeTime(unit, count2, numeric = "always", narrow = false) {
       const units = {
         years: ["year", "yr."],
         quarters: ["quarter", "qtr."],
@@ -51963,7 +51963,7 @@ var require_luxon = __commonJS({
       const lastable = ["hours", "minutes", "seconds"].indexOf(unit) === -1;
       if (numeric === "auto" && lastable) {
         const isDay = unit === "days";
-        switch (count) {
+        switch (count2) {
           case 1:
             return isDay ? "tomorrow" : `next ${units[unit][0]}`;
           case -1:
@@ -51972,7 +51972,7 @@ var require_luxon = __commonJS({
             return isDay ? "today" : `this ${units[unit][0]}`;
         }
       }
-      const isInPast = Object.is(count, -0) || count < 0, fmtValue = Math.abs(count), singular = fmtValue === 1, lilUnits = units[unit], fmtUnit = narrow ? singular ? lilUnits[1] : lilUnits[2] || lilUnits[1] : singular ? units[unit][0] : unit;
+      const isInPast = Object.is(count2, -0) || count2 < 0, fmtValue = Math.abs(count2), singular = fmtValue === 1, lilUnits = units[unit], fmtUnit = narrow ? singular ? lilUnits[1] : lilUnits[2] || lilUnits[1] : singular ? units[unit][0] : unit;
       return isInPast ? `${fmtValue} ${fmtUnit} ago` : `in ${fmtValue} ${fmtUnit}`;
     }
     function stringifyTokens(splits, tokenToString) {
@@ -52720,9 +52720,9 @@ var require_luxon = __commonJS({
        * @param {string} [opts.conversionAccuracy='casual'] - the conversion system to use
        * @return {Duration}
        */
-      static fromMillis(count, opts) {
+      static fromMillis(count2, opts) {
         return _Duration.fromObject({
-          milliseconds: count
+          milliseconds: count2
         }, opts);
       }
       /**
@@ -52791,12 +52791,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISO('P5Y3M').toObject() //=> { years: 5, months: 3 }
        * @return {Duration}
        */
-      static fromISO(text11, opts) {
-        const [parsed] = parseISODuration(text11);
+      static fromISO(text12, opts) {
+        const [parsed] = parseISODuration(text12);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text11}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -52815,12 +52815,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISOTime('T1100').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
        * @return {Duration}
        */
-      static fromISOTime(text11, opts) {
-        const [parsed] = parseISOTimeOnly(text11);
+      static fromISOTime(text12, opts) {
+        const [parsed] = parseISOTimeOnly(text12);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text11}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -53485,8 +53485,8 @@ var require_luxon = __commonJS({
        * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
        * @return {Interval}
        */
-      static fromISO(text11, opts) {
-        const [s2, e] = (text11 || "").split("/", 2);
+      static fromISO(text12, opts) {
+        const [s2, e] = (text12 || "").split("/", 2);
         if (s2 && e) {
           let start, startIsValid;
           try {
@@ -53517,7 +53517,7 @@ var require_luxon = __commonJS({
             }
           }
         }
-        return _Interval.invalid("unparsable", `the input "${text11}" can't be parsed as ISO 8601`);
+        return _Interval.invalid("unparsable", `the input "${text12}" can't be parsed as ISO 8601`);
       }
       /**
        * Check if an object is an Interval. Works across context boundaries
@@ -54747,7 +54747,7 @@ var require_luxon = __commonJS({
         o
       };
     }
-    function parseDataToDateTime(parsed, parsedZone, opts, format, text11, specificOffset) {
+    function parseDataToDateTime(parsed, parsedZone, opts, format, text12, specificOffset) {
       const {
         setZone,
         zone
@@ -54760,7 +54760,7 @@ var require_luxon = __commonJS({
         });
         return setZone ? inst : inst.setZone(zone);
       } else {
-        return DateTime.invalid(new Invalid("unparsable", `the input "${text11}" can't be parsed as ${format}`));
+        return DateTime.invalid(new Invalid("unparsable", `the input "${text12}" can't be parsed as ${format}`));
       }
     }
     function toTechFormat(dt, format, allowZ = true) {
@@ -54971,9 +54971,9 @@ var require_luxon = __commonJS({
         return format(differ(opts.unit), opts.unit);
       }
       for (const unit of opts.units) {
-        const count = differ(unit);
-        if (Math.abs(count) >= 1) {
-          return format(count, unit);
+        const count2 = differ(unit);
+        if (Math.abs(count2) >= 1) {
+          return format(count2, unit);
         }
       }
       return format(start > end ? -0 : 0, opts.units[opts.units.length - 1]);
@@ -55282,9 +55282,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromISO('2016-W05-4')
        * @return {DateTime}
        */
-      static fromISO(text11, opts = {}) {
-        const [vals, parsedZone] = parseISODate(text11);
-        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text11);
+      static fromISO(text12, opts = {}) {
+        const [vals, parsedZone] = parseISODate(text12);
+        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text12);
       }
       /**
        * Create a DateTime from an RFC 2822 string
@@ -55301,9 +55301,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromRFC2822('25 Nov 2016 13:23 Z')
        * @return {DateTime}
        */
-      static fromRFC2822(text11, opts = {}) {
-        const [vals, parsedZone] = parseRFC2822Date(text11);
-        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text11);
+      static fromRFC2822(text12, opts = {}) {
+        const [vals, parsedZone] = parseRFC2822Date(text12);
+        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text12);
       }
       /**
        * Create a DateTime from an HTTP header date
@@ -55321,8 +55321,8 @@ var require_luxon = __commonJS({
        * @example DateTime.fromHTTP('Sun Nov  6 08:49:37 1994')
        * @return {DateTime}
        */
-      static fromHTTP(text11, opts = {}) {
-        const [vals, parsedZone] = parseHTTPDate(text11);
+      static fromHTTP(text12, opts = {}) {
+        const [vals, parsedZone] = parseHTTPDate(text12);
         return parseDataToDateTime(vals, parsedZone, opts, "HTTP", opts);
       }
       /**
@@ -55339,8 +55339,8 @@ var require_luxon = __commonJS({
        * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
        * @return {DateTime}
        */
-      static fromFormat(text11, fmt, opts = {}) {
-        if (isUndefined(text11) || isUndefined(fmt)) {
+      static fromFormat(text12, fmt, opts = {}) {
+        if (isUndefined(text12) || isUndefined(fmt)) {
           throw new InvalidArgumentError("fromFormat requires an input string and a format");
         }
         const {
@@ -55350,18 +55350,18 @@ var require_luxon = __commonJS({
           locale,
           numberingSystem,
           defaultToEN: true
-        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text11, fmt);
+        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text12, fmt);
         if (invalid2) {
           return _DateTime.invalid(invalid2);
         } else {
-          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text11, specificOffset);
+          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text12, specificOffset);
         }
       }
       /**
        * @deprecated use fromFormat instead
        */
-      static fromString(text11, fmt, opts = {}) {
-        return _DateTime.fromFormat(text11, fmt, opts);
+      static fromString(text12, fmt, opts = {}) {
+        return _DateTime.fromFormat(text12, fmt, opts);
       }
       /**
        * Create a DateTime from a SQL date, time, or datetime
@@ -55384,9 +55384,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromSQL('09:12:34.342')
        * @return {DateTime}
        */
-      static fromSQL(text11, opts = {}) {
-        const [vals, parsedZone] = parseSQL(text11);
-        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text11);
+      static fromSQL(text12, opts = {}) {
+        const [vals, parsedZone] = parseSQL(text12);
+        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text12);
       }
       /**
        * Create an invalid DateTime.
@@ -56571,7 +56571,7 @@ var require_luxon = __commonJS({
        * @param {Object} options - options taken by fromFormat()
        * @return {Object}
        */
-      static fromFormatExplain(text11, fmt, options = {}) {
+      static fromFormatExplain(text12, fmt, options = {}) {
         const {
           locale = null,
           numberingSystem = null
@@ -56580,13 +56580,13 @@ var require_luxon = __commonJS({
           numberingSystem,
           defaultToEN: true
         });
-        return explainFromTokens(localeToUse, text11, fmt);
+        return explainFromTokens(localeToUse, text12, fmt);
       }
       /**
        * @deprecated use fromFormatExplain instead
        */
-      static fromStringExplain(text11, fmt, options = {}) {
-        return _DateTime.fromFormatExplain(text11, fmt, options);
+      static fromStringExplain(text12, fmt, options = {}) {
+        return _DateTime.fromFormatExplain(text12, fmt, options);
       }
       /**
        * Build a parser for `fmt` using the given locale. This parser can be passed
@@ -56621,8 +56621,8 @@ var require_luxon = __commonJS({
        * @param {Object} opts - options taken by fromFormat()
        * @returns {DateTime}
        */
-      static fromFormatParser(text11, formatParser, opts = {}) {
-        if (isUndefined(text11) || isUndefined(formatParser)) {
+      static fromFormatParser(text12, formatParser, opts = {}) {
+        if (isUndefined(text12) || isUndefined(formatParser)) {
           throw new InvalidArgumentError("fromFormatParser requires an input string and a format parser");
         }
         const {
@@ -56641,11 +56641,11 @@ var require_luxon = __commonJS({
           zone,
           specificOffset,
           invalidReason
-        } = formatParser.explainFromTokens(text11);
+        } = formatParser.explainFromTokens(text12);
         if (invalidReason) {
           return _DateTime.invalid(invalidReason);
         } else {
-          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text11, specificOffset);
+          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text12, specificOffset);
         }
       }
       // FORMAT PRESETS
@@ -64445,12 +64445,12 @@ var ContextStore = class {
     } catch {
       return null;
     }
-    const text11 = parsed && typeof parsed.text === "string" ? parsed.text : null;
-    if (!text11)
+    const text12 = parsed && typeof parsed.text === "string" ? parsed.text : null;
+    if (!text12)
       return null;
-    if (text11.length <= maxChars)
-      return text11;
-    return text11.slice(0, maxChars) + "\u2026";
+    if (text12.length <= maxChars)
+      return text12;
+    return text12.slice(0, maxChars) + "\u2026";
   }
   getLatestMessagePreview(context_id, maxChars = 160) {
     const row = this.db.prepare("SELECT content_json FROM events WHERE context_id = ? AND type = 'message' ORDER BY created_at DESC LIMIT 1").get(context_id);
@@ -64458,10 +64458,10 @@ var ContextStore = class {
       return null;
     try {
       const parsed = JSON.parse(row.content_json);
-      const text11 = typeof parsed.text === "string" ? parsed.text.trim() : "";
-      if (!text11)
+      const text12 = typeof parsed.text === "string" ? parsed.text.trim() : "";
+      if (!text12)
         return null;
-      return text11.length <= maxChars ? text11 : `${text11.slice(0, maxChars)}\u2026`;
+      return text12.length <= maxChars ? text12 : `${text12.slice(0, maxChars)}\u2026`;
     } catch {
       return null;
     }
@@ -65908,10 +65908,10 @@ var LegacyCredentialSourceError = class extends Error {
     this.name = "LegacyCredentialSourceError";
   }
 };
-function parseProfiles(text11) {
+function parseProfiles(text12) {
   let value;
   try {
-    value = import_yaml2.default.parse(text11);
+    value = import_yaml2.default.parse(text12);
   } catch {
     throw new LegacyCredentialSourceError("legacy_credential_invalid");
   }
@@ -67220,7 +67220,7 @@ var targets = { type: "array", items: {
 var grantSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence"],
+  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence", "delegation_only"],
   properties: {
     grant_id: text3,
     principal_id: text3,
@@ -67241,7 +67241,8 @@ var grantSchema = {
       additionalProperties: false,
       required: ["kind", "ref"],
       properties: { kind: text3, ref: text3 }
-    } }
+    } },
+    delegation_only: { type: "boolean" }
   }
 };
 var resultSchema = (properties) => ({ version: "1", schema: {
@@ -67279,7 +67280,8 @@ function capabilityGrantOperations(deps) {
         source_grant_id: text3,
         operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
         targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
-        expires_at: { ...text3, description: "Optional earlier expiry. Otherwise uses the earlier source or delegation-permission expiry." }
+        expires_at: { ...text3, description: "Optional earlier expiry. Otherwise uses the earlier source or delegation-permission expiry." },
+        delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
       }
     } },
     handler: (context, input) => {
@@ -67327,11 +67329,12 @@ function capabilityGrantOperations(deps) {
     operation_id: "capability.grant.list",
     required_grants: ["capability.grant.list"],
     title: "Inspect your permitted access",
-    description: "List the current grants pinned by your authenticated session, including their operation and target limits. Delegation creates a new grant for another Actor; these IDs cannot be reused as that Actor's authority.",
+    description: "List the current grants pinned by your authenticated session, including their operation and target limits. active_grants authorize your own actions; delegable_grants can only be delegated onward. Delegation creates a new grant for another Actor; these IDs cannot be reused as that Actor's authority.",
     effects: { mode: "read", reversibility: "none", external: false, secret_access: "reference" },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     result: resultSchema({
       active_grants: { type: "array", items: grantSchema },
+      delegable_grants: { type: "array", items: grantSchema },
       unavailable_grants: { type: "array", items: {
         type: "object",
         additionalProperties: false,
@@ -67374,6 +67377,1119 @@ function capabilityGrantOperations(deps) {
       };
     }
   }];
+}
+
+// floe-bus/dist/actor-approval-policy.js
+var APPROVAL_POLICY_REF_KIND = "policy";
+function resolveActorApprovalPolicy(definition2, policies) {
+  const ref = definition2.content.policy_refs.approval;
+  if (!ref)
+    return { ok: true, policy_revision_id: null };
+  if (ref.kind !== APPROVAL_POLICY_REF_KIND || !ref.revision) {
+    return { ok: false, reason: "The approval policy reference must name a policy and its exact published revision." };
+  }
+  const revision = policies.getRevision(ref.revision);
+  const policy = revision ? policies.getPolicy(revision.policy_id) : null;
+  if (!revision || !policy || revision.policy_id !== ref.id || revision.workspace_id !== definition2.workspace_id) {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' does not exist in this Workspace.` };
+  }
+  if (revision.category !== "approval") {
+    return { ok: false, reason: `Policy revision '${ref.revision}' is a '${revision.category}' policy, not an approval policy.` };
+  }
+  if (revision.published_at === null || revision.withdrawn_at !== null || policy.status !== "active") {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' is not published and live.` };
+  }
+  if (revision.content.rules.some((rule) => rule.effect.kind === "limit")) {
+    return { ok: false, reason: `Approval policy revision '${ref.revision}' has budget limits; bind budget policies instead.` };
+  }
+  return { ok: true, policy_revision_id: revision.policy_revision_id };
+}
+
+// floe-bus/dist/capability-grants.js
+import { createHash as createHash6, randomUUID as randomUUID6 } from "node:crypto";
+var FILESYSTEM_PATH_TARGET_KIND = "filesystem_path";
+var EXECUTABLE_TARGET_KIND = "executable";
+var NETWORK_DOMAIN_TARGET_KIND = "network_domain";
+function applyCapabilityGrantSchema(db) {
+  const existingColumns = db.prepare("PRAGMA table_info(capability_grants)").all();
+  if (existingColumns.length > 0) {
+    const names = new Set(existingColumns.map((column) => column.name));
+    if (!names.has("boundary_kind") || names.has("workspace_id")) {
+      migrateCapabilityGrantsToCanonical(db, names.has("boundary_kind"));
+    }
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS capability_grants (
+      grant_id TEXT PRIMARY KEY,
+      principal_id TEXT NOT NULL,
+      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
+      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
+      issued_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      issuer_id TEXT NOT NULL,
+      evidence_json TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_operations (
+      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      operation_id TEXT NOT NULL,
+      PRIMARY KEY (grant_id, operation_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_targets (
+      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      target_kind TEXT NOT NULL,
+      target_id TEXT,
+      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_delegations (
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+      source_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
+      authority_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
+      CHECK (grant_id != source_grant_id AND grant_id != authority_grant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS capability_grant_delegation_only (
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_grant_target_identity
+      ON capability_grant_targets(grant_id, target_kind, COALESCE(target_id, ''));
+
+    CREATE INDEX IF NOT EXISTS idx_capability_grant_principal_boundary
+      ON capability_grants(principal_id, boundary_kind, boundary_id, expires_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_capability_grant_active_expiry
+      ON capability_grants(expires_at)
+      WHERE revoked_at IS NULL;
+
+    CREATE TABLE IF NOT EXISTS host_capability_policy_revisions (
+      host_policy_id TEXT NOT NULL,
+      policy_revision TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      host_id TEXT NOT NULL,
+      principal_id TEXT NOT NULL,
+      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id),
+      supersedes_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
+      superseded_by_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
+      activated_at TEXT NOT NULL,
+      superseded_at TEXT,
+      UNIQUE(host_policy_id, policy_revision),
+      CHECK (superseded_by_grant_id IS NULL OR superseded_at IS NOT NULL)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_host_capability_policy_active
+      ON host_capability_policy_revisions(host_policy_id)
+      WHERE superseded_at IS NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_host_capability_policy_history
+      ON host_capability_policy_revisions(host_policy_id, activated_at DESC);
+  `);
+}
+function migrateCapabilityGrantsToCanonical(db, hasBoundaryKind) {
+  inSavepoint2(db, () => {
+    const hasSecretConstraints = tableExists2(db, "secret_grant_constraints");
+    const hasSecretPurposes = tableExists2(db, "secret_grant_constraint_purposes");
+    if (hasSecretConstraints) {
+      db.exec(`
+      CREATE TEMP TABLE floe_capability_secret_constraints AS
+      SELECT grant_id, secret_ref_id, workspace_id FROM secret_grant_constraints;
+    `);
+    }
+    if (hasSecretPurposes) {
+      db.exec(`
+      CREATE TEMP TABLE floe_capability_secret_purposes AS
+      SELECT grant_id, purpose FROM secret_grant_constraint_purposes;
+    `);
+    }
+    if (hasSecretPurposes)
+      db.exec("DROP TABLE secret_grant_constraint_purposes;");
+    if (hasSecretConstraints)
+      db.exec("DROP TABLE secret_grant_constraints;");
+    db.exec(`
+    CREATE TABLE capability_grants_next (
+      grant_id TEXT PRIMARY KEY,
+      principal_id TEXT NOT NULL,
+      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
+      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
+      issued_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      issuer_id TEXT NOT NULL,
+      evidence_json TEXT NOT NULL
+    );
+    CREATE TABLE capability_grant_operations_next (
+      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
+      operation_id TEXT NOT NULL,
+      PRIMARY KEY (grant_id, operation_id)
+    );
+    CREATE TABLE capability_grant_targets_next (
+      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
+      target_kind TEXT NOT NULL,
+      target_id TEXT,
+      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
+    );
+    INSERT INTO capability_grants_next (
+      grant_id, principal_id, boundary_kind, boundary_id,
+      issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    )
+    SELECT grant_id, principal_id,
+           ${hasBoundaryKind ? "boundary_kind, boundary_id" : "'workspace', workspace_id"},
+           issued_at, expires_at, revoked_at, issuer_id, evidence_json
+    FROM capability_grants;
+    INSERT INTO capability_grant_operations_next
+      SELECT grant_id, operation_id FROM capability_grant_operations;
+    INSERT INTO capability_grant_targets_next
+      SELECT grant_id, target_kind, target_id FROM capability_grant_targets;
+    DROP TABLE capability_grant_targets;
+    DROP TABLE capability_grant_operations;
+    DROP TABLE capability_grants;
+    ALTER TABLE capability_grants_next RENAME TO capability_grants;
+    ALTER TABLE capability_grant_operations_next RENAME TO capability_grant_operations;
+    ALTER TABLE capability_grant_targets_next RENAME TO capability_grant_targets;
+  `);
+    if (hasSecretConstraints) {
+      db.exec(`
+      CREATE TABLE secret_grant_constraints (
+        grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
+        secret_ref_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        FOREIGN KEY (workspace_id, secret_ref_id)
+          REFERENCES secret_refs(workspace_id, secret_ref_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_secret_grant_constraints_ref
+        ON secret_grant_constraints(workspace_id, secret_ref_id);
+      INSERT INTO secret_grant_constraints (grant_id, secret_ref_id, workspace_id)
+      SELECT grant_id, secret_ref_id, workspace_id FROM floe_capability_secret_constraints;
+      DROP TABLE floe_capability_secret_constraints;
+    `);
+    }
+    if (hasSecretPurposes) {
+      db.exec(`
+      CREATE TABLE secret_grant_constraint_purposes (
+        grant_id TEXT NOT NULL REFERENCES secret_grant_constraints(grant_id) ON DELETE CASCADE,
+        purpose TEXT NOT NULL,
+        PRIMARY KEY (grant_id, purpose)
+      );
+      INSERT INTO secret_grant_constraint_purposes (grant_id, purpose)
+      SELECT grant_id, purpose FROM floe_capability_secret_purposes;
+      DROP TABLE floe_capability_secret_purposes;
+    `);
+    }
+  });
+}
+function tableExists2(db, name) {
+  return Boolean(db.prepare(`
+    SELECT 1 AS present FROM sqlite_schema WHERE type = 'table' AND name = ?
+  `).get(name));
+}
+var SqliteCapabilityGrantStore = class {
+  db;
+  now;
+  grantIdFactory;
+  constructor(db, dependencies = {}) {
+    this.db = db;
+    this.now = dependencies.now ?? isoNow3;
+    this.grantIdFactory = dependencies.grant_id_factory ?? (() => `capgrant_${randomUUID6()}`);
+  }
+  issueGrant(input) {
+    assertNonEmpty("principal_id", input.principal_id);
+    const boundary = normalizeBoundary4(input.boundary);
+    assertNonEmpty("issuer_id", input.issuer_id);
+    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets2 = normalizeTargets(input.targets ?? []);
+    const evidence = normalizeEvidence(input.evidence);
+    const issuedAt = this.now();
+    const issuedAtMs = parseTimestamp("issued_at", issuedAt);
+    const expiresAtMs = parseTimestamp("expires_at", input.expires_at);
+    if (expiresAtMs <= issuedAtMs) {
+      throw new Error("CapabilityGrant expiry must be after its issue time.");
+    }
+    const grantId = input.grant_id ?? this.grantIdFactory();
+    assertNonEmpty("grant_id", grantId);
+    inSavepoint2(this.db, () => {
+      this.db.prepare(`
+        INSERT INTO capability_grants (
+          grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
+          revoked_at, issuer_id, evidence_json
+        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
+      `).run(grantId, input.principal_id, boundary.kind, boundaryId3(boundary), issuedAt, input.expires_at, input.issuer_id, JSON.stringify(evidence));
+      const insertOperation = this.db.prepare(`
+        INSERT INTO capability_grant_operations (grant_id, operation_id)
+        VALUES (?, ?)
+      `);
+      for (const operationId of operationIds)
+        insertOperation.run(grantId, operationId);
+      const insertTarget = this.db.prepare(`
+        INSERT INTO capability_grant_targets (grant_id, target_kind, target_id)
+        VALUES (?, ?, ?)
+      `);
+      for (const target of targets2)
+        insertTarget.run(grantId, target.kind, target.id);
+      if (input.delegation_only) {
+        this.db.prepare("INSERT INTO capability_grant_delegation_only (grant_id) VALUES (?)").run(grantId);
+      }
+    });
+    return this.requireGrant(grantId);
+  }
+  /** Delegate only pinned, current authority. Parent revocation also removes child authority. */
+  delegateGrant(input) {
+    const authority = input.authority;
+    const source = this.requireActiveSessionGrantIds({
+      principal_id: authority.principal_id,
+      boundary: authority.boundary,
+      grant_ids: [input.source_grant_id]
+    })[0];
+    if (!(authority.session_capability_grant_ids ?? []).includes(source)) {
+      throw new Error("The source grant is not part of this authenticated session.");
+    }
+    const parent = this.requireGrant(source);
+    const permission = this.inspectSessionGrantIds({
+      principal_id: authority.principal_id,
+      boundary: authority.boundary,
+      grant_ids: authority.capability_grant_ids ?? []
+    }).active_grants.filter((grant) => grant.operation_ids.includes("capability.grant.delegate") && grantAppliesToTarget(grant, input.recipient)).sort((a, b) => b.expires_at.localeCompare(a.expires_at) || a.grant_id.localeCompare(b.grant_id))[0];
+    if (!permission || !authority.grants.has("capability.grant.delegate")) {
+      throw new Error("Delegating access requires a current delegation grant for this recipient.");
+    }
+    const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets2 = normalizeTargets(input.targets ?? parent.targets);
+    if (operations.some((id) => !parent.operation_ids.includes(id))) {
+      throw new Error("Delegated operations must be a subset of the source grant.");
+    }
+    if (parent.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !parent.targets.some((allowed) => targetContains(allowed, target))))) {
+      throw new Error("Delegated targets must be contained in the source grant.");
+    }
+    const limit = Math.min(Date.parse(parent.expires_at), Date.parse(permission.expires_at));
+    const expiry = input.expires_at ?? new Date(limit).toISOString();
+    if (parseTimestamp("expires_at", expiry) > limit) {
+      throw new Error("Delegated access cannot outlive its source or delegation permission.");
+    }
+    return inSavepoint2(this.db, () => {
+      const grant = this.issueGrant({
+        principal_id: input.principal_id,
+        boundary: authority.boundary,
+        operation_ids: operations,
+        targets: targets2,
+        expires_at: expiry,
+        issuer_id: authority.principal_id,
+        evidence: [{ kind: "operation_invocation", ref: input.invocation_id }],
+        delegation_only: input.delegation_only === true
+      });
+      this.db.prepare(`INSERT INTO capability_grant_delegations (grant_id, source_grant_id, authority_grant_id)
+        VALUES (?, ?, ?)`).run(grant.grant_id, parent.grant_id, permission.grant_id);
+      return grant;
+    });
+  }
+  getDelegation(grantId) {
+    return this.db.prepare(`SELECT source_grant_id, authority_grant_id FROM capability_grant_delegations WHERE grant_id = ?`).get(grantId) ?? null;
+  }
+  delegationIsActive(grantId, nowMs, path = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
+    if (memo.has(grantId))
+      return memo.get(grantId);
+    if (path.has(grantId))
+      return false;
+    path.add(grantId);
+    const delegation = this.getDelegation(grantId);
+    if (!delegation) {
+      memo.set(grantId, true);
+      return true;
+    }
+    const child = this.requireGrant(grantId);
+    const active = [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].every((id) => {
+      const parent = this.getGrant(id);
+      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path), memo);
+    });
+    memo.set(grantId, active);
+    return active;
+  }
+  /**
+   * Activates one immutable host-policy revision. Repeating the exact revision
+   * is idempotent. Any semantic change requires a new revision and atomically
+   * revokes/supersedes the previous grant; revoked history is never revived.
+   */
+  activateHostPolicyGrant(input) {
+    const hostId = assertNonEmpty("host_id", input.host_id);
+    const principalId = assertNonEmpty("principal_id", input.principal_id);
+    const purpose = assertNonEmpty("policy purpose", input.purpose);
+    const policyRevision = assertNonEmpty("policy_revision", input.policy_revision);
+    const issuerId = assertNonEmpty("issuer_id", input.issuer_id);
+    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
+    const targets2 = normalizeTargets(input.targets ?? []);
+    const evidence = normalizeEvidence(input.evidence);
+    const policyId = hostCapabilityPolicyId(hostId, purpose);
+    const grantId = hostCapabilityPolicyGrantId(policyId, policyRevision);
+    const existingPolicy = this.getHostPolicyRevision(policyId, policyRevision);
+    if (existingPolicy) {
+      const existingGrant = this.requireGrant(existingPolicy.grant_id);
+      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets2) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
+      if (!exact) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' already identifies different authority.`);
+      }
+      if (existingGrant.revoked_at !== null || existingPolicy.superseded_at !== null) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has been superseded and cannot be reactivated.`);
+      }
+      if (parseTimestamp("expires_at", existingGrant.expires_at) <= parseTimestamp("now", this.now())) {
+        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has expired and cannot be reactivated.`);
+      }
+      return { replayed: true, policy: existingPolicy, grant: existingGrant };
+    }
+    const activePolicy = this.getActiveHostPolicyRevision(policyId);
+    const activatedAt = this.now();
+    let grant;
+    inSavepoint2(this.db, () => {
+      if (activePolicy) {
+        this.db.prepare(`
+          UPDATE host_capability_policy_revisions
+          SET superseded_at = ?
+          WHERE grant_id = ? AND superseded_at IS NULL
+        `).run(activatedAt, activePolicy.grant_id);
+      }
+      grant = this.issueGrant({
+        grant_id: grantId,
+        principal_id: principalId,
+        boundary: { kind: "host", host_id: hostId },
+        operation_ids: operationIds,
+        targets: targets2,
+        expires_at: input.expires_at,
+        issuer_id: issuerId,
+        evidence
+      });
+      this.db.prepare(`
+        INSERT INTO host_capability_policy_revisions (
+          host_policy_id, policy_revision, purpose, host_id, principal_id,
+          grant_id, supersedes_grant_id, superseded_by_grant_id,
+          activated_at, superseded_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
+      `).run(policyId, policyRevision, purpose, hostId, principalId, grant.grant_id, activePolicy?.grant_id ?? null, activatedAt);
+      if (activePolicy) {
+        this.db.prepare(`
+          UPDATE host_capability_policy_revisions
+          SET superseded_by_grant_id = ?
+          WHERE grant_id = ?
+        `).run(grant.grant_id, activePolicy.grant_id);
+        this.db.prepare(`
+          UPDATE capability_grants
+          SET revoked_at = ?
+          WHERE grant_id = ? AND revoked_at IS NULL
+        `).run(activatedAt, activePolicy.grant_id);
+      }
+    });
+    return {
+      replayed: false,
+      policy: this.requireHostPolicyRevision(policyId, policyRevision),
+      grant
+    };
+  }
+  getHostPolicyRevision(policyId, policyRevision) {
+    const row = this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ? AND policy_revision = ?
+    `).get(policyId, policyRevision);
+    return row ? rowToHostCapabilityPolicy(row) : null;
+  }
+  getActiveHostPolicyRevision(policyId) {
+    const row = this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ? AND superseded_at IS NULL
+    `).get(policyId);
+    return row ? rowToHostCapabilityPolicy(row) : null;
+  }
+  listHostPolicyHistory(hostId, purpose) {
+    const policyId = hostCapabilityPolicyId(hostId, purpose);
+    return this.db.prepare(`
+      SELECT * FROM host_capability_policy_revisions
+      WHERE host_policy_id = ?
+      ORDER BY activated_at DESC, policy_revision DESC
+    `).all(policyId).map(rowToHostCapabilityPolicy);
+  }
+  getGrant(grantId) {
+    const row = this.db.prepare(`
+      SELECT grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
+             revoked_at, issuer_id, evidence_json
+      FROM capability_grants
+      WHERE grant_id = ?
+    `).get(grantId);
+    if (!row)
+      return null;
+    const operationIds = this.db.prepare(`
+      SELECT operation_id
+      FROM capability_grant_operations
+      WHERE grant_id = ?
+      ORDER BY operation_id
+    `).all(grantId).map((item) => item.operation_id);
+    if (operationIds.length === 0) {
+      throw new Error(`Stored CapabilityGrant '${grantId}' has no semantic operations.`);
+    }
+    const targets2 = this.db.prepare(`
+      SELECT target_kind, target_id
+      FROM capability_grant_targets
+      WHERE grant_id = ?
+      ORDER BY target_kind, target_id
+    `).all(grantId).map((target) => ({
+      kind: target.target_kind,
+      id: target.target_id
+    }));
+    return {
+      grant_id: row.grant_id,
+      principal_id: row.principal_id,
+      boundary: boundaryFromRow(row.boundary_kind, row.boundary_id),
+      operation_ids: operationIds,
+      targets: targets2,
+      issued_at: row.issued_at,
+      expires_at: row.expires_at,
+      revoked_at: row.revoked_at,
+      issuer_id: row.issuer_id,
+      evidence: parseEvidence(row.evidence_json),
+      delegation_only: Boolean(this.db.prepare("SELECT 1 AS present FROM capability_grant_delegation_only WHERE grant_id = ?").get(grantId))
+    };
+  }
+  revokeGrant(grantId, revokedAt = this.now()) {
+    assertNonEmpty("grant_id", grantId);
+    const revokedAtMs = parseTimestamp("revoked_at", revokedAt);
+    const grant = this.getGrant(grantId);
+    if (!grant || grant.revoked_at !== null)
+      return false;
+    if (revokedAtMs < parseTimestamp("issued_at", grant.issued_at)) {
+      throw new Error("CapabilityGrant revocation cannot predate its issue time.");
+    }
+    const result = this.db.prepare(`
+      UPDATE capability_grants
+      SET revoked_at = ?
+      WHERE grant_id = ? AND revoked_at IS NULL
+    `).run(revokedAt, grantId);
+    return Number(result.changes) === 1;
+  }
+  listActiveGrantsForPrincipalBoundary(principalId, boundaryValue) {
+    assertNonEmpty("principal_id", principalId);
+    const boundary = normalizeBoundary4(boundaryValue);
+    const now3 = new Date(parseTimestamp("now", this.now())).toISOString();
+    const ids = this.db.prepare(`
+      SELECT grant_id
+      FROM capability_grants
+      WHERE principal_id = ?
+        AND boundary_kind = ?
+        AND boundary_id = ?
+        AND revoked_at IS NULL
+        AND issued_at <= ?
+        AND expires_at > ?
+      ORDER BY issued_at DESC, grant_id
+    `).all(principalId, boundary.kind, boundaryId3(boundary), now3, now3);
+    return ids.filter(({ grant_id }) => this.delegationIsActive(grant_id, Date.parse(now3))).map(({ grant_id }) => this.requireGrant(grant_id)).filter((grant) => !grant.delegation_only);
+  }
+  /**
+   * Checks that every ID is a current grant for the exact session principal and
+   * authority boundary. Session issuance should refuse any unavailable reference.
+   */
+  inspectSessionGrantIds(session) {
+    assertNonEmpty("session principal_id", session.principal_id);
+    normalizeBoundary4(session.boundary);
+    const grantIds = normalizeNonEmptySet(session.grant_ids, "session grant_id", false);
+    const nowMs = parseTimestamp("now", this.now());
+    const activeGrants = [];
+    const delegableGrants = [];
+    const unavailableGrants = [];
+    for (const grantId of grantIds) {
+      const grant = this.getGrant(grantId);
+      const code = grantReferenceFailure(grant, session, nowMs) ?? (this.delegationIsActive(grantId, nowMs) ? null : "grant_dependency_unavailable");
+      if (code === null && grant)
+        (grant.delegation_only ? delegableGrants : activeGrants).push(grant);
+      else
+        unavailableGrants.push({ grant_id: grantId, code: code ?? "grant_not_found" });
+    }
+    return { active_grants: activeGrants, delegable_grants: delegableGrants, unavailable_grants: unavailableGrants };
+  }
+  /**
+   * Assertion helper for trusted session issuance. Stored sessions should keep
+   * the returned opaque IDs, never a copied list of operation strings.
+   */
+  requireActiveSessionGrantIds(session) {
+    const inspection = this.inspectSessionGrantIds(session);
+    const live = [...inspection.active_grants, ...inspection.delegable_grants];
+    if (live.length === 0 || inspection.unavailable_grants.length > 0) {
+      throw new CapabilityGrantReferenceError(inspection.unavailable_grants);
+    }
+    const liveIds = new Set(live.map((grant) => grant.grant_id));
+    return normalizeNonEmptySet(session.grant_ids, "session grant_id", false).filter((id) => liveIds.has(id));
+  }
+  /**
+   * Resolves an existing session at request time. Revoked, expired, missing, or
+   * mismatched grants contribute no operations. Resource-bound grants only
+   * contribute for their exact target.
+   */
+  resolveSessionAuthority(session, target) {
+    assertNonEmpty("interaction session_id", session.interaction.session_id);
+    const inspection = this.inspectSessionGrantIds(session);
+    const applicableGrants = inspection.active_grants.filter((grant) => grantAppliesToTarget(grant, target));
+    const operationIds = /* @__PURE__ */ new Set();
+    for (const grant of applicableGrants) {
+      for (const operationId of grant.operation_ids)
+        operationIds.add(operationId);
+    }
+    return {
+      authority: createOperationAuthorityContext({
+        principal_id: session.principal_id,
+        boundary: session.boundary,
+        capability_grant_ids: applicableGrants.map((grant) => grant.grant_id),
+        // Delegation-only grants stay pinned to the session so they can be a
+        // delegation source, but they never contribute operations above.
+        session_capability_grant_ids: [...inspection.active_grants, ...inspection.delegable_grants].map((grant) => grant.grant_id),
+        grants: operationIds,
+        interaction: {
+          mode: session.interaction.mode,
+          session_id: session.interaction.session_id,
+          broker_id: session.interaction.broker_id ?? null,
+          confirmed_prompts: new Set(session.interaction.confirmed_prompts),
+          approval_refs: new Set(session.interaction.approval_refs)
+        }
+      }),
+      active_grant_ids: inspection.active_grants.map((grant) => grant.grant_id),
+      applicable_grant_ids: applicableGrants.map((grant) => grant.grant_id),
+      unavailable_grants: inspection.unavailable_grants
+    };
+  }
+  requireGrant(grantId) {
+    const grant = this.getGrant(grantId);
+    if (!grant)
+      throw new Error(`CapabilityGrant '${grantId}' was not persisted.`);
+    return grant;
+  }
+  requireHostPolicyRevision(policyId, policyRevision) {
+    const policy = this.getHostPolicyRevision(policyId, policyRevision);
+    if (!policy) {
+      throw new Error(`Host capability policy '${policyId}@${policyRevision}' was not persisted.`);
+    }
+    return policy;
+  }
+};
+var CapabilityGrantReferenceError = class extends Error {
+  failures;
+  constructor(failures) {
+    super(failures.length === 0 ? "An authority session must reference at least one active CapabilityGrant." : failures.map((failure) => `CapabilityGrant '${failure.grant_id}': ${failure.code}.`).join(" "));
+    this.failures = failures;
+    this.name = "CapabilityGrantReferenceError";
+  }
+};
+function grantReferenceFailure(grant, session, nowMs) {
+  if (!grant)
+    return "grant_not_found";
+  if (grant.principal_id !== session.principal_id)
+    return "grant_principal_mismatch";
+  if (!sameBoundary3(grant.boundary, session.boundary))
+    return "grant_boundary_mismatch";
+  if (grant.revoked_at !== null)
+    return "grant_revoked";
+  if (parseTimestamp("issued_at", grant.issued_at) > nowMs)
+    return "grant_not_yet_active";
+  if (parseTimestamp("expires_at", grant.expires_at) <= nowMs)
+    return "grant_expired";
+  return null;
+}
+function grantAppliesToTarget(grant, target) {
+  if (grant.targets.length === 0)
+    return true;
+  if (target === null)
+    return false;
+  return grant.targets.some((candidate) => candidate.kind === target.kind && (candidate.id === null || candidate.id === target.id));
+}
+function targetContains(allowed, child) {
+  if (allowed.kind !== child.kind)
+    return false;
+  if (allowed.id === null || allowed.id === child.id)
+    return true;
+  if (child.id === null)
+    return false;
+  if (allowed.kind === FILESYSTEM_PATH_TARGET_KIND) {
+    return allowed.id === "." || child.id.startsWith(`${allowed.id}/`);
+  }
+  if (allowed.kind === EXECUTABLE_TARGET_KIND)
+    return allowed.id.toLowerCase() === child.id.toLowerCase();
+  if (allowed.kind === NETWORK_DOMAIN_TARGET_KIND) {
+    const domain = allowed.id.toLowerCase();
+    const host = child.id.toLowerCase();
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+  return false;
+}
+function normalizeTargets(targets2) {
+  const normalized = /* @__PURE__ */ new Map();
+  for (const target of targets2) {
+    assertNonEmpty("target kind", target.kind);
+    if (target.id !== null)
+      assertNonEmpty("target id", target.id);
+    const value = { kind: target.kind, id: target.id };
+    normalized.set(JSON.stringify([value.kind, value.id]), value);
+  }
+  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || (left.id ?? "").localeCompare(right.id ?? ""));
+}
+function normalizeBoundary4(boundary) {
+  if (boundary.kind === "workspace") {
+    assertNonEmpty("boundary workspace_id", boundary.workspace_id);
+    return { kind: "workspace", workspace_id: boundary.workspace_id };
+  }
+  if (boundary.kind === "host") {
+    assertNonEmpty("boundary host_id", boundary.host_id);
+    return { kind: "host", host_id: boundary.host_id };
+  }
+  throw new Error("CapabilityGrant boundary kind is invalid.");
+}
+function boundaryId3(boundary) {
+  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
+}
+function sameBoundary3(left, right) {
+  return left.kind === right.kind && boundaryId3(left) === boundaryId3(right);
+}
+function boundaryFromRow(kind, id) {
+  if (kind === "workspace")
+    return { kind: "workspace", workspace_id: id };
+  if (kind === "host")
+    return { kind: "host", host_id: id };
+  throw new Error("Stored CapabilityGrant authority boundary is invalid.");
+}
+function hostCapabilityPolicyId(hostId, purpose) {
+  assertNonEmpty("host_id", hostId);
+  assertNonEmpty("policy purpose", purpose);
+  return `host_policy_${digest3(`${hostId}\0${purpose}`).slice(0, 32)}`;
+}
+function hostCapabilityPolicyGrantId(policyId, policyRevision) {
+  assertNonEmpty("host_policy_id", policyId);
+  assertNonEmpty("policy_revision", policyRevision);
+  return `capgrant_host_policy_${digest3(`${policyId}\0${policyRevision}`).slice(0, 32)}`;
+}
+function rowToHostCapabilityPolicy(row) {
+  return {
+    host_policy_id: row.host_policy_id,
+    policy_revision: row.policy_revision,
+    purpose: row.purpose,
+    host_id: row.host_id,
+    principal_id: row.principal_id,
+    grant_id: row.grant_id,
+    supersedes_grant_id: row.supersedes_grant_id,
+    superseded_by_grant_id: row.superseded_by_grant_id,
+    activated_at: row.activated_at,
+    superseded_at: row.superseded_at
+  };
+}
+function normalizeEvidence(evidence) {
+  if (evidence.length === 0)
+    throw new Error("CapabilityGrant evidence must not be empty.");
+  const normalized = /* @__PURE__ */ new Map();
+  for (const item of evidence) {
+    assertNonEmpty("evidence kind", item.kind);
+    assertNonEmpty("evidence ref", item.ref);
+    const value = { kind: item.kind, ref: item.ref };
+    normalized.set(JSON.stringify([value.kind, value.ref]), value);
+  }
+  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.ref.localeCompare(right.ref));
+}
+function parseEvidence(value) {
+  const parsed = JSON.parse(value);
+  if (!Array.isArray(parsed))
+    throw new Error("Stored CapabilityGrant evidence is invalid.");
+  return normalizeEvidence(parsed.map((item) => {
+    if (!item || typeof item !== "object")
+      throw new Error("Stored CapabilityGrant evidence is invalid.");
+    const candidate = item;
+    if (typeof candidate.kind !== "string" || typeof candidate.ref !== "string") {
+      throw new Error("Stored CapabilityGrant evidence is invalid.");
+    }
+    return { kind: candidate.kind, ref: candidate.ref };
+  }));
+}
+function normalizeNonEmptySet(values, label, requireValue) {
+  if (requireValue && values.length === 0)
+    throw new Error(`CapabilityGrant ${label} list must not be empty.`);
+  for (const value of values)
+    assertNonEmpty(label, value);
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+function assertNonEmpty(label, value) {
+  if (!value.trim())
+    throw new Error(`CapabilityGrant ${label} must not be empty.`);
+  return value;
+}
+function digest3(value) {
+  return createHash6("sha256").update(value, "utf8").digest("hex");
+}
+function parseTimestamp(label, value) {
+  const timestamp2 = Date.parse(value);
+  if (!Number.isFinite(timestamp2))
+    throw new Error(`CapabilityGrant ${label} must be an ISO timestamp.`);
+  return timestamp2;
+}
+var savepointSequence2 = 0;
+function inSavepoint2(db, action) {
+  savepointSequence2 += 1;
+  const name = `capability_grant_${savepointSequence2}`;
+  db.exec(`SAVEPOINT ${name}`);
+  try {
+    const result = action();
+    db.exec(`RELEASE SAVEPOINT ${name}`);
+    return result;
+  } catch (error) {
+    db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
+    db.exec(`RELEASE SAVEPOINT ${name}`);
+    throw error;
+  }
+}
+function isoNow3() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+
+// floe-bus/dist/tool-policy.js
+var ENGINE_TOOL_OPERATIONS = {
+  filesystem_read: "engine.tool.filesystem.read",
+  filesystem_write: "engine.tool.filesystem.write",
+  process_execute: "engine.tool.process.execute",
+  network_fetch: "engine.tool.network.fetch"
+};
+var TOOL_OPERATION_IDS = new Set(Object.values(ENGINE_TOOL_OPERATIONS));
+var TOOL_TARGET_KINDS = /* @__PURE__ */ new Set([FILESYSTEM_PATH_TARGET_KIND, EXECUTABLE_TARGET_KIND, NETWORK_DOMAIN_TARGET_KIND]);
+var FETCH_SCHEMES = /* @__PURE__ */ new Set(["http", "https"]);
+function isEngineToolOperation(operationId) {
+  return TOOL_OPERATION_IDS.has(operationId);
+}
+function decideToolAuthority(input) {
+  const { operation_id: operationId, facts, scope_paths: scope } = input;
+  if (!isEngineToolOperation(operationId)) {
+    return deny("tool_operation_unknown", `'${operationId}' is not a governed engine tool operation.`);
+  }
+  if (facts.sandbox_bypass) {
+    return deny("tool_sandbox_bypass", "The engine asked to bypass its sandbox; Floe never allows that.");
+  }
+  const candidates = input.grants.filter((grant) => grant.operation_ids.includes(operationId));
+  if (candidates.length === 0) {
+    return deny("tool_grant_missing", `This Actor holds no live grant for '${operationId}'.`);
+  }
+  if (operationId === ENGINE_TOOL_OPERATIONS.process_execute)
+    return decideShell(candidates, facts, scope, input.grants);
+  if (scope !== null && touchesFiles(facts, operationId)) {
+    const refusal2 = pathsRefusal(facts, scope.map((id) => ({ kind: FILESYSTEM_PATH_TARGET_KIND, id })), "this Actor's scope", "tool_path_outside_scope");
+    if (refusal2)
+      return refusal2;
+  }
+  const refusals = candidates.map((grant) => grantRefusal(grant, facts, operationId));
+  const index = refusals.findIndex((refusal2) => refusal2 === null);
+  return index >= 0 ? { allowed: true, grant_id: candidates[index].grant_id } : refusals[0];
+}
+function decideShell(candidates, facts, scope, grants) {
+  if (scope !== null) {
+    return deny("tool_shell_unconfined", "This Actor is limited to chosen folders, and this engine does not report which files a shell command touches, so its shell calls cannot be shown to stay inside them.");
+  }
+  let first = null;
+  for (const grant of candidates) {
+    const refusal2 = grantRefusal(grant, facts, ENGINE_TOOL_OPERATIONS.process_execute);
+    if (!refusal2) {
+      const network = shellNetworkRefusal(facts, grants);
+      return network ?? { allowed: true, grant_id: grant.grant_id };
+    }
+    first ??= refusal2;
+  }
+  return first;
+}
+function shellNetworkRefusal(facts, grants) {
+  if (facts.destinations.length === 0 && facts.invalid_url_count === 0)
+    return null;
+  const fetch2 = grants.filter((grant) => grant.operation_ids.includes(ENGINE_TOOL_OPERATIONS.network_fetch));
+  if (fetch2.some((grant) => grantRefusal(grant, { ...facts, paths: [], unresolved_path_count: 0 }, ENGINE_TOOL_OPERATIONS.network_fetch) === null)) {
+    return null;
+  }
+  return deny("tool_network_not_granted", "The command reaches a network destination this Actor may not fetch.");
+}
+function grantRefusal(grant, facts, operationId) {
+  if (grant.targets.some((target) => !TOOL_TARGET_KINDS.has(target.kind))) {
+    return deny("tool_target_not_granted", `This Actor's grant for '${operationId}' has limits that do not apply to engine tools.`);
+  }
+  const ofKind = (kind) => grant.targets.filter((target) => target.kind === kind);
+  const folders = ofKind(FILESYSTEM_PATH_TARGET_KIND);
+  if (folders.length > 0) {
+    if (operationId === ENGINE_TOOL_OPERATIONS.process_execute) {
+      return deny("tool_shell_unconfined", "This Actor's shell access is limited to chosen folders, and this engine does not report which files a shell command touches.");
+    }
+    if (touchesFiles(facts, operationId)) {
+      const refusal2 = pathsRefusal(facts, folders, "the folders this Actor was granted", "tool_target_not_granted");
+      if (refusal2)
+        return refusal2;
+    }
+  }
+  const commands = ofKind(EXECUTABLE_TARGET_KIND);
+  if (operationId === ENGINE_TOOL_OPERATIONS.process_execute && commands.length > 0) {
+    const ambiguity = shellAmbiguity(facts);
+    if (ambiguity)
+      return deny("tool_shell_ambiguous", ambiguity);
+    const unlisted = facts.executables.find((name) => !commands.some((target) => targetContains(target, { kind: EXECUTABLE_TARGET_KIND, id: name })));
+    if (unlisted !== void 0)
+      return deny("tool_target_not_granted", `'${unlisted}' is not one of the commands this Actor may run.`);
+  }
+  const domains = ofKind(NETWORK_DOMAIN_TARGET_KIND);
+  if (operationId === ENGINE_TOOL_OPERATIONS.network_fetch && domains.length > 0) {
+    if (facts.invalid_url_count > 0 || facts.destinations.length === 0) {
+      return deny("tool_network_not_granted", "The fetch destination could not be determined.");
+    }
+    const unsupported = facts.destinations.find((destination) => !FETCH_SCHEMES.has(destination.scheme));
+    if (unsupported)
+      return deny("tool_network_not_granted", `The '${unsupported.scheme}' scheme is not allowed for fetches.`);
+    const outside = facts.destinations.find((destination) => !domains.some((target) => targetContains(target, { kind: NETWORK_DOMAIN_TARGET_KIND, id: destination.host })));
+    if (outside)
+      return deny("tool_target_not_granted", `'${outside.host}' is not one of the domains this Actor may fetch.`);
+  }
+  return null;
+}
+function touchesFiles(facts, operationId) {
+  return operationId === ENGINE_TOOL_OPERATIONS.filesystem_read || operationId === ENGINE_TOOL_OPERATIONS.filesystem_write || facts.paths.length > 0 || facts.unresolved_path_count > 0;
+}
+function pathsRefusal(facts, folders, label, code) {
+  if (facts.unresolved_path_count > 0) {
+    return deny("tool_path_unresolved", `A path could not be resolved inside the Workspace, so it cannot be shown to be within ${label}.`);
+  }
+  if (facts.paths.length === 0) {
+    return deny("tool_path_missing", `The engine did not report which path this call touches, so it cannot be shown to be within ${label}.`);
+  }
+  const outside = facts.paths.find((path) => !folders.some((folder) => targetContains(folder, { kind: FILESYSTEM_PATH_TARGET_KIND, id: path })));
+  return outside === void 0 ? null : deny(code, `'${outside}' is outside ${label}.`);
+}
+function shellAmbiguity(facts) {
+  if (facts.executables.length === 0 || facts.unclassified_segment_count > 0) {
+    return "The engine could not identify every command in this shell call.";
+  }
+  if (facts.write_redirection) {
+    return "The command redirects output into a file, which a command allowlist does not cover.";
+  }
+  return null;
+}
+function deny(code, reason) {
+  return { allowed: false, code, reason };
+}
+
+// floe-bus/dist/tool-approvals.js
+var TOOL_APPROVAL_TARGET_KIND = "runtime_delivery";
+function toolApprovalAction(input) {
+  const facts = input.evaluation.facts;
+  const tool = facts.tool;
+  const target = { kind: TOOL_APPROVAL_TARGET_KIND, id: input.delivery_id };
+  return {
+    operation_id: facts.operation_id,
+    authorized_principal_id: facts.principal_id,
+    target,
+    input_digest: tool.argument_digest,
+    artefact_version_ids: [],
+    composition_revision_id: facts.scope_composition_revision_id,
+    node_placement_id: facts.node_placement_id,
+    scope_execution_id: input.scope_execution_id,
+    node_execution_id: input.node_execution_id,
+    connector_binding_revision_id: null,
+    extension_package_version_id: null,
+    approval_policy_ref: {
+      kind: "policy_evaluation",
+      id: input.evaluation.evaluation_id,
+      revision: input.evaluation.facts_digest
+    },
+    capability_grant_ids: [input.grant_id],
+    expected_effect: {
+      summary: toolCallSummary(facts.operation_id, tool),
+      external: facts.effects.external,
+      reversibility: facts.effects.reversibility,
+      resource_refs: [target]
+    }
+  };
+}
+function toolCallSummary(operationId, tool) {
+  const parts = [`${tool.native_tools.join(", ") || operationId} (${operationId})`];
+  if (tool.paths.length > 0)
+    parts.push(`paths: ${tool.paths.join(", ")}`);
+  if (tool.executables.length > 0)
+    parts.push(`runs: ${tool.executables.join(", ")}`);
+  if (tool.destinations.length > 0)
+    parts.push(`reaches: ${tool.destinations.map((item) => item.host).join(", ")}`);
+  if (tool.write_redirection)
+    parts.push("writes via redirection");
+  return parts.join("; ");
+}
+function toolApprovalOutcome(requests) {
+  if (requests.length === 0)
+    return "unavailable";
+  if (requests.some((request) => request.status === "rejected"))
+    return "denied";
+  if (requests.some((request) => request.status === "cancelled"))
+    return "cancelled";
+  if (requests.some((request) => request.status === "invalidated"))
+    return "unavailable";
+  if (requests.some((request) => request.status === "pending"))
+    return "pending";
+  return "allowed";
+}
+
+// floe-bus/dist/tool-policy-facts.js
+var ToolCallFactsError = class extends Error {
+  code = "E_TOOL_CALL_FACTS_INVALID";
+  constructor(reason) {
+    super(`Invalid tool call facts: ${reason}`);
+    this.name = "ToolCallFactsError";
+  }
+};
+function normalizeToolCallPolicyFacts(facts) {
+  return {
+    actor_definition_revision_id: text4(facts.actor_definition_revision_id, "actor_definition_revision_id"),
+    tool_call_id: facts.tool_call_id == null ? null : text4(facts.tool_call_id, "tool_call_id"),
+    engine: text4(facts.engine, "engine"),
+    manifest_version: text4(facts.manifest_version, "manifest_version"),
+    native_tools: sortedUnique(facts.native_tools.map((name) => text4(name, "native tool"))),
+    paths: sortedUnique(facts.paths.map((path) => text4(path, "path"))),
+    unresolved_path_count: count(facts.unresolved_path_count, "unresolved_path_count"),
+    executables: sortedUnique(facts.executables.map((name) => text4(name, "executable").toLowerCase())),
+    unclassified_segment_count: count(facts.unclassified_segment_count, "unclassified_segment_count"),
+    destinations: [...new Map(facts.destinations.map((destination) => {
+      const value = {
+        scheme: text4(destination.scheme, "destination scheme").toLowerCase(),
+        host: text4(destination.host, "destination host").toLowerCase()
+      };
+      return [`${value.scheme}://${value.host}`, value];
+    })).entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, value]) => value),
+    invalid_url_count: count(facts.invalid_url_count, "invalid_url_count"),
+    write_redirection: facts.write_redirection === true,
+    sandbox_bypass: facts.sandbox_bypass === true,
+    argument_digest: text4(facts.argument_digest, "argument_digest")
+  };
+}
+function toolNetworkDestination(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
+    if (!host)
+      return null;
+    return { scheme: parsed.protocol.replace(/:$/, "").toLowerCase(), host };
+  } catch {
+    return null;
+  }
+}
+function text4(value, label) {
+  if (typeof value !== "string" || !value.trim())
+    throw new ToolCallFactsError(`${label} is required`);
+  return value.trim();
+}
+function count(value, label) {
+  if (!Number.isInteger(value) || value < 0)
+    throw new ToolCallFactsError(`${label} must be a non-negative integer`);
+  return value;
+}
+function sortedUnique(values) {
+  return [...new Set(values)].sort();
+}
+
+// floe-bus/dist/runtime-tool-policy.js
+function toolFactsFromRequest(request, actorDefinitionRevisionId) {
+  const destinations = [];
+  let invalidUrls = 0;
+  for (const url of request.urls) {
+    const destination = toolNetworkDestination(url);
+    if (destination)
+      destinations.push(destination);
+    else
+      invalidUrls += 1;
+  }
+  return {
+    actor_definition_revision_id: actorDefinitionRevisionId,
+    tool_call_id: request.tool_call_id,
+    engine: request.engine,
+    manifest_version: request.manifest_version,
+    native_tools: request.native_tools,
+    paths: request.paths.filter((path) => path !== null),
+    unresolved_path_count: request.paths.filter((path) => path === null).length,
+    executables: request.executables.filter((name) => name !== null),
+    unclassified_segment_count: request.executables.filter((name) => name === null).length,
+    destinations,
+    invalid_url_count: invalidUrls,
+    write_redirection: request.write_redirection,
+    sandbox_bypass: request.sandbox_bypass,
+    argument_digest: request.argument_digest
+  };
+}
+function toolOperationEffects(operationId) {
+  switch (operationId) {
+    case ENGINE_TOOL_OPERATIONS.filesystem_read:
+      return { mode: "read", reversibility: "none", external: false, secret_access: "none" };
+    case ENGINE_TOOL_OPERATIONS.network_fetch:
+      return { mode: "read", reversibility: "none", external: true, secret_access: "none" };
+    case ENGINE_TOOL_OPERATIONS.filesystem_write:
+      return { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" };
+    default:
+      return { mode: "write", reversibility: "irreversible", external: true, secret_access: "none" };
+  }
+}
+function runtimeToolDecision(evaluation, operationId, toolCallId, authority, approvalRequests = []) {
+  let refusal2 = null;
+  if (evaluation.decision === "deny") {
+    const rule = evaluation.matched_rules.find((item) => item.effect.kind === "deny");
+    refusal2 = {
+      code: "tool_policy_denied",
+      tool_call_id: toolCallId,
+      operation_id: operationId,
+      rule_id: authority.allowed ? rule?.rule_id ?? "policy" : `authority.${authority.code}`,
+      reason: evaluation.denial_reasons[0] ?? "Denied by policy."
+    };
+  }
+  return {
+    evaluation_id: evaluation.evaluation_id,
+    decision: evaluation.decision,
+    refusal: refusal2,
+    approval_requirements: evaluation.approval_requirements,
+    approval_request_ids: approvalRequests.map((request) => request.approval_request_id),
+    approval_expires_at: approvalRequests[0]?.expires_at ?? null
+  };
+}
+var RESOLUTION_REASONS = {
+  denied: "The required approval was refused.",
+  cancelled: "The turn waiting for approval was cancelled.",
+  unavailable: "No valid approval arrived while this call could still use it."
+};
+function runtimeToolResolution(evaluation, requests, outcome) {
+  const tool = evaluation.facts.tool;
+  const operationId = evaluation.facts.operation_id;
+  const refused = outcome !== "allowed" && outcome !== "pending";
+  return {
+    evaluation_id: evaluation.evaluation_id,
+    tool_call_id: tool.tool_call_id,
+    operation_id: operationId,
+    outcome,
+    refusal: refused ? {
+      code: "tool_policy_denied",
+      tool_call_id: tool.tool_call_id,
+      operation_id: operationId,
+      rule_id: `approval.${outcome}`,
+      reason: RESOLUTION_REASONS[outcome]
+    } : null,
+    approval_request_ids: requests.map((request) => request.approval_request_id),
+    responder_principal_ids: [...new Set(requests.flatMap((request) => request.decisions.map((decision) => decision.principal_id)))].sort()
+  };
+}
+function policyDecisionEvent(evaluation, context) {
+  const facts = evaluation.facts;
+  const tool = facts.tool;
+  return {
+    evaluation_id: evaluation.evaluation_id,
+    workspace_id: evaluation.workspace_id,
+    actor_id: context.actor_id,
+    actor_definition_revision_id: tool.actor_definition_revision_id,
+    endpoint_id: context.endpoint_id,
+    delivery_id: context.delivery_id,
+    execution_attempt_id: facts.provenance.execution_attempt_id,
+    engine: tool.engine,
+    manifest_version: tool.manifest_version,
+    tool_call_id: tool.tool_call_id,
+    operation_id: facts.operation_id,
+    native_tools: tool.native_tools,
+    paths: tool.paths,
+    executables: tool.executables,
+    domains: tool.destinations.map((destination) => destination.host),
+    argument_digest: tool.argument_digest,
+    evaluated_policy_revision_ids: evaluation.evaluated_policy_revision_ids,
+    matched_rule_ids: evaluation.matched_rules.map((rule) => rule.rule_id),
+    denied_by: context.rule_id,
+    decision: evaluation.decision,
+    evaluated_at: evaluation.evaluated_at
+  };
 }
 
 // floe-bus/dist/endpoint-watermark-store.js
@@ -67426,8 +68542,8 @@ var EndpointWatermarkStore = class {
 };
 
 // floe-bus/dist/contexts/resolver.js
-import { randomUUID as randomUUID6 } from "node:crypto";
-var newContextId = () => `ctx_${randomUUID6()}`;
+import { randomUUID as randomUUID7 } from "node:crypto";
+var newContextId = () => `ctx_${randomUUID7()}`;
 var destinationEndpoint = (destination) => destination.kind === "endpoint" ? destination.endpoint_id : null;
 function rejection(context_id, source_endpoint_id, ctxStore) {
   return { error: "E_NOT_CONTEXT_PARTICIPANT", payload: { code: "E_NOT_CONTEXT_PARTICIPANT", message: `E_NOT_CONTEXT_PARTICIPANT: source endpoint ${source_endpoint_id} is not a participant of context ${context_id}.`, context_id, source_endpoint_id, available_contexts: ctxStore.listContextsForParticipant(source_endpoint_id).slice(0, 10).map((c) => ({ context_id: c.context_id, participants: c.participants, topic: c.topic ?? null })), recovery: ["Omit context_id to open a new context with {source, destination}.", "Pass a context_id from available_contexts where the source is already a participant.", "If the destination is in the current delivery context, omit context_id to continue it."] } };
@@ -67447,7 +68563,7 @@ function resolveContext(input, ctxStore) {
 }
 
 // floe-bus/dist/scopes/store.js
-import { randomUUID as randomUUID7 } from "node:crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 var RESERVED_DEFAULT_SCOPE_ID = "default";
 var ScopeAlreadyExistsError = class extends Error {
   workspace_id;
@@ -67543,7 +68659,7 @@ var ScopeStore = class {
     return row ? this.rowToScope(row) : null;
   }
   createScope(input) {
-    const scopeId = input.scope_id ?? `scope_${randomUUID7()}`;
+    const scopeId = input.scope_id ?? `scope_${randomUUID8()}`;
     if (scopeId === RESERVED_DEFAULT_SCOPE_ID) {
       throw new ScopeReservedIdError(input.workspace_id, scopeId);
     }
@@ -67604,7 +68720,7 @@ var ScopeStore = class {
 };
 
 // floe-bus/dist/scope-graphs.js
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 var ScopeGraphNotFoundError = class extends Error {
   workspace_id;
   graph_id;
@@ -67731,7 +68847,7 @@ var ScopeGraphStore = class {
   }
   insertScopeGraph(input) {
     validateScopeGraphNodes(input.nodes);
-    const graphId = `graph_${randomUUID8()}`;
+    const graphId = `graph_${randomUUID9()}`;
     const timestamp2 = nowIso3();
     this.db.prepare(`
       INSERT INTO scope_graphs (
@@ -67764,7 +68880,7 @@ var ScopeGraphStore = class {
 };
 
 // floe-bus/dist/scope-compositions.js
-import { createHash as createHash6, randomUUID as randomUUID9 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID10 } from "node:crypto";
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -67829,7 +68945,7 @@ function canonicalJson3(value) {
   return JSON.stringify(value);
 }
 function scopeCompositionDigest(content) {
-  return createHash6("sha256").update(canonicalJson3(normalizeCompositionContent(content))).digest("hex");
+  return createHash7("sha256").update(canonicalJson3(normalizeCompositionContent(content))).digest("hex");
 }
 function normalizeCompositionContent(content) {
   return {
@@ -68269,7 +69385,7 @@ var ScopeCompositionStore = class {
   createDraft(input) {
     const routingMode = input.routing_mode ?? "edge";
     validateScopeComposition(input.content, routingMode);
-    const revisionId = input.revision_id ?? `revision_${randomUUID9()}`;
+    const revisionId = input.revision_id ?? `revision_${randomUUID10()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM scope_composition_revisions
@@ -68368,7 +69484,7 @@ var ScopeCompositionStore = class {
     };
     return {
       ...impactWithoutDigest,
-      impact_digest: createHash6("sha256").update(canonicalJson3(impactWithoutDigest)).digest("hex")
+      impact_digest: createHash7("sha256").update(canonicalJson3(impactWithoutDigest)).digest("hex")
     };
   }
   /**
@@ -68594,7 +69710,7 @@ var ScopeCompositionStore = class {
 };
 
 // floe-bus/dist/scope-executions.js
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 var ScopeExecutionReferenceError = class extends Error {
   reason;
   code = "E_SCOPE_EXECUTION_REFERENCE_UNAVAILABLE";
@@ -68924,7 +70040,7 @@ var ScopeExecutionStore = class {
       if (existing)
         return this.rowToScopeExecution(existing);
     }
-    const id = `execution_${randomUUID10()}`;
+    const id = `execution_${randomUUID11()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_executions (
@@ -69064,7 +70180,7 @@ var ScopeExecutionStore = class {
       WHERE n.execution_id = ? AND ea.status IN ('pending', 'running')
       ORDER BY ea.created_at, ea.attempt_id
     `).all(execution.execution_id);
-    const hasQueue = tableExists2(this.db, "event_queue");
+    const hasQueue = tableExists3(this.db, "event_queue");
     const activeDeliveries = hasQueue ? this.db.prepare(`
           SELECT queue_id FROM event_queue
           WHERE scope_execution_id = ?
@@ -69085,7 +70201,7 @@ var ScopeExecutionStore = class {
           WHERE scope_execution_id = ? AND state IN ('held', 'queued')
           ORDER BY created_at, queue_id
         `).all(execution.execution_id) : [];
-    const pauseId = `pause_${randomUUID10()}`;
+    const pauseId = `pause_${randomUUID11()}`;
     const timestamp2 = nowIso5();
     this.transaction(() => {
       this.db.prepare(`
@@ -69157,7 +70273,7 @@ var ScopeExecutionStore = class {
           WHERE node_execution_id = ? AND status = 'paused'
         `).run(node.prior_status, node.prior_failure_json, node.node_execution_id);
       }
-      if (tableExists2(this.db, "event_queue")) {
+      if (tableExists3(this.db, "event_queue")) {
         for (const delivery of deliveryRows) {
           this.db.prepare(`
             UPDATE event_queue SET state = ?
@@ -69198,7 +70314,7 @@ var ScopeExecutionStore = class {
     if (!previous || !["failed", "cancelled", "outcome_unknown"].includes(previous.status)) {
       throw new ScopeExecutionTransitionError(`NodeExecution '${node.node_execution_id}' has no terminal failed attempt to retry`);
     }
-    if (previous.delivery_ids.length === 0 || !tableExists2(this.db, "event_queue")) {
+    if (previous.delivery_ids.length === 0 || !tableExists3(this.db, "event_queue")) {
       throw new ScopeExecutionReferenceError(`NodeExecution '${node.node_execution_id}' has no retained Deliveries that can be retried`);
     }
     const queueRows = this.db.prepare(`
@@ -69278,7 +70394,7 @@ var ScopeExecutionStore = class {
     if (placement.kind === "actor" && input.assigned_actor_ids && (input.assigned_actor_ids.length !== 1 || input.assigned_actor_ids[0] !== placement.resource_id)) {
       throw new ScopeExecutionReferenceError(`Actor assignment for node '${input.node_id}' does not match its published placement`);
     }
-    const id = `node_execution_${randomUUID10()}`;
+    const id = `node_execution_${randomUUID11()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "collecting";
     this.db.prepare(`
@@ -69355,7 +70471,7 @@ var ScopeExecutionStore = class {
       `).run(json2(input.reason ?? { code: "input_replaced" }), input.supersedes_input_id);
     }
     const record = {
-      input_id: `input_${randomUUID10()}`,
+      input_id: `input_${randomUUID11()}`,
       accepted_at: nowIso5()
     };
     this.db.prepare(`
@@ -69403,7 +70519,7 @@ var ScopeExecutionStore = class {
         if (existing)
           continue;
         const timestamp2 = nowIso5();
-        insert.run(`expectation_${randomUUID10()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
+        insert.run(`expectation_${randomUUID11()}`, nodeExecutionId, port.port_id, key, timestamp2, timestamp2);
       }
     }
   }
@@ -69437,7 +70553,7 @@ var ScopeExecutionStore = class {
       keys.add(member.member_key);
     }
     const timestamp2 = nowIso5();
-    const membershipId = `membership_${randomUUID10()}`;
+    const membershipId = `membership_${randomUUID11()}`;
     this.db.prepare(`
       INSERT INTO node_execution_expected_memberships (
         membership_id, node_execution_id, collection_port_id, member_port_id,
@@ -69453,7 +70569,7 @@ var ScopeExecutionStore = class {
       ) VALUES (?, ?, ?, 'collection_member', ?, ?, ?, ?, ?, 'expected', '{}', ?, ?)
     `);
     for (const member of [...input.members].sort((left, right) => left.member_key.localeCompare(right.member_key))) {
-      insert.run(`expectation_${randomUUID10()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
+      insert.run(`expectation_${randomUUID11()}`, input.node_execution_id, input.member_port_id, `member:${member.member_key}`, member.member_key, member.member_version_id, input.collection_artefact_version_id, input.match_policy, timestamp2, timestamp2);
     }
     return this.rowToExpectedMembership(this.db.prepare(`SELECT * FROM node_execution_expected_memberships WHERE membership_id = ?`).get(membershipId));
   }
@@ -69562,7 +70678,7 @@ var ScopeExecutionStore = class {
     const ordinal = Number(this.db.prepare(`
       SELECT COALESCE(MAX(ordinal), 0) + 1 AS next FROM execution_attempts WHERE node_execution_id = ?
     `).get(input.node_execution_id).next);
-    const id = `attempt_${randomUUID10()}`;
+    const id = `attempt_${randomUUID11()}`;
     const timestamp2 = nowIso5();
     const status = input.status ?? "running";
     this.db.prepare(`
@@ -69668,7 +70784,7 @@ var ScopeExecutionStore = class {
     const existing = this.getPublicationByIdempotencyKey(input.idempotency_key);
     if (existing)
       return existing;
-    const id = `publication_${randomUUID10()}`;
+    const id = `publication_${randomUUID11()}`;
     const timestamp2 = nowIso5();
     this.db.prepare(`
       INSERT INTO scope_output_publications (
@@ -69690,7 +70806,7 @@ var ScopeExecutionStore = class {
       INSERT OR IGNORE INTO scope_edge_traversals (
         traversal_id, publication_id, edge_id, delivery_id, target_node_execution_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`traversal_${randomUUID10()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
+    `).run(`traversal_${randomUUID11()}`, input.publication_id, input.edge_id, input.delivery_id, input.target_node_execution_id, nowIso5());
   }
   rowToScopeExecution(row) {
     return {
@@ -70055,14 +71171,14 @@ function addColumnIfMissing3(db, table, column, definition2) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
   }
 }
-function tableExists2(db, table) {
+function tableExists3(db, table) {
   return Boolean(db.prepare(`
     SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?
   `).get(table));
 }
 
 // floe-bus/dist/scope-composition-migration.js
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 var STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var LegacyScopeGraphMigrationConflictError = class extends Error {
   revision_id;
@@ -70083,7 +71199,7 @@ function canonicalNodeIds(nodes) {
   return new Map(nodes.map((node, index) => {
     if (STABLE_ID.test(node.node_id))
       return [node.node_id, node.node_id];
-    const digest9 = createHash7("sha256").update(node.node_id).digest("hex").slice(0, 12);
+    const digest9 = createHash8("sha256").update(node.node_id).digest("hex").slice(0, 12);
     return [node.node_id, `legacy-node-${index + 1}-${digest9}`];
   }));
 }
@@ -70155,7 +71271,7 @@ function duplicateEndpointNodes(graph) {
   return new Map([...byEndpoint].filter(([, placements]) => placements.length > 1));
 }
 function migrationRevisionId(graph, digest9) {
-  const identity = createHash7("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest9}`).digest("hex").slice(0, 32);
+  const identity = createHash8("sha256").update(`${graph.workspace_id}\0${graph.scope_id}\0${graph.graph_id}\0${digest9}`).digest("hex").slice(0, 32);
   return `legacy-revision-${identity}`;
 }
 function projectLegacyScopeGraph(graph) {
@@ -70317,7 +71433,7 @@ function importLegacyScopeGraph(store, graph, options = {}) {
 }
 
 // floe-bus/dist/artefacts.js
-import { createHash as createHash8, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash9, randomUUID as randomUUID12 } from "node:crypto";
 var SHA256_RE = /^[a-fA-F0-9]{64}$/;
 var EXTENSION_NAMESPACE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 var EXTENSION_LINEAGE_RE = /^extension:[A-Za-z0-9][A-Za-z0-9._/-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -70437,7 +71553,7 @@ function canonicalJson4(value) {
   return JSON.stringify(value);
 }
 function fingerprint(value) {
-  return createHash8("sha256").update(canonicalJson4(normalizeJsonValue(value))).digest("hex");
+  return createHash9("sha256").update(canonicalJson4(normalizeJsonValue(value))).digest("hex");
 }
 function normalizeDigest(value, label = "digest") {
   if (!value || value.algorithm !== "sha256" || typeof value.value !== "string" || !SHA256_RE.test(value.value)) {
@@ -70725,7 +71841,7 @@ var ArtefactStore = class {
         }
         return this.rowToArtefact(existing);
       }
-      const artefactId = requestedId ?? `artefact_${randomUUID11()}`;
+      const artefactId = requestedId ?? `artefact_${randomUUID12()}`;
       const conflictingId = this.getArtefact(artefactId);
       if (conflictingId)
         throw new ArtefactValidationError(`artefact_id '${artefactId}' already exists`);
@@ -70787,7 +71903,7 @@ var ArtefactStore = class {
         const version = this.requireVersion(member.member_version_id);
         this.requireSameWorkspace(artefact.workspace_id, version, `collection member '${version.artefact_version_id}'`);
       }
-      const versionId = requestedVersionId ?? `artefact_version_${randomUUID11()}`;
+      const versionId = requestedVersionId ?? `artefact_version_${randomUUID12()}`;
       if (this.getVersion(versionId))
         throw new ArtefactValidationError(`artefact_version_id '${versionId}' already exists`);
       if (lineage.some((relation2) => relation2.object_version_id === versionId)) {
@@ -70813,7 +71929,7 @@ var ArtefactStore = class {
         ) VALUES (?, ?, ?, ?, ?, ?)
       `);
       for (const relation2 of lineage) {
-        insertLineage.run(`lineage_${randomUUID11()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
+        insertLineage.run(`lineage_${randomUUID12()}`, artefact.workspace_id, versionId, relation2.relation_type, relation2.object_version_id, timestamp2);
       }
       const insertMember = this.db.prepare(`
         INSERT INTO artefact_collection_members (
@@ -70915,7 +72031,7 @@ var ArtefactStore = class {
           throw new ArtefactWorkspaceMismatchError("legacy import target is not the requested workspace and Artefact");
         }
       }
-      const id = `legacy_import_${randomUUID11()}`;
+      const id = `legacy_import_${randomUUID12()}`;
       const timestamp2 = nowIso6();
       this.db.prepare(`
         INSERT INTO legacy_artefact_import_evidence (
@@ -71165,7 +72281,7 @@ var ArtefactStore = class {
     `).get(input.artefact_version_id, input.target_kind, input.target_id, input.role);
     if (existingFact)
       return this.rowToAssociation(existingFact);
-    const id = `artefact_association_${randomUUID11()}`;
+    const id = `artefact_association_${randomUUID12()}`;
     this.db.prepare(`
       INSERT INTO artefact_associations (
         association_id, artefact_version_id, target_kind, target_id, role,
@@ -71193,7 +72309,7 @@ var ArtefactStore = class {
       }
       return this.rowToAnnotation(existing);
     }
-    const id = `artefact_annotation_${randomUUID11()}`;
+    const id = `artefact_annotation_${randomUUID12()}`;
     this.db.prepare(`
       INSERT INTO artefact_annotations (
         annotation_id, artefact_version_id, namespace, annotation_key,
@@ -71291,7 +72407,7 @@ var ArtefactStore = class {
     };
   }
   transaction(fn) {
-    const savepoint = `artefact_${randomUUID11().replace(/-/g, "")}`;
+    const savepoint = `artefact_${randomUUID12().replace(/-/g, "")}`;
     this.db.exec(`SAVEPOINT ${savepoint}`);
     try {
       const result = fn();
@@ -71306,7 +72422,7 @@ var ArtefactStore = class {
 };
 
 // floe-bus/dist/artefact-content-resolver.js
-import { createHash as createHash9 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 import { readFileSync as readFileSync2, statSync } from "node:fs";
 import { extname } from "node:path";
 
@@ -71473,7 +72589,7 @@ function resolveWorkspaceArtefactContent(input) {
   if (contentRef.size_bytes != null && contentRef.size_bytes !== bytes.length) {
     throw new ArtefactContentMismatchError("size");
   }
-  const actualDigest = createHash9("sha256").update(bytes).digest("hex");
+  const actualDigest = createHash10("sha256").update(bytes).digest("hex");
   if (actualDigest !== contentRef.digest.value) {
     throw new ArtefactContentMismatchError("digest");
   }
@@ -71518,7 +72634,21 @@ var MEDIA_TYPE_BY_EXTENSION = /* @__PURE__ */ new Map([
 ]);
 
 // floe-bus/dist/actor-definitions.js
-import { createHash as createHash10, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+function canonicalActorScopePath(value) {
+  const segments = [];
+  const text12 = value.trim().replace(/\\/g, "/");
+  if (!text12 || text12.startsWith("/") || /^[a-z]:/i.test(text12))
+    return null;
+  for (const segment of text12.split("/")) {
+    if (segment === "" || segment === ".")
+      continue;
+    if (segment === "..")
+      return null;
+    segments.push(segment);
+  }
+  return segments.length ? segments.join("/") : ".";
+}
 var ActorDefinitionValidationError = class extends Error {
   reason;
   code = "E_ACTOR_DEFINITION_INVALID";
@@ -71583,7 +72713,7 @@ var ActorDefinitionDraftConflictError = class extends Error {
 };
 function actorDefinitionDigest(content) {
   validateActorDefinition(content);
-  return createHash10("sha256").update(canonicalJson5(content)).digest("hex");
+  return createHash11("sha256").update(canonicalJson5(content)).digest("hex");
 }
 function validateActorDefinition(content) {
   nonEmpty("label", content.label);
@@ -71601,6 +72731,17 @@ function validateActorDefinition(content) {
   for (const [name, ref] of Object.entries(content.policy_refs)) {
     if (ref)
       validateRef(ref, `${name} policy reference`);
+  }
+  if (content.scope !== void 0) {
+    if (!content.scope || !Array.isArray(content.scope.paths) || content.scope.paths.length === 0) {
+      throw new ActorDefinitionValidationError("scope.paths must list at least one workspace-relative folder");
+    }
+    for (const path of content.scope.paths) {
+      if (typeof path !== "string" || canonicalActorScopePath(path) !== path) {
+        throw new ActorDefinitionValidationError(`scope path '${String(path)}' must be canonical and stay within the Workspace (for example '.' or 'src/app')`);
+      }
+    }
+    unique(content.scope.paths, "scope path");
   }
   for (const rule of content.escalation_rules) {
     nonEmpty("escalation condition", rule.when);
@@ -71663,18 +72804,18 @@ function applyActorDefinitionSchema(db) {
 var ActorDefinitionStore = class {
   db;
   now;
-  validateGrantReferences;
-  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateGrantReferences) {
+  validateHead;
+  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead) {
     this.db = db;
     this.now = now3;
-    this.validateGrantReferences = validateGrantReferences;
+    this.validateHead = validateHead;
     applyActorDefinitionSchema(db);
   }
   createActor(input) {
     nonEmpty("workspace_id", input.workspace_id);
     nonEmpty("created_by_principal_id", input.created_by_principal_id);
     validateActorDefinition(input.definition);
-    const actorId = input.actor_id ?? `actor_${randomUUID12()}`;
+    const actorId = input.actor_id ?? `actor_${randomUUID13()}`;
     nonEmpty("actor_id", actorId);
     const at = this.now();
     let draft;
@@ -71831,7 +72972,7 @@ var ActorDefinitionStore = class {
   insertDraft(input) {
     nonEmpty("created_by_principal_id", input.created_by_principal_id);
     validateActorDefinition(input.definition);
-    const revisionId = `actor_definition_${randomUUID12()}`;
+    const revisionId = `actor_definition_${randomUUID13()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM actor_definition_revisions WHERE actor_id = ?
@@ -71855,7 +72996,7 @@ var ActorDefinitionStore = class {
   moveHead(input) {
     nonEmpty("changed_by_principal_id", input.changed_by_principal_id);
     const actor = this.requireActor(input.revision.actor_id);
-    this.validateGrantReferences?.(actor.actor_id, actor.workspace_id, input.revision.content.capability_grant_ids);
+    this.validateHead?.(actor.actor_id, actor.workspace_id, input.revision.content);
     if (actor.status === "retired") {
       throw new ActorDefinitionValidationError(`retired Actor '${actor.actor_id}' cannot change its current definition`);
     }
@@ -71877,7 +73018,7 @@ var ActorDefinitionStore = class {
         head_change_id, actor_id, workspace_id, from_revision_id, to_revision_id,
         reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`actor_head_change_${randomUUID12()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+    `).run(`actor_head_change_${randomUUID13()}`, actor.actor_id, actor.workspace_id, actor.current_definition_revision_id, input.revision.actor_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
 };
 function rowToActor(row) {
@@ -71950,7 +73091,7 @@ function transaction(db, action) {
 }
 
 // floe-bus/dist/command-definitions.js
-import { createHash as createHash11, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash12, randomUUID as randomUUID14 } from "node:crypto";
 var CommandDefinitionValidationError = class extends Error {
   reason;
   code = "E_COMMAND_DEFINITION_INVALID";
@@ -72015,7 +73156,7 @@ var CommandDefinitionDraftConflictError = class extends Error {
 };
 function commandDefinitionDigest(content) {
   validateCommandDefinition(content);
-  return createHash11("sha256").update(canonicalJson6(content)).digest("hex");
+  return createHash12("sha256").update(canonicalJson6(content)).digest("hex");
 }
 function validateCommandDefinition(content) {
   nonEmpty2("label", content.label);
@@ -72116,7 +73257,7 @@ var CommandDefinitionStore = class {
     validateOwner(input.owner);
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const commandId = input.command_id ?? `command_${randomUUID13()}`;
+    const commandId = input.command_id ?? `command_${randomUUID14()}`;
     nonEmpty2("command_id", commandId);
     const at = this.now();
     let draft;
@@ -72279,7 +73420,7 @@ var CommandDefinitionStore = class {
   insertDraft(input) {
     nonEmpty2("created_by_principal_id", input.created_by_principal_id);
     validateCommandDefinition(input.definition);
-    const revisionId = `command_definition_${randomUUID13()}`;
+    const revisionId = `command_definition_${randomUUID14()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM command_definition_revisions WHERE command_id = ?
@@ -72324,7 +73465,7 @@ var CommandDefinitionStore = class {
         head_change_id, command_id, owner_kind, owner_id, from_revision_id,
         to_revision_id, reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`command_head_change_${randomUUID13()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
+    `).run(`command_head_change_${randomUUID14()}`, command.command_id, command.owner.kind, command.owner.id, command.current_revision_id, input.revision.command_definition_revision_id, input.reason, input.changed_by_principal_id, at);
   }
 };
 function rowToCommand(row) {
@@ -72417,7 +73558,7 @@ function canonicalJson6(value) {
   return JSON.stringify(value);
 }
 function transaction2(db, action) {
-  const savepoint = `command_definition_change_${randomUUID13().replaceAll("-", "")}`;
+  const savepoint = `command_definition_change_${randomUUID14().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${savepoint}`);
   try {
     const result = action();
@@ -73069,7 +74210,7 @@ function registerCommandOperations(registry, store) {
 }
 
 // floe-bus/dist/command-runtime.js
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 var CommandRuntimeContractError = class extends Error {
   reason;
   code = "E_COMMAND_RUNTIME_CONTRACT_INVALID";
@@ -73120,7 +74261,7 @@ var CommandWorkerBindingStore = class {
     const existing = this.getForWorkspace(workspaceId4, hostId);
     if (existing)
       return existing;
-    const suffix = createHash12("sha256").update(`${hostId}\0${workspaceId4}`).digest("hex").slice(0, 32);
+    const suffix = createHash13("sha256").update(`${hostId}\0${workspaceId4}`).digest("hex").slice(0, 32);
     const bindingId = `command_worker_binding_${suffix}`;
     const endpointId = `command_worker_endpoint_${suffix}`;
     const principalId = `command_worker_principal_${suffix}`;
@@ -73341,11 +74482,11 @@ function canonicalJson7(value) {
   return JSON.stringify(value);
 }
 function sha256(value) {
-  return `sha256:${createHash12("sha256").update(value).digest("hex")}`;
+  return `sha256:${createHash13("sha256").update(value).digest("hex")}`;
 }
 
 // floe-bus/dist/isolated-command-host.js
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 import { spawn } from "node:child_process";
 import { dirname as dirname3 } from "node:path";
 var CommandRuntimeHostError = class extends Error {
@@ -73370,7 +74511,7 @@ var IsolatedCoreCommandProcessHost = class {
     if (ref.kind !== "core_command_implementation" || !ref.revision) {
       return Promise.reject(new CommandRuntimeHostError("command_implementation_unavailable", "The Command does not reference an exact core implementation."));
     }
-    const requestId = `command_host_request_${randomUUID14()}`;
+    const requestId = `command_host_request_${randomUUID15()}`;
     const child = spawn(process.execPath, [
       "--permission",
       `--allow-fs-read=${dirname3(this.scriptPath)}`,
@@ -73467,8 +74608,8 @@ var BIND_PRINCIPAL_TO_ACTOR_OPERATION_ID = "actor.principal.bind";
 var REVOKE_PRINCIPAL_ACTOR_BINDING_OPERATION_ID = "actor.principal.binding.revoke";
 var ASSIGN_ACTOR_ROLE_OPERATION_ID = "actor.role.assign";
 var REVOKE_ACTOR_ROLE_ASSIGNMENT_OPERATION_ID = "actor.role.assignment.revoke";
-var text4 = { type: "string", minLength: 1 };
-var nullableText = { oneOf: [text4, { type: "null" }] };
+var text5 = { type: "string", minLength: 1 };
+var nullableText = { oneOf: [text5, { type: "null" }] };
 var principalBindingSchema = {
   type: "object",
   additionalProperties: false,
@@ -73486,13 +74627,13 @@ var principalBindingSchema = {
     "revocation_reason"
   ],
   properties: {
-    principal_actor_binding_id: text4,
-    workspace_id: text4,
-    principal_id: text4,
-    actor_id: text4,
+    principal_actor_binding_id: text5,
+    workspace_id: text5,
+    principal_id: text5,
+    actor_id: text5,
     status: { enum: ["active", "revoked"] },
-    bound_by_principal_id: text4,
-    bound_at: text4,
+    bound_by_principal_id: text5,
+    bound_at: text5,
     evidence_refs: {
       type: "array",
       minItems: 1,
@@ -73500,7 +74641,7 @@ var principalBindingSchema = {
         type: "object",
         additionalProperties: false,
         required: ["kind", "id", "revision"],
-        properties: { kind: text4, id: text4, revision: nullableText }
+        properties: { kind: text5, id: text5, revision: nullableText }
       }
     },
     revoked_by_principal_id: nullableText,
@@ -73514,19 +74655,19 @@ var roleBoundarySchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text4 }
+      properties: { kind: { const: "workspace" }, workspace_id: text5 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "scope_id"],
-      properties: { kind: { const: "scope" }, scope_id: text4 }
+      properties: { kind: { const: "scope" }, scope_id: text5 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "context_id"],
-      properties: { kind: { const: "context" }, context_id: text4 }
+      properties: { kind: { const: "context" }, context_id: text5 }
     }
   ]
 };
@@ -73536,13 +74677,13 @@ var managedRoleBoundarySchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text4 }
+      properties: { kind: { const: "workspace" }, workspace_id: text5 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "scope_id"],
-      properties: { kind: { const: "scope" }, scope_id: text4 }
+      properties: { kind: { const: "scope" }, scope_id: text5 }
     }
   ]
 };
@@ -73563,14 +74704,14 @@ var roleAssignmentSchema = {
     "revocation_reason"
   ],
   properties: {
-    actor_role_assignment_id: text4,
-    workspace_id: text4,
-    actor_id: text4,
-    role: text4,
+    actor_role_assignment_id: text5,
+    workspace_id: text5,
+    actor_id: text5,
+    role: text5,
     boundary: roleBoundarySchema,
     status: { enum: ["active", "revoked"] },
-    assigned_by_principal_id: text4,
-    assigned_at: text4,
+    assigned_by_principal_id: text5,
+    assigned_at: text5,
     revoked_by_principal_id: nullableText,
     revoked_at: nullableText,
     revocation_reason: nullableText
@@ -73581,13 +74722,13 @@ var evidenceSchema = {
   additionalProperties: false,
   required: ["actor_id", "role", "principal_binding_ref", "role_source_ref", "source_boundary"],
   properties: {
-    actor_id: text4,
-    role: text4,
+    actor_id: text5,
+    role: text5,
     principal_binding_ref: {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "revision"],
-      properties: { kind: { const: "principal_actor_binding" }, id: text4, revision: text4 }
+      properties: { kind: { const: "principal_actor_binding" }, id: text5, revision: text5 }
     },
     role_source_ref: {
       type: "object",
@@ -73595,8 +74736,8 @@ var evidenceSchema = {
       required: ["kind", "id", "revision"],
       properties: {
         kind: { enum: ["actor_role_assignment", "scope_composition_revision"] },
-        id: text4,
-        revision: text4
+        id: text5,
+        revision: text5
       }
     },
     source_boundary: {
@@ -73605,7 +74746,7 @@ var evidenceSchema = {
       required: ["kind", "id", "scope_composition_revision_id", "node_placement_id"],
       properties: {
         kind: { enum: ["workspace", "scope", "context", "node_placement", "node_execution"] },
-        id: text4,
+        id: text5,
         scope_composition_revision_id: nullableText,
         node_placement_id: nullableText
       }
@@ -73639,14 +74780,14 @@ var resolutionSchema = {
     "resolved_at"
   ],
   properties: {
-    workspace_id: text4,
-    principal_id: text4,
-    actor_ids: { type: "array", items: text4, uniqueItems: true },
-    roles: { type: "array", items: text4, uniqueItems: true },
+    workspace_id: text5,
+    principal_id: text5,
+    actor_ids: { type: "array", items: text5, uniqueItems: true },
+    roles: { type: "array", items: text5, uniqueItems: true },
     evidence: { type: "array", items: evidenceSchema },
     resolved_target: resolutionTargetSchema,
-    evidence_digest: text4,
-    resolved_at: text4
+    evidence_digest: text5,
+    resolved_at: text5
   }
 };
 function workspaceId(context) {
@@ -73725,7 +74866,7 @@ function actorRoleOperationDefinitions(store) {
         additionalProperties: false,
         required: ["actor_id", "principal_bindings", "role_assignments"],
         properties: {
-          actor_id: text4,
+          actor_id: text5,
           principal_bindings: { type: "array", items: principalBindingSchema },
           role_assignments: { type: "array", items: roleAssignmentSchema }
         }
@@ -73791,7 +74932,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["principal_id"],
-        properties: { principal_id: text4, principal_actor_binding_id: text4 }
+        properties: { principal_id: text5, principal_actor_binding_id: text5 }
       }
     },
     result: {
@@ -73846,7 +74987,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text4 }
+        properties: { reason: text5 }
       }
     },
     result: {
@@ -73895,7 +75036,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["role", "boundary"],
-        properties: { role: text4, boundary: managedRoleBoundarySchema, actor_role_assignment_id: text4 }
+        properties: { role: text5, boundary: managedRoleBoundarySchema, actor_role_assignment_id: text5 }
       }
     },
     result: {
@@ -73946,7 +75087,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text4 }
+        properties: { reason: text5 }
       }
     },
     result: {
@@ -74014,7 +75155,7 @@ function resolveActorRoleAuthorityResource(store, workspaceId4, target) {
 }
 
 // floe-bus/dist/runtime-profiles.js
-import { createHash as createHash13, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
 var CLIENT_ADAPTER_ID = "client";
 var RuntimeProfileValidationError = class extends Error {
   reason;
@@ -74096,7 +75237,7 @@ function validateRuntimeProfile(content) {
 }
 function runtimeProfileDigest(content) {
   validateRuntimeProfile(content);
-  return createHash13("sha256").update(canonicalJson8(content)).digest("hex");
+  return createHash14("sha256").update(canonicalJson8(content)).digest("hex");
 }
 function applyRuntimeProfileSchema(db) {
   db.exec(`
@@ -74179,7 +75320,7 @@ var RuntimeProfileStore = class {
     validateOwner2(input.owner);
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID15()}`;
+    const profileId = input.runtime_profile_id ?? `runtime_profile_${randomUUID16()}`;
     nonEmpty3("runtime_profile_id", profileId);
     const at = this.now();
     let draft;
@@ -74321,7 +75462,7 @@ var RuntimeProfileStore = class {
     }
     const profile = this.requireProfile(revision.runtime_profile_id);
     const at = this.now();
-    const bindingId = `actor_runtime_binding_${randomUUID15()}`;
+    const bindingId = `actor_runtime_binding_${randomUUID16()}`;
     transaction3(this.db, () => {
       if (current) {
         this.db.prepare(`
@@ -74408,7 +75549,7 @@ var RuntimeProfileStore = class {
   insertDraft(input) {
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
     validateRuntimeProfile(input.content);
-    const revisionId = `runtime_profile_revision_${randomUUID15()}`;
+    const revisionId = `runtime_profile_revision_${randomUUID16()}`;
     const revisionNumber = Number(this.db.prepare(`
       SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
       FROM runtime_profile_revisions WHERE runtime_profile_id = ?
@@ -74435,7 +75576,7 @@ var RuntimeProfileStore = class {
         head_change_id, runtime_profile_id, from_revision_id, to_revision_id,
         reason, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(`runtime_profile_head_change_${randomUUID15()}`, change.runtime_profile_id, change.from_revision_id, change.to_revision_id, change.reason, change.changed_by_principal_id, change.changed_at);
+    `).run(`runtime_profile_head_change_${randomUUID16()}`, change.runtime_profile_id, change.from_revision_id, change.to_revision_id, change.reason, change.changed_by_principal_id, change.changed_at);
   }
 };
 function rowToProfile(row) {
@@ -74563,7 +75704,7 @@ function transaction3(db, action) {
 }
 
 // floe-bus/dist/connectors.js
-import { createHash as createHash14, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash15, randomUUID as randomUUID17 } from "node:crypto";
 var ConnectorValidationError = class extends Error {
   reason;
   code = "E_CONNECTOR_INVALID";
@@ -74839,9 +75980,9 @@ var ConnectorStore = class {
   createDefinition(input) {
     const owner = normalizeOwner(input.owner);
     validateConnectorDefinition(input.content);
-    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID16()}`, "connector_definition_id");
+    const definitionId = requireText4(input.connector_definition_id ?? `connector_definition_${randomUUID17()}`, "connector_definition_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID16()}`;
+    const revisionId = `connector_definition_revision_${randomUUID17()}`;
     const at = this.now();
     const digest9 = connectorDefinitionDigest(input.content);
     transaction4(this.db, "connector_definition_create", () => {
@@ -74875,7 +76016,7 @@ var ConnectorStore = class {
     }
     validateConnectorDefinition(input.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_definition_revision_${randomUUID16()}`;
+    const revisionId = `connector_definition_revision_${randomUUID17()}`;
     const nextOrdinal = this.nextOrdinal("connector_definition_revisions", "connector_definition_id", definition2.connector_definition_id);
     const at = this.now();
     transaction4(this.db, "connector_definition_revise", () => {
@@ -74918,9 +76059,9 @@ var ConnectorStore = class {
     if (definition2.status !== "active")
       throw new ConnectorValidationError("a retired ConnectorDefinition cannot receive a new binding");
     validateConnectorBinding(input.content, definitionRevision.content);
-    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID16()}`, "connector_binding_id");
+    const bindingId = requireText4(input.connector_binding_id ?? `connector_binding_${randomUUID17()}`, "connector_binding_id");
     const principalId = requireText4(input.created_by_principal_id, "created_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID16()}`;
+    const revisionId = `connector_binding_revision_${randomUUID17()}`;
     const at = this.now();
     transaction4(this.db, "connector_binding_create", () => {
       this.db.prepare(`
@@ -74959,7 +76100,7 @@ var ConnectorStore = class {
     }
     validateConnectorBinding(input.content, definitionRevision.content);
     const principalId = requireText4(input.changed_by_principal_id, "changed_by_principal_id");
-    const revisionId = `connector_binding_revision_${randomUUID16()}`;
+    const revisionId = `connector_binding_revision_${randomUUID17()}`;
     const nextOrdinal = this.nextOrdinal("connector_binding_revisions", "connector_binding_id", binding.connector_binding_id);
     const at = this.now();
     transaction4(this.db, "connector_binding_revise", () => {
@@ -75030,7 +76171,7 @@ var ConnectorStore = class {
       throw new ConnectorRevisionConflictError(binding.connector_binding_id, input.connector_binding_revision_id, binding.current_revision_id);
     }
     const evidenceRefs = normalizeRefs(input.evidence_refs ?? [], "evidence_refs");
-    const id = `connector_health_${randomUUID16()}`;
+    const id = `connector_health_${randomUUID17()}`;
     const recordedAt = this.now();
     this.db.prepare(`
       INSERT INTO connector_health_observations (
@@ -75207,7 +76348,7 @@ var ConnectorStore = class {
       }
     }
     const evidence = normalizeRef(input.request_evidence_ref, "request_evidence_ref");
-    const attemptId = `external_action_attempt_${randomUUID16()}`;
+    const attemptId = `external_action_attempt_${randomUUID17()}`;
     const attemptNumber = receipt.attempt_count + 1;
     const at = this.now();
     transaction4(this.db, "external_action_begin", () => {
@@ -75267,7 +76408,7 @@ var ConnectorStore = class {
       throw new ExternalActionStateError(receipt.external_effect_receipt_id, "only an uncertain effect can be reconciled");
     }
     const evidence = normalizeRef(input.evidence_ref, "evidence_ref");
-    const id = `external_action_reconciliation_${randomUUID16()}`;
+    const id = `external_action_reconciliation_${randomUUID17()}`;
     const at = this.now();
     transaction4(this.db, "external_action_reconcile", () => {
       this.db.prepare(`
@@ -75586,10 +76727,10 @@ var ConnectorStore = class {
         head_change_id, resource_kind, resource_id, owner_kind, owner_id,
         from_revision_id, to_revision_id, changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`connector_head_change_${randomUUID16()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
+    `).run(`connector_head_change_${randomUUID17()}`, resourceKind, resourceId, owner.kind, owner.id, fromRevisionId, toRevisionId, principalId, at);
   }
   insertIngressObservation(input) {
-    const id = `connector_ingress_observation_${randomUUID16()}`;
+    const id = `connector_ingress_observation_${randomUUID17()}`;
     this.db.prepare(`
       INSERT INTO connector_ingress_observations (
         connector_ingress_observation_id, connector_ingress_receipt_id,
@@ -75859,16 +77000,16 @@ function normalizeInvocationProvenance(value) {
   };
 }
 function requireTimestamp(value, label) {
-  const text11 = requireText4(value, label);
-  if (!Number.isFinite(Date.parse(text11)))
+  const text12 = requireText4(value, label);
+  if (!Number.isFinite(Date.parse(text12)))
     throw new ConnectorValidationError(`${label} must be an ISO timestamp`);
-  return text11;
+  return text12;
 }
 function requireDigest(value, label) {
-  const text11 = requireText4(value, label, 64).toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(text11))
+  const text12 = requireText4(value, label, 64).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(text12))
     throw new ConnectorValidationError(`${label} must be a SHA-256 digest`);
-  return text11;
+  return text12;
 }
 function normalizeJson(value, label = "JSON value") {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -75905,7 +77046,7 @@ function canonicalJson9(value) {
   return JSON.stringify(value);
 }
 function sha2562(value) {
-  return createHash14("sha256").update(value).digest("hex");
+  return createHash15("sha256").update(value).digest("hex");
 }
 function transaction4(db, label, action) {
   const savepoint = label.replace(/[^a-z0-9_]/gi, "_");
@@ -76088,7 +77229,7 @@ function rowToActionReconciliation(row) {
 }
 
 // floe-bus/dist/approvals.js
-import { createHash as createHash15, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID18 } from "node:crypto";
 var ApprovalValidationError = class extends Error {
   reason;
   code = "E_APPROVAL_INVALID";
@@ -76312,7 +77453,7 @@ function relaxLegacyApprovalContextColumns(db) {
   if (priorDeferred) {
     throw new Error("Approval schema cannot be rebuilt while unrelated foreign keys are already deferred.");
   }
-  const suffix = randomUUID17().replaceAll("-", "");
+  const suffix = randomUUID18().replaceAll("-", "");
   const savepoint = `approval_context_nullable_${suffix}`;
   const requestReplacement = `approval_requests_nullable_${suffix}`;
   const receiptReplacement = `approval_receipts_nullable_${suffix}`;
@@ -76404,10 +77545,10 @@ function migrateLegacyApprovalState(db) {
       }
     };
     const policyJson = canonicalJson10(policy);
-    const policyDigest = digest3("floe-approval-decision-policy:v1", policy);
+    const policyDigest = digest4("floe-approval-decision-policy:v1", policy);
     let decisions = [];
     if (row.decision_outcome && row.decided_by_principal_id && row.decision_event_id && row.decision_reason && row.decided_at) {
-      const decisionId = `approval_decision_legacy_${createHash15("sha256").update(`${row.approval_request_id}\0${row.decision_event_id}`).digest("hex").slice(0, 32)}`;
+      const decisionId = `approval_decision_legacy_${createHash16("sha256").update(`${row.approval_request_id}\0${row.decision_event_id}`).digest("hex").slice(0, 32)}`;
       const provisional = {
         approval_decision_id: decisionId,
         approval_request_id: row.approval_request_id,
@@ -76459,9 +77600,9 @@ var ApprovalStore = class {
   constructor(db, dependencies = {}) {
     this.db = db;
     this.now = dependencies.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
-    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID17()}`);
-    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID17()}`);
-    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID17()}`);
+    this.requestId = dependencies.request_id_factory ?? (() => `approval_request_${randomUUID18()}`);
+    this.receiptId = dependencies.receipt_id_factory ?? (() => `approval_receipt_${randomUUID18()}`);
+    this.decisionId = dependencies.decision_id_factory ?? (() => `approval_decision_${randomUUID18()}`);
     this.resolveDecisionAuthority = dependencies.resolve_decision_authority ?? (() => ({ authority_grant_ids: [], role_evidence: [] }));
     this.actionIsCurrent = dependencies.action_is_current ?? (() => true);
   }
@@ -76481,7 +77622,7 @@ var ApprovalStore = class {
     const decisionPolicy = normalizeApprovalDecisionPolicy(input.decision_policy ?? legacyDecisionPolicy());
     const decisionBindingJson = canonicalJson10(decisionBinding);
     const decisionPolicyJson = canonicalJson10(decisionPolicy);
-    const decisionPolicyDigest = digest3("floe-approval-decision-policy:v1", decisionPolicy);
+    const decisionPolicyDigest = digest4("floe-approval-decision-policy:v1", decisionPolicy);
     const decisionSetDigest = approvalDecisionSetDigest([]);
     const actionJson = canonicalJson10(action);
     const actionDigest = approvalActionDigest(action);
@@ -76565,7 +77706,7 @@ var ApprovalStore = class {
         throw new ApprovalValidationError("receipt_expires_at cannot exceed the approval request expiry");
       }
     }
-    return inSavepoint2(this.db, "decide_approval", () => {
+    return inSavepoint3(this.db, "decide_approval", () => {
       const retained = this.listDecisions(request.approval_request_id);
       const idempotent = retained.find((item) => item.principal_id === decidedBy && item.idempotency_key === idempotencyKey);
       if (idempotent) {
@@ -76779,7 +77920,7 @@ var ApprovalStore = class {
       return { valid: true, receipt, prior_use: prior };
     }
     const verification = this.verifyReceipt(input);
-    return inSavepoint2(this.db, "consume_approval", () => {
+    return inSavepoint3(this.db, "consume_approval", () => {
       const usedAt = requireTimestamp2(input.at ?? this.now(), "at");
       this.db.prepare(`
         INSERT INTO approval_receipt_uses (
@@ -76961,10 +78102,10 @@ var ApprovalStore = class {
   }
 };
 function approvalActionDigest(action) {
-  return createHash15("sha256").update("floe-approval-action:v1\0", "utf8").update(canonicalJson10(normalizeApprovalAction(action)), "utf8").digest("hex");
+  return createHash16("sha256").update("floe-approval-action:v1\0", "utf8").update(canonicalJson10(normalizeApprovalAction(action)), "utf8").digest("hex");
 }
 function approvalReceiptStateRevision(receipt) {
-  return createHash15("sha256").update("floe-approval-receipt-state:v1\0", "utf8").update(canonicalJson10({
+  return createHash16("sha256").update("floe-approval-receipt-state:v1\0", "utf8").update(canonicalJson10({
     approval_receipt_id: receipt.approval_receipt_id,
     action_digest: receipt.action_digest,
     decision_set_digest: receipt.decision_set_digest,
@@ -77114,7 +78255,7 @@ function approvalProgress(policy, decisions, resolution) {
   };
 }
 function approvalDecisionSetDigest(decisions) {
-  return digest3("floe-approval-decision-set:v1", decisions.map((item) => ({
+  return digest4("floe-approval-decision-set:v1", decisions.map((item) => ({
     approval_decision_id: item.approval_decision_id,
     approval_request_id: item.approval_request_id,
     workspace_id: item.workspace_id,
@@ -77322,8 +78463,8 @@ function parseTextArray(value, label) {
     throw new ApprovalValidationError(`stored ${label} is invalid`);
   }
 }
-function digest3(domain, value) {
-  return createHash15("sha256").update(`${domain}\0`, "utf8").update(canonicalJson10(value), "utf8").digest("hex");
+function digest4(domain, value) {
+  return createHash16("sha256").update(`${domain}\0`, "utf8").update(canonicalJson10(value), "utf8").digest("hex");
 }
 function canonicalJson10(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -77340,7 +78481,7 @@ function canonicalJson10(value) {
   }
   throw new ApprovalValidationError("approval data must contain JSON values only");
 }
-function inSavepoint2(db, label, action) {
+function inSavepoint3(db, label, action) {
   const savepoint = label.replace(/[^a-z0-9_]/gi, "_");
   db.exec(`SAVEPOINT ${savepoint}`);
   try {
@@ -77355,7 +78496,7 @@ function inSavepoint2(db, label, action) {
 }
 
 // floe-bus/dist/policies.js
-import { createHash as createHash16, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID19 } from "node:crypto";
 var PolicyValidationError = class extends Error {
   reason;
   code = "E_POLICY_INVALID";
@@ -77533,12 +78674,12 @@ var PolicyStore = class {
   }
   createPolicy(input) {
     const workspaceId4 = requiredText2(input.workspace_id, "workspace_id");
-    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID18()}`, "policy_id");
+    const policyId = requiredText2(input.policy_id ?? `policy_${randomUUID19()}`, "policy_id");
     const principalId = requiredText2(input.created_by_principal_id, "created_by_principal_id");
     validateCategory(input.category);
     const content = normalizePolicyContent(input.content);
     const createdAt = this.now();
-    return inSavepoint3(this.db, "create_policy", () => {
+    return inSavepoint4(this.db, "create_policy", () => {
       try {
         this.db.prepare(`
           INSERT INTO policies (
@@ -77626,7 +78767,7 @@ var PolicyStore = class {
       throw new PolicyConflictError(policy.policy_id, "the draft is not based on the expected published revision");
     }
     const publishedAt = this.now();
-    return inSavepoint3(this.db, "publish_policy", () => {
+    return inSavepoint4(this.db, "publish_policy", () => {
       const revisionChange = this.db.prepare(`
         UPDATE policy_revisions SET published_at = ?
         WHERE policy_revision_id = ? AND published_at IS NULL AND withdrawn_at IS NULL
@@ -77674,7 +78815,7 @@ var PolicyStore = class {
     if (subject.kind === "workspace" && subject.id !== input.workspace_id) {
       throw new PolicyValidationError("a Workspace binding must name its own Workspace");
     }
-    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID18()}`, "policy_binding_id");
+    const bindingId = requiredText2(input.policy_binding_id ?? `policy_binding_${randomUUID19()}`, "policy_binding_id");
     const boundAt = this.now();
     try {
       this.db.prepare(`
@@ -77737,25 +78878,41 @@ var PolicyStore = class {
     `).run(this.now(), policy.policy_id, policy.workspace_id);
     return this.requirePolicy(policy.policy_id);
   }
-  evaluate(factsInput) {
+  evaluate(factsInput, options = {}) {
     const facts = normalizeFacts(factsInput);
     const bindings = this.listApplicableBindings(facts);
-    const evaluatedRevisionIds = [...new Set(bindings.map((binding) => binding.policy_revision_id))].sort();
+    const direct = [...new Set(options.direct_revision_ids ?? [])].sort().map((revisionId) => {
+      const revision = this.requireRevision(revisionId);
+      if (revision.workspace_id !== facts.workspace_id || revision.published_at === null || revision.withdrawn_at !== null || this.requirePolicy(revision.policy_id).status !== "active") {
+        throw new PolicyValidationError(`directly referenced revision '${revisionId}' is not a live published revision in this Workspace`);
+      }
+      return revision;
+    });
+    const evaluatedRevisionIds = [.../* @__PURE__ */ new Set([
+      ...bindings.map((binding) => binding.policy_revision_id),
+      ...direct.map((revision) => revision.policy_revision_id)
+    ])].sort();
+    const sources = [
+      ...bindings.map((binding) => ({ revision: this.requireRevision(binding.policy_revision_id), binding_id: binding.policy_binding_id })),
+      ...direct.map((revision) => ({ revision, binding_id: null }))
+    ];
     const matched = [];
-    for (const binding of bindings) {
-      const revision = this.requireRevision(binding.policy_revision_id);
+    for (const { revision, binding_id } of sources) {
       for (const rule of [...revision.content.rules].sort(compareRules)) {
         if (!matchesRule(rule.match, facts))
           continue;
         matched.push({
           policy_revision_id: revision.policy_revision_id,
-          policy_binding_id: binding.policy_binding_id,
+          policy_binding_id: binding_id,
           rule_id: rule.rule_id,
           effect: rule.effect
         });
       }
     }
-    const denials = matched.filter((item) => item.effect.kind === "deny").map((item) => item.effect.reason);
+    const denials = [
+      ...options.authority_denial_reason ? [options.authority_denial_reason] : [],
+      ...matched.filter((item) => item.effect.kind === "deny").map((item) => item.effect.reason)
+    ];
     const approvals = matched.filter((item) => item.effect.kind === "require_approval").map((item) => {
       const effect = item.effect;
       return {
@@ -77768,12 +78925,15 @@ var PolicyStore = class {
     const limits = strictestLimits(matched.flatMap((item) => {
       if (item.effect.kind !== "limit")
         return [];
+      if (item.policy_binding_id === null) {
+        throw new PolicyValidationError(`directly referenced revision '${item.policy_revision_id}' has limit rule '${item.rule_id}'; budget limits must be bound`);
+      }
       const binding = bindings.find((candidate) => candidate.policy_binding_id === item.policy_binding_id);
       if (!binding)
         throw new PolicyValidationError(`binding '${item.policy_binding_id}' disappeared during evaluation`);
       return item.effect.limits.map((limit) => ({
         policy_revision_id: item.policy_revision_id,
-        policy_binding_id: item.policy_binding_id,
+        policy_binding_id: binding.policy_binding_id,
         rule_id: item.rule_id,
         subject: binding.subject,
         ...limit
@@ -77781,9 +78941,9 @@ var PolicyStore = class {
     }));
     const decision = denials.length > 0 ? "deny" : approvals.length > 0 ? "require_approval" : "allow";
     const evaluatedAt = this.now();
-    const factsDigest = createHash16("sha256").update(canonicalJson11(facts)).digest("hex");
+    const factsDigest = createHash17("sha256").update(canonicalJson11(facts)).digest("hex");
     const evaluation = {
-      evaluation_id: `policy_evaluation_${randomUUID18()}`,
+      evaluation_id: `policy_evaluation_${randomUUID19()}`,
       workspace_id: facts.workspace_id,
       authority_boundary: facts.authority_boundary,
       facts,
@@ -77906,7 +79066,7 @@ var PolicyStore = class {
     return rows.map(mapBinding);
   }
   insertRevision(input) {
-    const revisionId = `policy_revision_${randomUUID18()}`;
+    const revisionId = `policy_revision_${randomUUID19()}`;
     this.db.prepare(`
       INSERT INTO policy_revisions (
         policy_revision_id, policy_id, workspace_id, category,
@@ -77919,7 +79079,7 @@ var PolicyStore = class {
   }
 };
 function policyContentDigest(content) {
-  return createHash16("sha256").update(canonicalJson11(normalizePolicyContent(content))).digest("hex");
+  return createHash17("sha256").update(canonicalJson11(normalizePolicyContent(content))).digest("hex");
 }
 function normalizePolicyContent(content) {
   const label = requiredText2(content.label, "label");
@@ -78097,7 +79257,8 @@ function normalizeFacts(facts) {
     extension_installation_id: nullableText2(facts.extension_installation_id),
     extension_package_version_id: nullableText2(facts.extension_package_version_id),
     data_classes: uniqueText(facts.data_classes),
-    worker_trust_level: nullableText2(facts.worker_trust_level)
+    worker_trust_level: nullableText2(facts.worker_trust_level),
+    ...facts.tool ? { tool: normalizeToolCallPolicyFacts(facts.tool) } : {}
   };
   if (Boolean(normalized.node_placement_id) && !normalized.scope_composition_revision_id) {
     throw new PolicyValidationError("NodePlacement facts require both node_placement_id and scope_composition_revision_id");
@@ -78298,8 +79459,8 @@ function canonicalJson11(value) {
   }
   return JSON.stringify(value);
 }
-function inSavepoint3(db, label, action) {
-  const name = `${label}_${randomUUID18().replaceAll("-", "")}`;
+function inSavepoint4(db, label, action) {
+  const name = `${label}_${randomUUID19().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -78326,14 +79487,14 @@ var RETIRE_POLICY_OPERATION_ID = "policy.retire";
 var REACTIVATE_POLICY_OPERATION_ID = "policy.reactivate";
 var LIST_POLICY_EVALUATIONS_OPERATION_ID = "policy.evaluation.list";
 var INSPECT_POLICY_EVALUATION_OPERATION_ID = "policy.evaluation.inspect";
-var text5 = { type: "string", minLength: 1 };
-var nullableText3 = { oneOf: [text5, { type: "null" }] };
+var text6 = { type: "string", minLength: 1 };
+var nullableText3 = { oneOf: [text6, { type: "null" }] };
 var emptyInput3 = { type: "object", additionalProperties: false };
 var resourceRefSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text5, id: text5, revision: nullableText3 }
+  properties: { kind: text6, id: text6, revision: nullableText3 }
 };
 var effectsSchema = {
   type: "object",
@@ -78401,10 +79562,10 @@ var budgetLimitSchema = {
   additionalProperties: false,
   required: ["metric", "maximum", "window"],
   properties: {
-    metric: text5,
+    metric: text6,
     maximum: { type: "number", minimum: 0 },
     window: { enum: ["operation", "scope_execution", "day", "month", "all_time"] },
-    timezone: text5
+    timezone: text6
   }
 };
 var policyEffectSchema = {
@@ -78413,13 +79574,13 @@ var policyEffectSchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "reason"],
-      properties: { kind: { const: "deny" }, reason: text5 }
+      properties: { kind: { const: "deny" }, reason: text6 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "reason", "approvers"],
-      properties: { kind: { const: "require_approval" }, reason: text5, approvers: approversSchema }
+      properties: { kind: { const: "require_approval" }, reason: text6, approvers: approversSchema }
     },
     {
       type: "object",
@@ -78434,8 +79595,8 @@ var POLICY_CONTENT_SCHEMA = {
   additionalProperties: false,
   required: ["label", "description", "rules"],
   properties: {
-    label: text5,
-    description: text5,
+    label: text6,
+    description: text6,
     rules: {
       type: "array",
       items: {
@@ -78443,7 +79604,7 @@ var POLICY_CONTENT_SCHEMA = {
         additionalProperties: false,
         required: ["rule_id", "priority", "match", "effect"],
         properties: {
-          rule_id: text5,
+          rule_id: text6,
           priority: { type: "integer" },
           match: policyMatchSchema,
           effect: policyEffectSchema
@@ -78457,13 +79618,13 @@ var policySchema = {
   additionalProperties: false,
   required: ["policy_id", "workspace_id", "category", "status", "current_revision_id", "created_at", "updated_at", "retired_at"],
   properties: {
-    policy_id: text5,
-    workspace_id: text5,
+    policy_id: text6,
+    workspace_id: text6,
     category: { enum: ["operation", "approval", "budget", "trust", "data", "emergency_stop"] },
     status: { enum: ["active", "retired"] },
     current_revision_id: nullableText3,
-    created_at: text5,
-    updated_at: text5,
+    created_at: text6,
+    updated_at: text6,
     retired_at: nullableText3
   }
 };
@@ -78485,16 +79646,16 @@ var policyRevisionSchema = {
     "withdrawn_at"
   ],
   properties: {
-    policy_revision_id: text5,
-    policy_id: text5,
-    workspace_id: text5,
+    policy_revision_id: text6,
+    policy_id: text6,
+    workspace_id: text6,
     category: policySchema.properties && policySchema.properties.category,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText3,
-    semantic_digest: text5,
+    semantic_digest: text6,
     content: POLICY_CONTENT_SCHEMA,
-    created_by_principal_id: text5,
-    created_at: text5,
+    created_by_principal_id: text6,
+    created_at: text6,
     published_at: nullableText3,
     withdrawn_at: nullableText3
   }
@@ -78505,7 +79666,7 @@ var subjectSchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id"],
-      properties: { kind: { const: kind }, id: text5 }
+      properties: { kind: { const: kind }, id: text6 }
     })),
     {
       type: "object",
@@ -78513,8 +79674,8 @@ var subjectSchema = {
       required: ["kind", "id", "composition_revision_id"],
       properties: {
         kind: { const: "node_placement" },
-        id: text5,
-        composition_revision_id: text5
+        id: text6,
+        composition_revision_id: text6
       }
     }
   ]
@@ -78535,13 +79696,13 @@ var policyBindingSchema = {
     "revocation_reason"
   ],
   properties: {
-    policy_binding_id: text5,
-    workspace_id: text5,
-    policy_revision_id: text5,
+    policy_binding_id: text6,
+    workspace_id: text6,
+    policy_revision_id: text6,
     subject: subjectSchema,
     status: { enum: ["active", "revoked"] },
-    bound_by_principal_id: text5,
-    bound_at: text5,
+    bound_by_principal_id: text6,
+    bound_at: text6,
     revoked_by_principal_id: nullableText3,
     revoked_at: nullableText3,
     revocation_reason: nullableText3
@@ -78564,21 +79725,21 @@ var policyEvaluationSchema = {
     "evaluated_at"
   ],
   properties: {
-    evaluation_id: text5,
-    workspace_id: text5,
+    evaluation_id: text6,
+    workspace_id: text6,
     facts: { oneOf: [{ type: "object" }, { type: "null" }] },
-    facts_digest: text5,
-    evaluated_policy_revision_ids: { type: "array", items: text5 },
+    facts_digest: text6,
+    evaluated_policy_revision_ids: { type: "array", items: text6 },
     matched_rules: { type: "array" },
     decision: { enum: ["allow", "deny", "require_approval"] },
-    denial_reasons: { type: "array", items: text5 },
+    denial_reasons: { type: "array", items: text6 },
     approval_requirements: { type: "array" },
     budget_limits: { type: "array" },
-    evaluated_at: text5
+    evaluated_at: text6
   }
 };
 function stringList(allowEmpty = false) {
-  return { type: "array", minItems: allowEmpty ? 0 : 1, uniqueItems: true, items: text5 };
+  return { type: "array", minItems: allowEmpty ? 0 : 1, uniqueItems: true, items: text6 };
 }
 function auditRef4(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
@@ -78773,7 +79934,7 @@ function createPolicyDefinition(store) {
         additionalProperties: false,
         required: ["category", "content"],
         properties: {
-          policy_id: text5,
+          policy_id: text6,
           category: policySchema.properties.category,
           content: POLICY_CONTENT_SCHEMA
         }
@@ -78906,7 +80067,7 @@ function rollbackDefinition(store) {
     required_grants: [ROLLBACK_POLICY_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["target_revision_id"], properties: { target_revision_id: text5 } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["target_revision_id"], properties: { target_revision_id: text6 } } },
     result: { version: "1", schema: policySchema },
     handler: (context, input) => {
       try {
@@ -78935,7 +80096,7 @@ function bindDefinition(store) {
     required_grants: [BIND_POLICY_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy_revision"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["subject"], properties: { policy_binding_id: text5, subject: subjectSchema } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["subject"], properties: { policy_binding_id: text6, subject: subjectSchema } } },
     result: { version: "1", schema: policyBindingSchema },
     handler: (context, input) => {
       try {
@@ -78969,7 +80130,7 @@ function revokeBindingDefinition(store) {
     required_grants: [REVOKE_POLICY_BINDING_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy_binding"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: text5 } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: text6 } } },
     result: { version: "1", schema: policyBindingSchema },
     handler: (context, input) => {
       try {
@@ -79060,7 +80221,7 @@ var POLICY_OPERATION_SCHEMAS = Object.freeze({
 });
 
 // floe-bus/dist/budgets.js
-import { createHash as createHash17, randomUUID as randomUUID19 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID20 } from "node:crypto";
 var BudgetValidationError = class extends Error {
   reason;
   code = "E_BUDGET_INVALID";
@@ -79211,7 +80372,7 @@ var BudgetStore = class {
     const estimates = normalizeUsage(input.estimates, "estimate");
     if (input.evaluation.budget_limits.length === 0)
       return null;
-    const requestDigest = digest4({
+    const requestDigest = digest5({
       source,
       policy_evaluation_id: input.evaluation.evaluation_id,
       facts,
@@ -79226,8 +80387,8 @@ var BudgetStore = class {
       return existing;
     }
     const at = this.now();
-    const reservationId = `budget_reservation_${randomUUID19()}`;
-    return inSavepoint4(this.db, "reserve_budget", () => {
+    const reservationId = `budget_reservation_${randomUUID20()}`;
+    return inSavepoint5(this.db, "reserve_budget", () => {
       const items = input.evaluation.budget_limits.map((limit) => {
         const estimatedAmount = estimates[limit.metric];
         if (estimatedAmount === void 0) {
@@ -79255,7 +80416,7 @@ var BudgetStore = class {
           throw new BudgetExceededError(limit.metric, limit.subject, limit.maximum, committed, reserved, estimatedAmount);
         }
         return {
-          reservation_item_id: `budget_reservation_item_${randomUUID19()}`,
+          reservation_item_id: `budget_reservation_item_${randomUUID20()}`,
           reservation_id: reservationId,
           policy_revision_id: limit.policy_revision_id,
           policy_binding_id: limit.policy_binding_id,
@@ -79294,7 +80455,7 @@ var BudgetStore = class {
   commit(input) {
     const reservation = this.requireReservationForWorkspace(input.reservation_id, input.workspace_id);
     const actual = normalizeUsage(input.actual_usage, "actual usage");
-    const actualDigest = digest4(actual);
+    const actualDigest = digest5(actual);
     if (reservation.state === "committed" || reservation.state === "exceeded") {
       if (reservation.actual_usage_digest !== actualDigest) {
         throw new BudgetConflictError(reservation.source, "actual usage changed after it was committed");
@@ -79305,7 +80466,7 @@ var BudgetStore = class {
       throw new BudgetConflictError(reservation.source, "a released reservation cannot be committed");
     }
     const observedAt = this.now();
-    return inSavepoint4(this.db, "commit_budget", () => {
+    return inSavepoint5(this.db, "commit_budget", () => {
       let exceeded = false;
       for (const item of reservation.items) {
         const amount = actual[item.metric];
@@ -79340,7 +80501,7 @@ var BudgetStore = class {
             actor_id, scope_composition_revision_id, node_placement_id, connector_binding_id, extension_installation_id,
             metric, amount, observed_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(`resource_usage_${randomUUID19()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
+        `).run(`resource_usage_${randomUUID20()}`, reservation.workspace_id, reservation.source.kind, reservation.source.id, reservation.facts.principal_id, reservation.facts.operation_id, reservation.facts.scope_id, reservation.facts.scope_execution_id, reservation.facts.actor_id, reservation.facts.scope_composition_revision_id, reservation.facts.node_placement_id, reservation.facts.connector_binding_id, reservation.facts.extension_installation_id, metric, amount, observedAt);
       }
       this.db.prepare(`
         UPDATE budget_reservations
@@ -79644,12 +80805,12 @@ function zonedMidnight(parts, timezone) {
   }
   return new Date(guess);
 }
-function addCalendarDays(parts, count) {
-  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + count));
+function addCalendarDays(parts, count2) {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + count2));
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 }
-function addCalendarMonths(parts, count) {
-  const date = new Date(Date.UTC(parts.year, parts.month - 1 + count, 1));
+function addCalendarMonths(parts, count2) {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1 + count2, 1));
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: 1 };
 }
 function usageSubjectColumn(kind) {
@@ -79716,8 +80877,8 @@ function requiredText3(value, field) {
     throw new BudgetValidationError(`${field} is required`);
   return value.trim();
 }
-function digest4(value) {
-  return createHash17("sha256").update(canonicalJson12(value)).digest("hex");
+function digest5(value) {
+  return createHash18("sha256").update(canonicalJson12(value)).digest("hex");
 }
 function canonicalJson12(value) {
   if (Array.isArray(value))
@@ -79728,8 +80889,8 @@ function canonicalJson12(value) {
   }
   return JSON.stringify(value);
 }
-function inSavepoint4(db, label, action) {
-  const name = `${label}_${randomUUID19().replaceAll("-", "")}`;
+function inSavepoint5(db, label, action) {
+  const name = `${label}_${randomUUID20().replaceAll("-", "")}`;
   db.exec(`SAVEPOINT ${name}`);
   try {
     const result = action();
@@ -79743,7 +80904,7 @@ function inSavepoint4(db, label, action) {
 }
 
 // floe-bus/dist/audit.js
-import { createHash as createHash18, randomUUID as randomUUID20 } from "node:crypto";
+import { createHash as createHash19, randomUUID as randomUUID21 } from "node:crypto";
 var AuditConflictError = class extends Error {
   invocation_id;
   reason;
@@ -79829,11 +80990,11 @@ var AuditStore = class {
   begin(input) {
     const normalized = normalizeRequest({
       ...input,
-      audit_id: input.audit_id ?? `audit_${randomUUID20()}`,
+      audit_id: input.audit_id ?? `audit_${randomUUID21()}`,
       request_digest: "",
       started_at: input.started_at ?? this.now()
     });
-    const requestDigest = digest5(requestDigestContent(normalized));
+    const requestDigest = digest6(requestDigestContent(normalized));
     const record = { ...normalized, request_digest: requestDigest };
     const existing = this.getByInvocationId(record.invocation_id)?.request ?? null;
     if (existing) {
@@ -79852,7 +81013,7 @@ var AuditStore = class {
           reason, artefact_version_ids_json, provenance_json,
           policy_evaluation_id, budget_reservation_id, request_digest, started_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(record.audit_id, record.workspace_id, record.invocation_id, record.principal_id, record.authority_boundary.kind, boundaryId3(record.authority_boundary), JSON.stringify(record.capability_grant_ids), record.interaction_mode, record.operation_id, record.operation_version, record.target_before ? JSON.stringify(record.target_before) : null, record.expected_resource_revision, record.idempotency_key, record.input_schema_version, record.input_digest, JSON.stringify(record.request_summary), record.reason, JSON.stringify(record.artefact_version_ids), JSON.stringify(record.provenance), record.policy_evaluation_id, record.budget_reservation_id, record.request_digest, record.started_at);
+      `).run(record.audit_id, record.workspace_id, record.invocation_id, record.principal_id, record.authority_boundary.kind, boundaryId4(record.authority_boundary), JSON.stringify(record.capability_grant_ids), record.interaction_mode, record.operation_id, record.operation_version, record.target_before ? JSON.stringify(record.target_before) : null, record.expected_resource_revision, record.idempotency_key, record.input_schema_version, record.input_digest, JSON.stringify(record.request_summary), record.reason, JSON.stringify(record.artefact_version_ids), JSON.stringify(record.provenance), record.policy_evaluation_id, record.budget_reservation_id, record.request_digest, record.started_at);
     } catch (error) {
       if (String(error).includes("UNIQUE constraint failed")) {
         const concurrent = this.getByInvocationId(record.invocation_id)?.request;
@@ -79867,7 +81028,7 @@ var AuditStore = class {
   complete(input) {
     const request = this.require(input.audit_id).request;
     const outcome = normalizeOutcome({ ...input, completed_at: input.completed_at ?? this.now() });
-    const outcomeDigest = digest5(outcome);
+    const outcomeDigest = digest6(outcome);
     const existing = this.getOutcome(request.audit_id);
     if (existing) {
       const row = this.db.prepare("SELECT outcome_digest FROM audit_outcomes WHERE audit_id = ?").get(request.audit_id);
@@ -79946,7 +81107,7 @@ var AuditStore = class {
   }
 };
 function auditValueDigest(value) {
-  return digest5(value);
+  return digest6(value);
 }
 function normalizeRequest(record) {
   const boundary = record.authority_boundary.kind === "workspace" ? { kind: "workspace", workspace_id: requiredText4(record.authority_boundary.workspace_id, "workspace_id") } : { kind: "host", host_id: requiredText4(record.authority_boundary.host_id, "host_id") };
@@ -80075,10 +81236,10 @@ function safeJsonObject(value, field) {
   return value;
 }
 function validTime(value, field) {
-  const text11 = requiredText4(value, field);
-  if (!Number.isFinite(Date.parse(text11)))
+  const text12 = requiredText4(value, field);
+  if (!Number.isFinite(Date.parse(text12)))
     throw new AuditValidationError(`${field} must be a timestamp`);
-  return text11;
+  return text12;
 }
 function nullableText5(value) {
   return value == null ? null : requiredText4(value, "audit field");
@@ -80087,21 +81248,21 @@ function uniqueText2(values) {
   return [...new Set(values.map((value) => requiredText4(value, "audit reference")))].sort();
 }
 function requiredDigest(value, field) {
-  const text11 = requiredText4(value, field);
-  if (!/^[a-f0-9]{64}$/.test(text11))
+  const text12 = requiredText4(value, field);
+  if (!/^[a-f0-9]{64}$/.test(text12))
     throw new AuditValidationError(`${field} must be a SHA-256 digest`);
-  return text11;
+  return text12;
 }
 function requiredText4(value, field) {
   if (typeof value !== "string" || !value.trim())
     throw new AuditValidationError(`${field} is required`);
   return value.trim();
 }
-function boundaryId3(boundary) {
+function boundaryId4(boundary) {
   return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
 }
-function digest5(value) {
-  return createHash18("sha256").update(canonicalJson13(value)).digest("hex");
+function digest6(value) {
+  return createHash19("sha256").update(canonicalJson13(value)).digest("hex");
 }
 function canonicalJson13(value) {
   if (Array.isArray(value))
@@ -80118,8 +81279,8 @@ var LIST_BUDGET_RESERVATIONS_OPERATION_ID = "budget.reservation.list";
 var INSPECT_BUDGET_RESERVATION_OPERATION_ID = "budget.reservation.inspect";
 var LIST_RESOURCE_USAGE_OPERATION_ID = "budget.usage.list";
 var RECONCILE_BUDGET_NO_EFFECT_OPERATION_ID = "budget.reservation.reconcile_no_effect";
-var text6 = { type: "string", minLength: 1 };
-var nullableText6 = { oneOf: [text6, { type: "null" }] };
+var text7 = { type: "string", minLength: 1 };
+var nullableText6 = { oneOf: [text7, { type: "null" }] };
 var usageMapSchema = {
   type: "object",
   additionalProperties: { type: "number", minimum: 0 }
@@ -80130,7 +81291,7 @@ var sourceSchema = {
   required: ["kind", "id"],
   properties: {
     kind: { enum: ["operation_invocation", "execution_attempt", "connector_action", "extension_activation"] },
-    id: text6
+    id: text7
   }
 };
 var usageFactsSchema = {
@@ -80149,9 +81310,9 @@ var usageFactsSchema = {
     "extension_installation_id"
   ],
   properties: {
-    workspace_id: text6,
-    principal_id: text6,
-    operation_id: text6,
+    workspace_id: text7,
+    principal_id: text7,
+    operation_id: text7,
     scope_id: nullableText6,
     scope_execution_id: nullableText6,
     actor_id: nullableText6,
@@ -80180,21 +81341,21 @@ var reservationItemSchema = {
     "estimated_amount"
   ],
   properties: {
-    reservation_item_id: text6,
-    reservation_id: text6,
-    policy_revision_id: text6,
-    policy_binding_id: text6,
-    rule_id: text6,
+    reservation_item_id: text7,
+    reservation_id: text7,
+    policy_revision_id: text7,
+    policy_binding_id: text7,
+    rule_id: text7,
     subject: {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id"],
       properties: {
         kind: { enum: ["workspace", "scope", "actor", "node_placement", "connector_binding", "extension_installation"] },
-        id: text6
+        id: text7
       }
     },
-    metric: text6,
+    metric: text7,
     maximum: { type: "number", minimum: 0 },
     window: { enum: ["operation", "scope_execution", "day", "month", "all_time"] },
     timezone: nullableText6,
@@ -80223,17 +81384,17 @@ var reservationSchema = {
     "items"
   ],
   properties: {
-    reservation_id: text6,
-    workspace_id: text6,
+    reservation_id: text7,
+    workspace_id: text7,
     source: sourceSchema,
-    policy_evaluation_id: text6,
+    policy_evaluation_id: text7,
     facts: usageFactsSchema,
     estimates: usageMapSchema,
     state: { enum: ["reserved", "committed", "released", "outcome_unknown", "exceeded"] },
-    idempotency_digest: text6,
+    idempotency_digest: text7,
     actual_usage_digest: nullableText6,
-    created_at: text6,
-    updated_at: text6,
+    created_at: text7,
+    updated_at: text7,
     completed_at: nullableText6,
     items: { type: "array", items: reservationItemSchema }
   }
@@ -80259,11 +81420,11 @@ var usageSchema = {
     "observed_at"
   ],
   properties: {
-    usage_entry_id: text6,
-    workspace_id: text6,
+    usage_entry_id: text7,
+    workspace_id: text7,
     source: sourceSchema,
-    principal_id: text6,
-    operation_id: text6,
+    principal_id: text7,
+    operation_id: text7,
     scope_id: nullableText6,
     scope_execution_id: nullableText6,
     actor_id: nullableText6,
@@ -80271,9 +81432,9 @@ var usageSchema = {
     node_placement_id: nullableText6,
     connector_binding_id: nullableText6,
     extension_installation_id: nullableText6,
-    metric: text6,
+    metric: text7,
     amount: { type: "number", minimum: 0 },
-    observed_at: text6
+    observed_at: text7
   }
 };
 function readEffects2() {
@@ -80373,7 +81534,7 @@ function budgetOperationDefinitions(store) {
           type: "object",
           additionalProperties: false,
           properties: {
-            metric: text6,
+            metric: text7,
             limit: { type: "integer", minimum: 1, maximum: 500 }
           }
         }
@@ -80461,8 +81622,8 @@ function resolveBudgetOperationResource(store, boundary, target) {
 // floe-bus/dist/audit-operations.js
 var LIST_AUDIT_RECORDS_OPERATION_ID = "audit.list";
 var INSPECT_AUDIT_RECORD_OPERATION_ID = "audit.inspect";
-var text7 = { type: "string", minLength: 1 };
-var nullableText7 = { oneOf: [text7, { type: "null" }] };
+var text8 = { type: "string", minLength: 1 };
+var nullableText7 = { oneOf: [text8, { type: "null" }] };
 var auditRecordSchema = {
   type: "object",
   additionalProperties: true,
@@ -80473,13 +81634,13 @@ var auditRecordSchema = {
       additionalProperties: true,
       required: ["audit_id", "invocation_id", "principal_id", "operation_id", "request_digest", "started_at"],
       properties: {
-        audit_id: text7,
+        audit_id: text8,
         workspace_id: nullableText7,
-        invocation_id: text7,
-        principal_id: text7,
-        operation_id: text7,
-        request_digest: text7,
-        started_at: text7
+        invocation_id: text8,
+        principal_id: text8,
+        operation_id: text8,
+        request_digest: text8,
+        started_at: text8
       }
     },
     outcome: { oneOf: [{ type: "object" }, { type: "null" }] }
@@ -80517,8 +81678,8 @@ function auditOperationDefinitions(store) {
           type: "object",
           additionalProperties: false,
           properties: {
-            principal_id: text7,
-            operation_id: text7,
+            principal_id: text8,
+            operation_id: text8,
             state: { enum: ["accepted", "completed", "refused", "outcome_unknown"] },
             limit: { type: "integer", minimum: 1, maximum: 500 }
           }
@@ -80586,7 +81747,7 @@ function resolveAuditOperationResource(store, boundary, target) {
 }
 
 // floe-bus/dist/extensions.js
-import { createHash as createHash19, randomUUID as randomUUID21 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID22 } from "node:crypto";
 var ExtensionValidationError = class extends Error {
   reason;
   code = "E_EXTENSION_INVALID";
@@ -80775,7 +81936,7 @@ var ExtensionStore = class {
   createExtension(input) {
     nonEmpty4("workspace_id", input.workspace_id);
     nonEmpty4("label", input.label);
-    const extensionId = input.extension_id ?? `extension_${randomUUID21()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID22()}`;
     nonEmpty4("extension_id", extensionId);
     const at = this.now();
     this.db.prepare(`
@@ -80791,7 +81952,7 @@ var ExtensionStore = class {
     nonEmpty4("label", input.label);
     nonEmpty4("registered_by_principal_id", input.registered_by_principal_id);
     validatePackageDefinition(input.definition);
-    const extensionId = input.extension_id ?? `extension_${randomUUID21()}`;
+    const extensionId = input.extension_id ?? `extension_${randomUUID22()}`;
     nonEmpty4("extension_id", extensionId);
     const recordDigest = extensionPackageRecordDigest(input.definition);
     const permissionDigest = extensionPermissionDigest(input.definition.permissions);
@@ -81332,7 +82493,7 @@ var ExtensionStore = class {
         reason, from_package_version_id, to_package_version_id, lifecycle,
         changed_by_principal_id, changed_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extchange_${randomUUID21()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
+    `).run(`extchange_${randomUUID22()}`, input.installation_id, input.workspace_id, input.reason, input.from_package_version_id, input.to_package_version_id, input.lifecycle, input.principal_id, input.at);
   }
 };
 function validatePackageDefinition(definition2) {
@@ -81517,7 +82678,7 @@ function canonicalJson14(value) {
   return JSON.stringify(value);
 }
 function sha2563(value) {
-  return `sha256:${createHash19("sha256").update(value).digest("hex")}`;
+  return `sha256:${createHash20("sha256").update(value).digest("hex")}`;
 }
 function dedupeUnresolved(bindings) {
   const byKey = /* @__PURE__ */ new Map();
@@ -81615,7 +82776,7 @@ function mapInstallationChange(row) {
 }
 
 // floe-bus/dist/extension-activation-authority.js
-import { createHash as createHash20 } from "node:crypto";
+import { createHash as createHash21 } from "node:crypto";
 var ExtensionActivationAttemptConflictError = class extends Error {
   invocation_id;
   code = "E_EXTENSION_ACTIVATION_ATTEMPT_CONFLICT";
@@ -81691,7 +82852,7 @@ var CanonicalExtensionActivationAuthority = class {
     const receiptRefs = [...new Set(input.approval_receipt_refs)].sort();
     if (receiptRefs.length === 0)
       throw new ApprovalDeniedError("approval_receipt_not_found");
-    return inSavepoint5(this.db, "reserve_extension_activation", () => {
+    return inSavepoint6(this.db, "reserve_extension_activation", () => {
       let selected = null;
       let lastDenial = null;
       for (const approvalReceiptId of receiptRefs) {
@@ -81875,9 +83036,9 @@ function canonicalJson15(value) {
   return JSON.stringify(value);
 }
 function hash(value) {
-  return createHash20("sha256").update(value, "utf8").digest("hex");
+  return createHash21("sha256").update(value, "utf8").digest("hex");
 }
-function inSavepoint5(db, label, action) {
+function inSavepoint6(db, label, action) {
   db.exec(`SAVEPOINT ${label}`);
   try {
     const result = action();
@@ -81891,12 +83052,12 @@ function inSavepoint5(db, label, action) {
 }
 
 // floe-bus/dist/canonical-extension-runtime.js
-import { randomUUID as randomUUID23 } from "node:crypto";
+import { randomUUID as randomUUID24 } from "node:crypto";
 import { existsSync as existsSync3 } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // floe-bus/dist/isolated-extension-host.js
-import { randomUUID as randomUUID22 } from "node:crypto";
+import { randomUUID as randomUUID23 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
 import { realpathSync as realpathSync2 } from "node:fs";
 var DEFAULT_START_TIMEOUT_MS = 1e4;
@@ -81971,7 +83132,7 @@ var IsolatedExtensionProcessHost = class {
       return null;
     this.active.delete(input.installation.extension_installation_id);
     return {
-      receipt_ref: `extension-host-deactivation:${randomUUID22()}`,
+      receipt_ref: `extension-host-deactivation:${randomUUID23()}`,
       workspace_id: input.installation.workspace_id,
       extension_installation_id: input.installation.extension_installation_id,
       extension_package_version_id: input.package_version.extension_package_version_id,
@@ -82204,7 +83365,7 @@ var IsolatedExtensionProcessHost = class {
       return Promise.reject(new ExtensionSandboxError("extension_host_exited", "The isolated Extension host is not connected."));
     }
     return new Promise((resolveRequest, rejectRequest) => {
-      const requestId = `host_${randomUUID22()}`;
+      const requestId = `host_${randomUUID23()}`;
       const timer = setTimeout(() => {
         record.pending.delete(requestId);
         rejectRequest(new ExtensionSandboxError("extension_host_timeout", "The isolated Extension host exceeded its parent deadline."));
@@ -82383,7 +83544,7 @@ function activationClaim(input, isolationHostId, lifecycle) {
     workspace_id: input.installation.workspace_id,
     supported_isolation_levels: ["process_sandbox"],
     status: "available",
-    receipt_ref: `extension-host-activation:${randomUUID22()}`,
+    receipt_ref: `extension-host-activation:${randomUUID23()}`,
     subject_content_digest: input.package_version.content_digest,
     installation_locator: input.installation.installation_locator,
     result_lifecycle: lifecycle
@@ -82514,7 +83675,7 @@ var SqliteExtensionRuntimeAudit = class {
         operation_invocation_id, execution_attempt_id, extension_package_version_id,
         entry_point_id, call_kind, permission_id, outcome, code, recorded_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(`extraudit_${randomUUID23()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
+    `).run(`extraudit_${randomUUID24()}`, input.context.workspace_id, input.context.authorized_principal_id, input.context.operation_invocation_id, input.context.execution_attempt_id, input.context.extension_package_version_id, input.context.entry_point_id, input.call.kind, input.call.permission_id, input.outcome, input.code, this.now());
   }
   listForInvocation(operationInvocationId) {
     return this.db.prepare(`
@@ -82824,7 +83985,7 @@ function copyPort(port) {
 }
 
 // floe-bus/dist/database-upgrade.js
-import { createHash as createHash21 } from "node:crypto";
+import { createHash as createHash22 } from "node:crypto";
 import { existsSync as existsSync4, mkdirSync as mkdirSync2 } from "node:fs";
 import { basename, dirname as dirname4, join as join3 } from "node:path";
 var CURRENT_BUS_SCHEMA_VERSION = 15;
@@ -82837,7 +83998,7 @@ function computeSchemaFingerprint(db) {
       AND sql IS NOT NULL
     ORDER BY type, name
   `).all();
-  const hash2 = createHash21("sha256");
+  const hash2 = createHash22("sha256");
   for (const row of rows) {
     hash2.update(`${row.type}\0${row.name}\0${row.sql}`);
   }
@@ -82965,7 +84126,7 @@ function readUserVersion(db) {
 }
 
 // floe-bus/dist/operation-governance-control-plane.js
-import { randomUUID as randomUUID24 } from "node:crypto";
+import { randomUUID as randomUUID25 } from "node:crypto";
 var APPROVAL_LIFETIME_MS = 24 * 60 * 60 * 1e3;
 var BusOperationGovernanceControlPlane = class {
   bus;
@@ -83080,7 +84241,7 @@ var BusOperationGovernanceControlPlane = class {
     if (reservationId && workspaceId4 === null) {
       throw new Error("A host operation cannot own a Workspace Budget reservation.");
     }
-    inSavepoint6(this.bus, "settle_operation_governance", () => {
+    inSavepoint7(this.bus, "settle_operation_governance", () => {
       if (reservationId && workspaceId4) {
         if (input.state === "completed" || input.state === "accepted") {
           if (!input.actual_usage)
@@ -83197,7 +84358,7 @@ var BusOperationGovernanceControlPlane = class {
         });
         return receipt;
       });
-      const receipts = inSavepoint6(this.bus, "consume_operation_approvals", () => receiptsToConsume.map((receipt) => {
+      const receipts = inSavepoint7(this.bus, "consume_operation_approvals", () => receiptsToConsume.map((receipt) => {
         this.bus.approvalStore.consumeReceipt({
           approval_receipt_id: receipt.approval_receipt_id,
           use_id: `operation:${input.invocation_id}:${receipt.approval_request_id}`,
@@ -83714,8 +84875,8 @@ function canonicalJson16(value) {
   }
   return JSON.stringify(value);
 }
-function inSavepoint6(bus, label, work) {
-  const name = `${label}_${randomUUID24().replaceAll("-", "")}`;
+function inSavepoint7(bus, label, work) {
+  const name = `${label}_${randomUUID25().replaceAll("-", "")}`;
   bus.db.exec(`SAVEPOINT ${name}`);
   try {
     const result = work();
@@ -83897,7 +85058,7 @@ function parseReceipt(value) {
 }
 
 // floe-bus/dist/operation-authority-sessions.js
-import { createHash as createHash22, randomBytes as randomBytes2, randomUUID as randomUUID25 } from "node:crypto";
+import { createHash as createHash23, randomBytes as randomBytes2, randomUUID as randomUUID26 } from "node:crypto";
 function applyOperationAuthoritySessionSchema(db) {
   const existingColumns = db.prepare("PRAGMA table_info(operation_authority_sessions)").all();
   if (existingColumns.length > 0 && !existingColumns.some((column) => column.name === "grant_ids_json")) {
@@ -83946,17 +85107,17 @@ var SqliteOperationAuthoritySessionStore = class {
   constructor(db, capabilityGrants, dependencies = {}) {
     this.db = db;
     this.capabilityGrants = capabilityGrants;
-    this.now = dependencies.now ?? isoNow3;
+    this.now = dependencies.now ?? isoNow4;
     this.tokenFactory = dependencies.token_factory ?? createBearerToken;
-    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID25()}`);
+    this.sessionIdFactory = dependencies.session_id_factory ?? (() => `authsession_${randomUUID26()}`);
   }
   issueSession(input) {
-    assertNonEmpty("principal_id", input.principal_id);
-    assertNonEmpty("workspace_id", input.workspace_id);
-    assertNonEmpty("interaction.session_id", input.interaction.session_id);
+    assertNonEmpty2("principal_id", input.principal_id);
+    assertNonEmpty2("workspace_id", input.workspace_id);
+    assertNonEmpty2("interaction.session_id", input.interaction.session_id);
     const issuedAt = this.now();
-    const issuedAtMs = parseTimestamp("issued_at", issuedAt);
-    const expiresAtMs = parseTimestamp("expires_at", input.expires_at);
+    const issuedAtMs = parseTimestamp2("issued_at", issuedAt);
+    const expiresAtMs = parseTimestamp2("expires_at", input.expires_at);
     if (expiresAtMs <= issuedAtMs) {
       throw new Error("Operation authority session expiry must be after its issue time.");
     }
@@ -83996,7 +85157,7 @@ var SqliteOperationAuthoritySessionStore = class {
     return { bearer_token: bearerToken, session };
   }
   revokeSession(authoritySessionId, revokedAt = this.now()) {
-    parseTimestamp("revoked_at", revokedAt);
+    parseTimestamp2("revoked_at", revokedAt);
     const result = this.db.prepare(`
       UPDATE operation_authority_sessions
       SET revoked_at = COALESCE(revoked_at, ?)
@@ -84034,7 +85195,7 @@ var OperationAuthorityVerifier = class {
   sessions;
   capabilityGrants;
   now;
-  constructor(sessions, capabilityGrants, now3 = isoNow3) {
+  constructor(sessions, capabilityGrants, now3 = isoNow4) {
     this.sessions = sessions;
     this.capabilityGrants = capabilityGrants;
     this.now = now3;
@@ -84051,7 +85212,7 @@ var OperationAuthorityVerifier = class {
     if (session.revoked_at !== null) {
       return verificationFailure("authority_session_revoked", "The authority session has been revoked.");
     }
-    if (parseTimestamp("expires_at", session.expires_at) <= parseTimestamp("now", this.now())) {
+    if (parseTimestamp2("expires_at", session.expires_at) <= parseTimestamp2("now", this.now())) {
       return verificationFailure("authority_session_expired", "The authority session has expired.");
     }
     const resolved = this.capabilityGrants.resolveSessionAuthority(sessionGrantBinding(session), transport.target ?? null);
@@ -84139,7 +85300,7 @@ function normalizeProvenance3(input) {
 function optionalRef(label, value) {
   if (value === null)
     return null;
-  assertNonEmpty(label, value);
+  assertNonEmpty2(label, value);
   return value;
 }
 function optionalStoredRef(value, field) {
@@ -84164,14 +85325,14 @@ function isInteractionMode(value) {
 }
 function normalizedSet(values, label) {
   for (const value of values)
-    assertNonEmpty(label, value);
+    assertNonEmpty2(label, value);
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
-function assertNonEmpty(label, value) {
+function assertNonEmpty2(label, value) {
   if (!value.trim())
     throw new Error(`Operation authority ${label} must not be empty.`);
 }
-function parseTimestamp(label, value) {
+function parseTimestamp2(label, value) {
   const timestamp2 = Date.parse(value);
   if (!Number.isFinite(timestamp2))
     throw new Error(`Operation authority ${label} must be an ISO timestamp.`);
@@ -84184,14 +85345,14 @@ function createBearerToken() {
   return `floe_operation_${randomBytes2(32).toString("base64url")}`;
 }
 function hashBearerToken(bearerToken) {
-  return createHash22("sha256").update("floe-operation-authority-token:v1\0", "utf8").update(bearerToken, "utf8").digest("hex");
+  return createHash23("sha256").update("floe-operation-authority-token:v1\0", "utf8").update(bearerToken, "utf8").digest("hex");
 }
-function isoNow3() {
+function isoNow4() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 
 // floe-bus/dist/client-identity-store.js
-import { randomBytes as randomBytes3, randomUUID as randomUUID26 } from "node:crypto";
+import { randomBytes as randomBytes3, randomUUID as randomUUID27 } from "node:crypto";
 function applyClientIdentitySchema(db) {
   const challengeColumns = db.prepare("PRAGMA table_info(client_identity_challenges)").all();
   if (challengeColumns.some((column) => column.name === "workspace_id")) {
@@ -84250,9 +85411,9 @@ var SqliteClientIdentityStore = class {
   identityIdFactory;
   constructor(db, dependencies = {}) {
     this.db = db;
-    this.now = dependencies.now ?? isoNow4;
+    this.now = dependencies.now ?? isoNow5;
     this.challengeFactory = dependencies.challenge_factory ?? (() => randomBytes3(32).toString("hex"));
-    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID26()}`);
+    this.identityIdFactory = dependencies.identity_id_factory ?? (() => `identity_${randomUUID27()}`);
   }
   /**
    * Admit a public key under a display name. Idempotent per key: re-admitting an
@@ -84261,10 +85422,10 @@ var SqliteClientIdentityStore = class {
    * never key recovery.
    */
   admitIdentity(input) {
-    assertNonEmpty2("pubkey_hex", input.pubkey_hex);
-    assertNonEmpty2("display_name", input.display_name);
-    assertNonEmpty2("principal_id", input.principal_id);
-    assertNonEmpty2("admitted_by", input.admitted_by);
+    assertNonEmpty3("pubkey_hex", input.pubkey_hex);
+    assertNonEmpty3("display_name", input.display_name);
+    assertNonEmpty3("principal_id", input.principal_id);
+    assertNonEmpty3("admitted_by", input.admitted_by);
     const existing = this.getIdentityByPubkey(input.pubkey_hex);
     const admittedAt = this.now();
     if (existing) {
@@ -84290,9 +85451,9 @@ var SqliteClientIdentityStore = class {
    * workspaces from the substrate rather than being told one out of band.
    */
   addWorkspaceMembership(input) {
-    assertNonEmpty2("identity_id", input.identity_id);
-    assertNonEmpty2("workspace_id", input.workspace_id);
-    assertNonEmpty2("admitted_by", input.admitted_by);
+    assertNonEmpty3("identity_id", input.identity_id);
+    assertNonEmpty3("workspace_id", input.workspace_id);
+    assertNonEmpty3("admitted_by", input.admitted_by);
     this.db.prepare(`
       INSERT INTO client_identity_workspaces (identity_id, workspace_id, admitted_by, admitted_at)
       VALUES (?, ?, ?, ?)
@@ -84331,7 +85492,7 @@ var SqliteClientIdentityStore = class {
   }
   /** Issue a single-use, workspace-independent challenge bound to an exact relay string. */
   issueChallenge(input) {
-    assertNonEmpty2("relay", input.relay);
+    assertNonEmpty3("relay", input.relay);
     const challenge2 = this.challengeFactory();
     const expiresAt = new Date(Date.parse(this.now()) + (input.ttl_seconds ?? 300) * 1e3).toISOString();
     this.db.prepare(`
@@ -84400,706 +85561,9 @@ function rowToSession2(row) {
     expires_at: row.expires_at
   };
 }
-function assertNonEmpty2(label, value) {
-  if (!value.trim())
-    throw new Error(`Client identity ${label} must not be empty.`);
-}
-function isoNow4() {
-  return (/* @__PURE__ */ new Date()).toISOString();
-}
-
-// floe-bus/dist/capability-grants.js
-import { createHash as createHash23, randomUUID as randomUUID27 } from "node:crypto";
-function applyCapabilityGrantSchema(db) {
-  const existingColumns = db.prepare("PRAGMA table_info(capability_grants)").all();
-  if (existingColumns.length > 0) {
-    const names = new Set(existingColumns.map((column) => column.name));
-    if (!names.has("boundary_kind") || names.has("workspace_id")) {
-      migrateCapabilityGrantsToCanonical(db, names.has("boundary_kind"));
-    }
-  }
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS capability_grants (
-      grant_id TEXT PRIMARY KEY,
-      principal_id TEXT NOT NULL,
-      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
-      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
-      issued_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      revoked_at TEXT,
-      issuer_id TEXT NOT NULL,
-      evidence_json TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_operations (
-      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      operation_id TEXT NOT NULL,
-      PRIMARY KEY (grant_id, operation_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_targets (
-      grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      target_kind TEXT NOT NULL,
-      target_id TEXT,
-      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
-    );
-
-    CREATE TABLE IF NOT EXISTS capability_grant_delegations (
-      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-      source_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
-      authority_grant_id TEXT NOT NULL REFERENCES capability_grants(grant_id),
-      CHECK (grant_id != source_grant_id AND grant_id != authority_grant_id)
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_capability_grant_target_identity
-      ON capability_grant_targets(grant_id, target_kind, COALESCE(target_id, ''));
-
-    CREATE INDEX IF NOT EXISTS idx_capability_grant_principal_boundary
-      ON capability_grants(principal_id, boundary_kind, boundary_id, expires_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_capability_grant_active_expiry
-      ON capability_grants(expires_at)
-      WHERE revoked_at IS NULL;
-
-    CREATE TABLE IF NOT EXISTS host_capability_policy_revisions (
-      host_policy_id TEXT NOT NULL,
-      policy_revision TEXT NOT NULL,
-      purpose TEXT NOT NULL,
-      host_id TEXT NOT NULL,
-      principal_id TEXT NOT NULL,
-      grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id),
-      supersedes_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
-      superseded_by_grant_id TEXT REFERENCES host_capability_policy_revisions(grant_id),
-      activated_at TEXT NOT NULL,
-      superseded_at TEXT,
-      UNIQUE(host_policy_id, policy_revision),
-      CHECK (superseded_by_grant_id IS NULL OR superseded_at IS NOT NULL)
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_host_capability_policy_active
-      ON host_capability_policy_revisions(host_policy_id)
-      WHERE superseded_at IS NULL;
-
-    CREATE INDEX IF NOT EXISTS idx_host_capability_policy_history
-      ON host_capability_policy_revisions(host_policy_id, activated_at DESC);
-  `);
-}
-function migrateCapabilityGrantsToCanonical(db, hasBoundaryKind) {
-  inSavepoint7(db, () => {
-    const hasSecretConstraints = tableExists3(db, "secret_grant_constraints");
-    const hasSecretPurposes = tableExists3(db, "secret_grant_constraint_purposes");
-    if (hasSecretConstraints) {
-      db.exec(`
-      CREATE TEMP TABLE floe_capability_secret_constraints AS
-      SELECT grant_id, secret_ref_id, workspace_id FROM secret_grant_constraints;
-    `);
-    }
-    if (hasSecretPurposes) {
-      db.exec(`
-      CREATE TEMP TABLE floe_capability_secret_purposes AS
-      SELECT grant_id, purpose FROM secret_grant_constraint_purposes;
-    `);
-    }
-    if (hasSecretPurposes)
-      db.exec("DROP TABLE secret_grant_constraint_purposes;");
-    if (hasSecretConstraints)
-      db.exec("DROP TABLE secret_grant_constraints;");
-    db.exec(`
-    CREATE TABLE capability_grants_next (
-      grant_id TEXT PRIMARY KEY,
-      principal_id TEXT NOT NULL,
-      boundary_kind TEXT NOT NULL CHECK (boundary_kind IN ('workspace', 'host')),
-      boundary_id TEXT NOT NULL CHECK (length(trim(boundary_id)) > 0),
-      issued_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      revoked_at TEXT,
-      issuer_id TEXT NOT NULL,
-      evidence_json TEXT NOT NULL
-    );
-    CREATE TABLE capability_grant_operations_next (
-      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
-      operation_id TEXT NOT NULL,
-      PRIMARY KEY (grant_id, operation_id)
-    );
-    CREATE TABLE capability_grant_targets_next (
-      grant_id TEXT NOT NULL REFERENCES capability_grants_next(grant_id) ON DELETE CASCADE,
-      target_kind TEXT NOT NULL,
-      target_id TEXT,
-      CHECK (target_id IS NULL OR length(trim(target_id)) > 0)
-    );
-    INSERT INTO capability_grants_next (
-      grant_id, principal_id, boundary_kind, boundary_id,
-      issued_at, expires_at, revoked_at, issuer_id, evidence_json
-    )
-    SELECT grant_id, principal_id,
-           ${hasBoundaryKind ? "boundary_kind, boundary_id" : "'workspace', workspace_id"},
-           issued_at, expires_at, revoked_at, issuer_id, evidence_json
-    FROM capability_grants;
-    INSERT INTO capability_grant_operations_next
-      SELECT grant_id, operation_id FROM capability_grant_operations;
-    INSERT INTO capability_grant_targets_next
-      SELECT grant_id, target_kind, target_id FROM capability_grant_targets;
-    DROP TABLE capability_grant_targets;
-    DROP TABLE capability_grant_operations;
-    DROP TABLE capability_grants;
-    ALTER TABLE capability_grants_next RENAME TO capability_grants;
-    ALTER TABLE capability_grant_operations_next RENAME TO capability_grant_operations;
-    ALTER TABLE capability_grant_targets_next RENAME TO capability_grant_targets;
-  `);
-    if (hasSecretConstraints) {
-      db.exec(`
-      CREATE TABLE secret_grant_constraints (
-        grant_id TEXT PRIMARY KEY REFERENCES capability_grants(grant_id) ON DELETE CASCADE,
-        secret_ref_id TEXT NOT NULL,
-        workspace_id TEXT NOT NULL,
-        FOREIGN KEY (workspace_id, secret_ref_id)
-          REFERENCES secret_refs(workspace_id, secret_ref_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_secret_grant_constraints_ref
-        ON secret_grant_constraints(workspace_id, secret_ref_id);
-      INSERT INTO secret_grant_constraints (grant_id, secret_ref_id, workspace_id)
-      SELECT grant_id, secret_ref_id, workspace_id FROM floe_capability_secret_constraints;
-      DROP TABLE floe_capability_secret_constraints;
-    `);
-    }
-    if (hasSecretPurposes) {
-      db.exec(`
-      CREATE TABLE secret_grant_constraint_purposes (
-        grant_id TEXT NOT NULL REFERENCES secret_grant_constraints(grant_id) ON DELETE CASCADE,
-        purpose TEXT NOT NULL,
-        PRIMARY KEY (grant_id, purpose)
-      );
-      INSERT INTO secret_grant_constraint_purposes (grant_id, purpose)
-      SELECT grant_id, purpose FROM floe_capability_secret_purposes;
-      DROP TABLE floe_capability_secret_purposes;
-    `);
-    }
-  });
-}
-function tableExists3(db, name) {
-  return Boolean(db.prepare(`
-    SELECT 1 AS present FROM sqlite_schema WHERE type = 'table' AND name = ?
-  `).get(name));
-}
-var SqliteCapabilityGrantStore = class {
-  db;
-  now;
-  grantIdFactory;
-  constructor(db, dependencies = {}) {
-    this.db = db;
-    this.now = dependencies.now ?? isoNow5;
-    this.grantIdFactory = dependencies.grant_id_factory ?? (() => `capgrant_${randomUUID27()}`);
-  }
-  issueGrant(input) {
-    assertNonEmpty3("principal_id", input.principal_id);
-    const boundary = normalizeBoundary4(input.boundary);
-    assertNonEmpty3("issuer_id", input.issuer_id);
-    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? []);
-    const evidence = normalizeEvidence(input.evidence);
-    const issuedAt = this.now();
-    const issuedAtMs = parseTimestamp2("issued_at", issuedAt);
-    const expiresAtMs = parseTimestamp2("expires_at", input.expires_at);
-    if (expiresAtMs <= issuedAtMs) {
-      throw new Error("CapabilityGrant expiry must be after its issue time.");
-    }
-    const grantId = input.grant_id ?? this.grantIdFactory();
-    assertNonEmpty3("grant_id", grantId);
-    inSavepoint7(this.db, () => {
-      this.db.prepare(`
-        INSERT INTO capability_grants (
-          grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
-          revoked_at, issuer_id, evidence_json
-        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
-      `).run(grantId, input.principal_id, boundary.kind, boundaryId4(boundary), issuedAt, input.expires_at, input.issuer_id, JSON.stringify(evidence));
-      const insertOperation = this.db.prepare(`
-        INSERT INTO capability_grant_operations (grant_id, operation_id)
-        VALUES (?, ?)
-      `);
-      for (const operationId of operationIds)
-        insertOperation.run(grantId, operationId);
-      const insertTarget = this.db.prepare(`
-        INSERT INTO capability_grant_targets (grant_id, target_kind, target_id)
-        VALUES (?, ?, ?)
-      `);
-      for (const target of targets2)
-        insertTarget.run(grantId, target.kind, target.id);
-    });
-    return this.requireGrant(grantId);
-  }
-  /** Delegate only pinned, current authority. Parent revocation also removes child authority. */
-  delegateGrant(input) {
-    const authority = input.authority;
-    const source = this.requireActiveSessionGrantIds({
-      principal_id: authority.principal_id,
-      boundary: authority.boundary,
-      grant_ids: [input.source_grant_id]
-    })[0];
-    if (!(authority.session_capability_grant_ids ?? []).includes(source)) {
-      throw new Error("The source grant is not part of this authenticated session.");
-    }
-    const parent = this.requireGrant(source);
-    const permission = this.inspectSessionGrantIds({
-      principal_id: authority.principal_id,
-      boundary: authority.boundary,
-      grant_ids: authority.capability_grant_ids ?? []
-    }).active_grants.filter((grant) => grant.operation_ids.includes("capability.grant.delegate") && grantAppliesToTarget(grant, input.recipient)).sort((a, b) => b.expires_at.localeCompare(a.expires_at) || a.grant_id.localeCompare(b.grant_id))[0];
-    if (!permission || !authority.grants.has("capability.grant.delegate")) {
-      throw new Error("Delegating access requires a current delegation grant for this recipient.");
-    }
-    const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? parent.targets);
-    if (operations.some((id) => !parent.operation_ids.includes(id))) {
-      throw new Error("Delegated operations must be a subset of the source grant.");
-    }
-    if (parent.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !parent.targets.some((allowed) => allowed.kind === target.kind && (allowed.id === null || allowed.id === target.id))))) {
-      throw new Error("Delegated targets must be contained in the source grant.");
-    }
-    const limit = Math.min(Date.parse(parent.expires_at), Date.parse(permission.expires_at));
-    const expiry = input.expires_at ?? new Date(limit).toISOString();
-    if (parseTimestamp2("expires_at", expiry) > limit) {
-      throw new Error("Delegated access cannot outlive its source or delegation permission.");
-    }
-    return inSavepoint7(this.db, () => {
-      const grant = this.issueGrant({
-        principal_id: input.principal_id,
-        boundary: authority.boundary,
-        operation_ids: operations,
-        targets: targets2,
-        expires_at: expiry,
-        issuer_id: authority.principal_id,
-        evidence: [{ kind: "operation_invocation", ref: input.invocation_id }]
-      });
-      this.db.prepare(`INSERT INTO capability_grant_delegations (grant_id, source_grant_id, authority_grant_id)
-        VALUES (?, ?, ?)`).run(grant.grant_id, parent.grant_id, permission.grant_id);
-      return grant;
-    });
-  }
-  getDelegation(grantId) {
-    return this.db.prepare(`SELECT source_grant_id, authority_grant_id FROM capability_grant_delegations WHERE grant_id = ?`).get(grantId) ?? null;
-  }
-  delegationIsActive(grantId, nowMs, path = /* @__PURE__ */ new Set(), memo = /* @__PURE__ */ new Map()) {
-    if (memo.has(grantId))
-      return memo.get(grantId);
-    if (path.has(grantId))
-      return false;
-    path.add(grantId);
-    const delegation = this.getDelegation(grantId);
-    if (!delegation) {
-      memo.set(grantId, true);
-      return true;
-    }
-    const child = this.requireGrant(grantId);
-    const active = [.../* @__PURE__ */ new Set([delegation.source_grant_id, delegation.authority_grant_id])].every((id) => {
-      const parent = this.getGrant(id);
-      return parent !== null && grantReferenceFailure(parent, { principal_id: child.issuer_id, boundary: child.boundary }, nowMs) === null && this.delegationIsActive(id, nowMs, new Set(path), memo);
-    });
-    memo.set(grantId, active);
-    return active;
-  }
-  /**
-   * Activates one immutable host-policy revision. Repeating the exact revision
-   * is idempotent. Any semantic change requires a new revision and atomically
-   * revokes/supersedes the previous grant; revoked history is never revived.
-   */
-  activateHostPolicyGrant(input) {
-    const hostId = assertNonEmpty3("host_id", input.host_id);
-    const principalId = assertNonEmpty3("principal_id", input.principal_id);
-    const purpose = assertNonEmpty3("policy purpose", input.purpose);
-    const policyRevision = assertNonEmpty3("policy_revision", input.policy_revision);
-    const issuerId = assertNonEmpty3("issuer_id", input.issuer_id);
-    const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets2 = normalizeTargets(input.targets ?? []);
-    const evidence = normalizeEvidence(input.evidence);
-    const policyId = hostCapabilityPolicyId(hostId, purpose);
-    const grantId = hostCapabilityPolicyGrantId(policyId, policyRevision);
-    const existingPolicy = this.getHostPolicyRevision(policyId, policyRevision);
-    if (existingPolicy) {
-      const existingGrant = this.requireGrant(existingPolicy.grant_id);
-      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets2) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
-      if (!exact) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' already identifies different authority.`);
-      }
-      if (existingGrant.revoked_at !== null || existingPolicy.superseded_at !== null) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has been superseded and cannot be reactivated.`);
-      }
-      if (parseTimestamp2("expires_at", existingGrant.expires_at) <= parseTimestamp2("now", this.now())) {
-        throw new Error(`Host capability policy '${policyId}@${policyRevision}' has expired and cannot be reactivated.`);
-      }
-      return { replayed: true, policy: existingPolicy, grant: existingGrant };
-    }
-    const activePolicy = this.getActiveHostPolicyRevision(policyId);
-    const activatedAt = this.now();
-    let grant;
-    inSavepoint7(this.db, () => {
-      if (activePolicy) {
-        this.db.prepare(`
-          UPDATE host_capability_policy_revisions
-          SET superseded_at = ?
-          WHERE grant_id = ? AND superseded_at IS NULL
-        `).run(activatedAt, activePolicy.grant_id);
-      }
-      grant = this.issueGrant({
-        grant_id: grantId,
-        principal_id: principalId,
-        boundary: { kind: "host", host_id: hostId },
-        operation_ids: operationIds,
-        targets: targets2,
-        expires_at: input.expires_at,
-        issuer_id: issuerId,
-        evidence
-      });
-      this.db.prepare(`
-        INSERT INTO host_capability_policy_revisions (
-          host_policy_id, policy_revision, purpose, host_id, principal_id,
-          grant_id, supersedes_grant_id, superseded_by_grant_id,
-          activated_at, superseded_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
-      `).run(policyId, policyRevision, purpose, hostId, principalId, grant.grant_id, activePolicy?.grant_id ?? null, activatedAt);
-      if (activePolicy) {
-        this.db.prepare(`
-          UPDATE host_capability_policy_revisions
-          SET superseded_by_grant_id = ?
-          WHERE grant_id = ?
-        `).run(grant.grant_id, activePolicy.grant_id);
-        this.db.prepare(`
-          UPDATE capability_grants
-          SET revoked_at = ?
-          WHERE grant_id = ? AND revoked_at IS NULL
-        `).run(activatedAt, activePolicy.grant_id);
-      }
-    });
-    return {
-      replayed: false,
-      policy: this.requireHostPolicyRevision(policyId, policyRevision),
-      grant
-    };
-  }
-  getHostPolicyRevision(policyId, policyRevision) {
-    const row = this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ? AND policy_revision = ?
-    `).get(policyId, policyRevision);
-    return row ? rowToHostCapabilityPolicy(row) : null;
-  }
-  getActiveHostPolicyRevision(policyId) {
-    const row = this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ? AND superseded_at IS NULL
-    `).get(policyId);
-    return row ? rowToHostCapabilityPolicy(row) : null;
-  }
-  listHostPolicyHistory(hostId, purpose) {
-    const policyId = hostCapabilityPolicyId(hostId, purpose);
-    return this.db.prepare(`
-      SELECT * FROM host_capability_policy_revisions
-      WHERE host_policy_id = ?
-      ORDER BY activated_at DESC, policy_revision DESC
-    `).all(policyId).map(rowToHostCapabilityPolicy);
-  }
-  getGrant(grantId) {
-    const row = this.db.prepare(`
-      SELECT grant_id, principal_id, boundary_kind, boundary_id, issued_at, expires_at,
-             revoked_at, issuer_id, evidence_json
-      FROM capability_grants
-      WHERE grant_id = ?
-    `).get(grantId);
-    if (!row)
-      return null;
-    const operationIds = this.db.prepare(`
-      SELECT operation_id
-      FROM capability_grant_operations
-      WHERE grant_id = ?
-      ORDER BY operation_id
-    `).all(grantId).map((item) => item.operation_id);
-    if (operationIds.length === 0) {
-      throw new Error(`Stored CapabilityGrant '${grantId}' has no semantic operations.`);
-    }
-    const targets2 = this.db.prepare(`
-      SELECT target_kind, target_id
-      FROM capability_grant_targets
-      WHERE grant_id = ?
-      ORDER BY target_kind, target_id
-    `).all(grantId).map((target) => ({
-      kind: target.target_kind,
-      id: target.target_id
-    }));
-    return {
-      grant_id: row.grant_id,
-      principal_id: row.principal_id,
-      boundary: boundaryFromRow(row.boundary_kind, row.boundary_id),
-      operation_ids: operationIds,
-      targets: targets2,
-      issued_at: row.issued_at,
-      expires_at: row.expires_at,
-      revoked_at: row.revoked_at,
-      issuer_id: row.issuer_id,
-      evidence: parseEvidence(row.evidence_json)
-    };
-  }
-  revokeGrant(grantId, revokedAt = this.now()) {
-    assertNonEmpty3("grant_id", grantId);
-    const revokedAtMs = parseTimestamp2("revoked_at", revokedAt);
-    const grant = this.getGrant(grantId);
-    if (!grant || grant.revoked_at !== null)
-      return false;
-    if (revokedAtMs < parseTimestamp2("issued_at", grant.issued_at)) {
-      throw new Error("CapabilityGrant revocation cannot predate its issue time.");
-    }
-    const result = this.db.prepare(`
-      UPDATE capability_grants
-      SET revoked_at = ?
-      WHERE grant_id = ? AND revoked_at IS NULL
-    `).run(revokedAt, grantId);
-    return Number(result.changes) === 1;
-  }
-  listActiveGrantsForPrincipalBoundary(principalId, boundaryValue) {
-    assertNonEmpty3("principal_id", principalId);
-    const boundary = normalizeBoundary4(boundaryValue);
-    const now3 = new Date(parseTimestamp2("now", this.now())).toISOString();
-    const ids = this.db.prepare(`
-      SELECT grant_id
-      FROM capability_grants
-      WHERE principal_id = ?
-        AND boundary_kind = ?
-        AND boundary_id = ?
-        AND revoked_at IS NULL
-        AND issued_at <= ?
-        AND expires_at > ?
-      ORDER BY issued_at DESC, grant_id
-    `).all(principalId, boundary.kind, boundaryId4(boundary), now3, now3);
-    return ids.filter(({ grant_id }) => this.delegationIsActive(grant_id, Date.parse(now3))).map(({ grant_id }) => this.requireGrant(grant_id));
-  }
-  /**
-   * Checks that every ID is a current grant for the exact session principal and
-   * authority boundary. Session issuance should refuse any unavailable reference.
-   */
-  inspectSessionGrantIds(session) {
-    assertNonEmpty3("session principal_id", session.principal_id);
-    normalizeBoundary4(session.boundary);
-    const grantIds = normalizeNonEmptySet(session.grant_ids, "session grant_id", false);
-    const nowMs = parseTimestamp2("now", this.now());
-    const activeGrants = [];
-    const unavailableGrants = [];
-    for (const grantId of grantIds) {
-      const grant = this.getGrant(grantId);
-      const code = grantReferenceFailure(grant, session, nowMs) ?? (this.delegationIsActive(grantId, nowMs) ? null : "grant_dependency_unavailable");
-      if (code === null && grant)
-        activeGrants.push(grant);
-      else
-        unavailableGrants.push({ grant_id: grantId, code: code ?? "grant_not_found" });
-    }
-    return { active_grants: activeGrants, unavailable_grants: unavailableGrants };
-  }
-  /**
-   * Assertion helper for trusted session issuance. Stored sessions should keep
-   * the returned opaque IDs, never a copied list of operation strings.
-   */
-  requireActiveSessionGrantIds(session) {
-    const inspection = this.inspectSessionGrantIds(session);
-    if (inspection.active_grants.length === 0 || inspection.unavailable_grants.length > 0) {
-      throw new CapabilityGrantReferenceError(inspection.unavailable_grants);
-    }
-    return inspection.active_grants.map((grant) => grant.grant_id);
-  }
-  /**
-   * Resolves an existing session at request time. Revoked, expired, missing, or
-   * mismatched grants contribute no operations. Resource-bound grants only
-   * contribute for their exact target.
-   */
-  resolveSessionAuthority(session, target) {
-    assertNonEmpty3("interaction session_id", session.interaction.session_id);
-    const inspection = this.inspectSessionGrantIds(session);
-    const applicableGrants = inspection.active_grants.filter((grant) => grantAppliesToTarget(grant, target));
-    const operationIds = /* @__PURE__ */ new Set();
-    for (const grant of applicableGrants) {
-      for (const operationId of grant.operation_ids)
-        operationIds.add(operationId);
-    }
-    return {
-      authority: createOperationAuthorityContext({
-        principal_id: session.principal_id,
-        boundary: session.boundary,
-        capability_grant_ids: applicableGrants.map((grant) => grant.grant_id),
-        session_capability_grant_ids: inspection.active_grants.map((grant) => grant.grant_id),
-        grants: operationIds,
-        interaction: {
-          mode: session.interaction.mode,
-          session_id: session.interaction.session_id,
-          broker_id: session.interaction.broker_id ?? null,
-          confirmed_prompts: new Set(session.interaction.confirmed_prompts),
-          approval_refs: new Set(session.interaction.approval_refs)
-        }
-      }),
-      active_grant_ids: inspection.active_grants.map((grant) => grant.grant_id),
-      applicable_grant_ids: applicableGrants.map((grant) => grant.grant_id),
-      unavailable_grants: inspection.unavailable_grants
-    };
-  }
-  requireGrant(grantId) {
-    const grant = this.getGrant(grantId);
-    if (!grant)
-      throw new Error(`CapabilityGrant '${grantId}' was not persisted.`);
-    return grant;
-  }
-  requireHostPolicyRevision(policyId, policyRevision) {
-    const policy = this.getHostPolicyRevision(policyId, policyRevision);
-    if (!policy) {
-      throw new Error(`Host capability policy '${policyId}@${policyRevision}' was not persisted.`);
-    }
-    return policy;
-  }
-};
-var CapabilityGrantReferenceError = class extends Error {
-  failures;
-  constructor(failures) {
-    super(failures.length === 0 ? "An authority session must reference at least one active CapabilityGrant." : failures.map((failure) => `CapabilityGrant '${failure.grant_id}': ${failure.code}.`).join(" "));
-    this.failures = failures;
-    this.name = "CapabilityGrantReferenceError";
-  }
-};
-function grantReferenceFailure(grant, session, nowMs) {
-  if (!grant)
-    return "grant_not_found";
-  if (grant.principal_id !== session.principal_id)
-    return "grant_principal_mismatch";
-  if (!sameBoundary3(grant.boundary, session.boundary))
-    return "grant_boundary_mismatch";
-  if (grant.revoked_at !== null)
-    return "grant_revoked";
-  if (parseTimestamp2("issued_at", grant.issued_at) > nowMs)
-    return "grant_not_yet_active";
-  if (parseTimestamp2("expires_at", grant.expires_at) <= nowMs)
-    return "grant_expired";
-  return null;
-}
-function grantAppliesToTarget(grant, target) {
-  if (grant.targets.length === 0)
-    return true;
-  if (target === null)
-    return false;
-  return grant.targets.some((candidate) => candidate.kind === target.kind && (candidate.id === null || candidate.id === target.id));
-}
-function normalizeTargets(targets2) {
-  const normalized = /* @__PURE__ */ new Map();
-  for (const target of targets2) {
-    assertNonEmpty3("target kind", target.kind);
-    if (target.id !== null)
-      assertNonEmpty3("target id", target.id);
-    const value = { kind: target.kind, id: target.id };
-    normalized.set(JSON.stringify([value.kind, value.id]), value);
-  }
-  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || (left.id ?? "").localeCompare(right.id ?? ""));
-}
-function normalizeBoundary4(boundary) {
-  if (boundary.kind === "workspace") {
-    assertNonEmpty3("boundary workspace_id", boundary.workspace_id);
-    return { kind: "workspace", workspace_id: boundary.workspace_id };
-  }
-  if (boundary.kind === "host") {
-    assertNonEmpty3("boundary host_id", boundary.host_id);
-    return { kind: "host", host_id: boundary.host_id };
-  }
-  throw new Error("CapabilityGrant boundary kind is invalid.");
-}
-function boundaryId4(boundary) {
-  return boundary.kind === "workspace" ? boundary.workspace_id : boundary.host_id;
-}
-function sameBoundary3(left, right) {
-  return left.kind === right.kind && boundaryId4(left) === boundaryId4(right);
-}
-function boundaryFromRow(kind, id) {
-  if (kind === "workspace")
-    return { kind: "workspace", workspace_id: id };
-  if (kind === "host")
-    return { kind: "host", host_id: id };
-  throw new Error("Stored CapabilityGrant authority boundary is invalid.");
-}
-function hostCapabilityPolicyId(hostId, purpose) {
-  assertNonEmpty3("host_id", hostId);
-  assertNonEmpty3("policy purpose", purpose);
-  return `host_policy_${digest6(`${hostId}\0${purpose}`).slice(0, 32)}`;
-}
-function hostCapabilityPolicyGrantId(policyId, policyRevision) {
-  assertNonEmpty3("host_policy_id", policyId);
-  assertNonEmpty3("policy_revision", policyRevision);
-  return `capgrant_host_policy_${digest6(`${policyId}\0${policyRevision}`).slice(0, 32)}`;
-}
-function rowToHostCapabilityPolicy(row) {
-  return {
-    host_policy_id: row.host_policy_id,
-    policy_revision: row.policy_revision,
-    purpose: row.purpose,
-    host_id: row.host_id,
-    principal_id: row.principal_id,
-    grant_id: row.grant_id,
-    supersedes_grant_id: row.supersedes_grant_id,
-    superseded_by_grant_id: row.superseded_by_grant_id,
-    activated_at: row.activated_at,
-    superseded_at: row.superseded_at
-  };
-}
-function normalizeEvidence(evidence) {
-  if (evidence.length === 0)
-    throw new Error("CapabilityGrant evidence must not be empty.");
-  const normalized = /* @__PURE__ */ new Map();
-  for (const item of evidence) {
-    assertNonEmpty3("evidence kind", item.kind);
-    assertNonEmpty3("evidence ref", item.ref);
-    const value = { kind: item.kind, ref: item.ref };
-    normalized.set(JSON.stringify([value.kind, value.ref]), value);
-  }
-  return [...normalized.values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.ref.localeCompare(right.ref));
-}
-function parseEvidence(value) {
-  const parsed = JSON.parse(value);
-  if (!Array.isArray(parsed))
-    throw new Error("Stored CapabilityGrant evidence is invalid.");
-  return normalizeEvidence(parsed.map((item) => {
-    if (!item || typeof item !== "object")
-      throw new Error("Stored CapabilityGrant evidence is invalid.");
-    const candidate = item;
-    if (typeof candidate.kind !== "string" || typeof candidate.ref !== "string") {
-      throw new Error("Stored CapabilityGrant evidence is invalid.");
-    }
-    return { kind: candidate.kind, ref: candidate.ref };
-  }));
-}
-function normalizeNonEmptySet(values, label, requireValue) {
-  if (requireValue && values.length === 0)
-    throw new Error(`CapabilityGrant ${label} list must not be empty.`);
-  for (const value of values)
-    assertNonEmpty3(label, value);
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 function assertNonEmpty3(label, value) {
   if (!value.trim())
-    throw new Error(`CapabilityGrant ${label} must not be empty.`);
-  return value;
-}
-function digest6(value) {
-  return createHash23("sha256").update(value, "utf8").digest("hex");
-}
-function parseTimestamp2(label, value) {
-  const timestamp2 = Date.parse(value);
-  if (!Number.isFinite(timestamp2))
-    throw new Error(`CapabilityGrant ${label} must be an ISO timestamp.`);
-  return timestamp2;
-}
-var savepointSequence2 = 0;
-function inSavepoint7(db, action) {
-  savepointSequence2 += 1;
-  const name = `capability_grant_${savepointSequence2}`;
-  db.exec(`SAVEPOINT ${name}`);
-  try {
-    const result = action();
-    db.exec(`RELEASE SAVEPOINT ${name}`);
-    return result;
-  } catch (error) {
-    db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
-    db.exec(`RELEASE SAVEPOINT ${name}`);
-    throw error;
-  }
+    throw new Error(`Client identity ${label} must not be empty.`);
 }
 function isoNow5() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -86139,10 +86603,10 @@ function requireIdentifier2(value, label) {
   return value;
 }
 function requireTimestamp3(value, label) {
-  const text11 = requireIdentifier2(value, label);
-  if (!Number.isFinite(Date.parse(text11)))
+  const text12 = requireIdentifier2(value, label);
+  if (!Number.isFinite(Date.parse(text12)))
     throw new Error(`Local operator ${label} must be an ISO timestamp.`);
-  return text11;
+  return text12;
 }
 
 // floe-bus/dist/delivery-operation-authority.js
@@ -86958,7 +87422,7 @@ var ACTOR_DEFINITION_CONTENT_SCHEMA = {
       type: "array",
       items: nonEmptyString2,
       uniqueItems: true,
-      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list, discover permission delegation, then publish its own grants. Never copy another Actor's grant IDs."
+      description: "Grant IDs issued to this Actor in this Workspace. Start a new Actor with an empty list, discover permission delegation, then publish its own grants. Never copy another Actor's grant IDs. Every Actor may use every engine tool (engine.tool.*) by default: unless a person chose limits for the new Actor, delegate your engine tool access to it unchanged."
     },
     policy_refs: {
       type: "object",
@@ -86967,10 +87431,20 @@ var ACTOR_DEFINITION_CONTENT_SCHEMA = {
       properties: {
         budget: { oneOf: [resourceRefSchema3, { type: "null" }] },
         trust: { oneOf: [resourceRefSchema3, { type: "null" }] },
-        approval: { oneOf: [resourceRefSchema3, { type: "null" }] }
+        approval: {
+          oneOf: [resourceRefSchema3, { type: "null" }],
+          description: "Pinned Approval Policy revision { kind: 'policy', id: policy_id, revision: policy_revision_id }. It can only restrict engine tool calls; it never grants authority."
+        }
       }
     },
-    escalation_rules: { type: "array", items: escalationRuleSchema }
+    escalation_rules: { type: "array", items: escalationRuleSchema },
+    scope: {
+      type: "object",
+      additionalProperties: false,
+      required: ["paths"],
+      description: "Optional limit, chosen by a person: Workspace-relative folders that engine file tools must stay within. Omit for no folder limit. Use '.' for the whole Workspace. An Actor with a folder limit cannot use shell, because shell calls do not report which files they touch.",
+      properties: { paths: { type: "array", items: nonEmptyString2, minItems: 1, uniqueItems: true } }
+    }
   }
 };
 var actorSchema = {
@@ -88408,22 +88882,22 @@ var RECORD_CONNECTOR_HEALTH_OPERATION_ID = "connector.health.record";
 var INGEST_CONNECTOR_OBSERVATION_OPERATION_ID = "connector.ingress.ingest";
 var REQUEST_CONNECTOR_ACTION_OPERATION_ID = "connector.action.request";
 var RECONCILE_CONNECTOR_ACTION_OPERATION_ID = "connector.action.reconcile";
-var text8 = { type: "string", minLength: 1 };
-var nullableText8 = { oneOf: [text8, { type: "null" }] };
+var text9 = { type: "string", minLength: 1 };
+var nullableText8 = { oneOf: [text9, { type: "null" }] };
 var sha2564 = { type: "string", pattern: "^[a-fA-F0-9]{64}$" };
-var stringArray2 = { type: "array", items: text8, uniqueItems: true };
+var stringArray2 = { type: "array", items: text9, uniqueItems: true };
 var emptyInput7 = { type: "object", additionalProperties: false };
 var ownerSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id"],
-  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text8 }
+  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text9 }
 };
 var resourceRefSchema4 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text8, id: text8, revision: nullableText8 }
+  properties: { kind: text9, id: text9, revision: nullableText8 }
 };
 var refsSchema = { type: "array", items: resourceRefSchema4 };
 var invocationProvenanceSchema = {
@@ -88458,7 +88932,7 @@ var credentialSlotSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "title", "purpose", "required"],
-  properties: { slot_id: text8, title: text8, purpose: text8, required: { type: "boolean" } }
+  properties: { slot_id: text9, title: text9, purpose: text9, required: { type: "boolean" } }
 };
 var sourceInterfaceSchema = {
   type: "object",
@@ -88478,11 +88952,11 @@ var sourceInterfaceSchema = {
     "checkpoint_schema_ref"
   ],
   properties: {
-    interface_id: text8,
-    title: text8,
-    source_kind: text8,
-    event_type: text8,
-    payload_schema_ref: text8,
+    interface_id: text9,
+    title: text9,
+    source_kind: text9,
+    event_type: text9,
+    payload_schema_ref: text9,
     observation_mode: { enum: ["push", "connector_poll"] },
     polling_contract_ref: nullableText8,
     identity_scope: { enum: ["occurrence", "resource_revision"] },
@@ -88515,11 +88989,11 @@ var actionInterfaceSchema = {
     "required_capability_ids"
   ],
   properties: {
-    interface_id: text8,
-    title: text8,
-    action_kind: text8,
-    input_schema_ref: text8,
-    result_schema_ref: text8,
+    interface_id: text9,
+    title: text9,
+    action_kind: text9,
+    input_schema_ref: text9,
+    result_schema_ref: text9,
     effect: { enum: ["none", "reversible", "irreversible"] },
     idempotency: { enum: ["required", "provider_guaranteed"] },
     retry: { enum: ["safe", "after_reconcile", "never"] },
@@ -88550,10 +89024,10 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
     "rate_limit_policy_ref"
   ],
   properties: {
-    label: text8,
-    description: text8,
+    label: text9,
+    description: text9,
     implementation_ref: resourceRefSchema4,
-    configuration_schema_ref: text8,
+    configuration_schema_ref: text9,
     configuration_ui_schema_ref: nullableText8,
     credential_slots: { type: "array", items: credentialSlotSchema },
     source_interfaces: { type: "array", items: sourceInterfaceSchema },
@@ -88562,7 +89036,7 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["check_capability_id", "evidence_schema_ref"],
-      properties: { check_capability_id: text8, evidence_schema_ref: nullableText8 }
+      properties: { check_capability_id: text9, evidence_schema_ref: nullableText8 }
     },
     rate_limit_policy_ref: nullableText8
   }
@@ -88571,7 +89045,7 @@ var secretBindingSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "secret_ref_id"],
-  properties: { slot_id: text8, secret_ref_id: text8 }
+  properties: { slot_id: text9, secret_ref_id: text9 }
 };
 var CONNECTOR_BINDING_CONTENT_SCHEMA = {
   type: "object",
@@ -88589,7 +89063,7 @@ var CONNECTOR_BINDING_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "display_name"],
-      properties: { kind: text8, id: text8, display_name: nullableText8 }
+      properties: { kind: text9, id: text9, display_name: nullableText8 }
     },
     configuration: jsonSchema,
     enabled_source_interface_ids: stringArray2,
@@ -88611,12 +89085,12 @@ var definitionRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_definition_id: text8,
+    connector_definition_id: text9,
     owner: ownerSchema2,
     status: { enum: ["active", "retired"] },
-    current_revision_id: text8,
-    created_at: text8,
-    updated_at: text8,
+    current_revision_id: text9,
+    created_at: text9,
+    updated_at: text9,
     retired_at: nullableText8
   }
 };
@@ -88635,15 +89109,15 @@ var definitionRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_definition_revision_id: text8,
-    connector_definition_id: text8,
+    connector_definition_revision_id: text9,
+    connector_definition_id: text9,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText8,
     semantic_digest: sha2564,
     content: CONNECTOR_DEFINITION_CONTENT_SCHEMA,
-    created_by_principal_id: text8,
-    created_at: text8,
-    published_at: text8
+    created_by_principal_id: text9,
+    created_at: text9,
+    published_at: text9
   }
 };
 var bindingRecordSchema = {
@@ -88663,14 +89137,14 @@ var bindingRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_binding_id: text8,
-    connector_definition_id: text8,
+    connector_binding_id: text9,
+    connector_definition_id: text9,
     owner: ownerSchema2,
     status: { enum: ["disabled", "enabled", "retired"] },
     state_version: { type: "integer", minimum: 1 },
-    current_revision_id: text8,
-    created_at: text8,
-    updated_at: text8,
+    current_revision_id: text9,
+    created_at: text9,
+    updated_at: text9,
     enabled_at: nullableText8,
     disabled_at: nullableText8,
     retired_at: nullableText8
@@ -88692,16 +89166,16 @@ var bindingRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_binding_revision_id: text8,
-    connector_binding_id: text8,
-    connector_definition_revision_id: text8,
+    connector_binding_revision_id: text9,
+    connector_binding_id: text9,
+    connector_definition_revision_id: text9,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText8,
     semantic_digest: sha2564,
     content: CONNECTOR_BINDING_CONTENT_SCHEMA,
-    created_by_principal_id: text8,
-    created_at: text8,
-    published_at: text8
+    created_by_principal_id: text9,
+    created_at: text9,
+    published_at: text9
   }
 };
 var healthSchema2 = {
@@ -88720,16 +89194,16 @@ var healthSchema2 = {
     "recorded_at"
   ],
   properties: {
-    connector_health_observation_id: text8,
-    connector_binding_id: text8,
-    connector_binding_revision_id: text8,
+    connector_health_observation_id: text9,
+    connector_binding_id: text9,
+    connector_binding_revision_id: text9,
     owner: ownerSchema2,
     status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
     code: nullableText8,
-    message: text8,
+    message: text9,
     evidence_refs: refsSchema,
-    observed_at: text8,
-    recorded_at: text8
+    observed_at: text9,
+    recorded_at: text9
   }
 };
 var ingressVerificationSchema = {
@@ -88766,22 +89240,22 @@ var ingressReceiptSchema = {
     "physical_observation_count"
   ],
   properties: {
-    connector_ingress_receipt_id: text8,
-    connector_binding_id: text8,
-    connector_binding_revision_id: text8,
+    connector_ingress_receipt_id: text9,
+    connector_binding_id: text9,
+    connector_binding_revision_id: text9,
     owner: ownerSchema2,
-    source_interface_id: text8,
+    source_interface_id: text9,
     deduplication_key: sha2564,
-    idempotency_key: text8,
-    external_identity: text8,
+    idempotency_key: text9,
+    external_identity: text9,
     external_revision: nullableText8,
     payload_digest: sha2564,
     status: { enum: ["accepted", "materialized", "quarantined"] },
     normalized_event_id: nullableText8,
     artefact_version_ids: stringArray2,
     checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-    first_observed_at: text8,
-    last_observed_at: text8,
+    first_observed_at: text9,
+    last_observed_at: text9,
     physical_observation_count: { type: "integer", minimum: 1 }
   }
 };
@@ -88803,18 +89277,18 @@ var ingressObservationSchema = {
     "recorded_at"
   ],
   properties: {
-    connector_ingress_observation_id: text8,
-    connector_ingress_receipt_id: text8,
-    connector_binding_revision_id: text8,
+    connector_ingress_observation_id: text9,
+    connector_ingress_receipt_id: text9,
+    connector_binding_revision_id: text9,
     classification: { enum: ["accepted", "quarantined", "duplicate", "quarantined_conflict"] },
-    idempotency_key: text8,
-    external_identity: text8,
+    idempotency_key: text9,
+    external_identity: text9,
     external_revision: nullableText8,
     payload_digest: sha2564,
     verification: ingressVerificationSchema,
     evidence_refs: refsSchema,
-    observed_at: text8,
-    recorded_at: text8
+    observed_at: text9,
+    recorded_at: text9
   }
 };
 var externalEffectSchema = {
@@ -88841,23 +89315,23 @@ var externalEffectSchema = {
     "completed_at"
   ],
   properties: {
-    external_effect_receipt_id: text8,
-    connector_binding_id: text8,
-    connector_binding_revision_id: text8,
+    external_effect_receipt_id: text9,
+    connector_binding_id: text9,
+    connector_binding_revision_id: text9,
     owner: ownerSchema2,
-    action_interface_id: text8,
-    idempotency_key: text8,
+    action_interface_id: text9,
+    idempotency_key: text9,
     input_digest: sha2564,
     input_refs: refsSchema,
     secret_ref_ids: stringArray2,
     capability_grant_ids: stringArray2,
     approval_receipt_ids: stringArray2,
-    requested_by_principal_id: text8,
+    requested_by_principal_id: text9,
     invocation_provenance: invocationProvenanceSchema,
     status: { enum: ["requested", "running", "succeeded", "failed", "outcome_unknown"] },
     attempt_count: { type: "integer", minimum: 0 },
-    requested_at: text8,
-    updated_at: text8,
+    requested_at: text9,
+    updated_at: text9,
     completed_at: nullableText8
   }
 };
@@ -88878,8 +89352,8 @@ var actionAttemptSchema = {
     "completed_at"
   ],
   properties: {
-    external_action_attempt_id: text8,
-    external_effect_receipt_id: text8,
+    external_action_attempt_id: text9,
+    external_effect_receipt_id: text9,
     attempt_number: { type: "integer", minimum: 1 },
     status: { enum: ["started", "succeeded", "failed", "outcome_unknown"] },
     request_evidence_ref: resourceRefSchema4,
@@ -88887,7 +89361,7 @@ var actionAttemptSchema = {
     observed_result_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
     error_code: nullableText8,
     error_message: nullableText8,
-    started_at: text8,
+    started_at: text9,
     completed_at: nullableText8
   }
 };
@@ -89192,7 +89666,7 @@ function bindConnectorOperation(store) {
         type: "object",
         additionalProperties: false,
         required: ["content"],
-        properties: { connector_binding_id: text8, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
+        properties: { connector_binding_id: text9, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
       }
     },
     result: { version: "1", schema: bindingAndRevisionSchema },
@@ -89234,7 +89708,7 @@ function configureConnectorBindingOperation(store) {
         additionalProperties: false,
         required: ["content"],
         properties: {
-          connector_definition_revision_id: text8,
+          connector_definition_revision_id: text9,
           content: CONNECTOR_BINDING_CONTENT_SCHEMA
         }
       }
@@ -89376,9 +89850,9 @@ function recordConnectorHealthOperation(store) {
         properties: {
           status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
           code: nullableText8,
-          message: text8,
+          message: text9,
           evidence_refs: refsSchema,
-          observed_at: text8
+          observed_at: text9
         }
       }
     },
@@ -89437,14 +89911,14 @@ function ingestConnectorObservationOperation(store) {
           "observed_at"
         ],
         properties: {
-          source_interface_id: text8,
-          external_identity: text8,
+          source_interface_id: text9,
+          external_identity: text9,
           external_revision: nullableText8,
           payload_digest: sha2564,
           verification: ingressVerificationSchema,
           evidence_refs: refsSchema,
           checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-          observed_at: text8
+          observed_at: text9
         }
       }
     },
@@ -89513,7 +89987,7 @@ function requestConnectorActionOperation(store, approvals) {
         additionalProperties: false,
         required: ["action_interface_id", "input_digest"],
         properties: {
-          action_interface_id: text8,
+          action_interface_id: text9,
           input_digest: sha2564,
           input_refs: refsSchema,
           approval_receipt_ids: stringArray2
@@ -89589,12 +90063,12 @@ function reconcileConnectorActionOperation(store) {
       "reconciled_at"
     ],
     properties: {
-      external_action_reconciliation_id: text8,
-      external_effect_receipt_id: text8,
+      external_action_reconciliation_id: text9,
+      external_effect_receipt_id: text9,
       outcome: { enum: ["succeeded", "failed", "outcome_unknown"] },
       evidence_ref: resourceRefSchema4,
-      reconciled_by_principal_id: text8,
-      reconciled_at: text8
+      reconciled_by_principal_id: text9,
+      reconciled_at: text9
     }
   };
   return {
@@ -89681,8 +90155,8 @@ var DECIDE_APPROVAL_OPERATION_ID = "approval.decide";
 var CANCEL_APPROVAL_OPERATION_ID = "approval.cancel";
 var CONFIGURE_APPROVAL_RESPONSE_OPERATION_ID = "approval.response.configure";
 var REVOKE_APPROVAL_RECEIPT_OPERATION_ID = "approval.receipt.revoke";
-var text9 = { type: "string", minLength: 1 };
-var nullableText9 = { oneOf: [text9, { type: "null" }] };
+var text10 = { type: "string", minLength: 1 };
+var nullableText9 = { oneOf: [text10, { type: "null" }] };
 var timestamp = {
   type: "string",
   pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
@@ -89692,14 +90166,14 @@ var resourceRefSchema5 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text9, id: text9, revision: nullableText9 }
+  properties: { kind: text10, id: text10, revision: nullableText9 }
 };
 var approvalEffectSchema = {
   type: "object",
   additionalProperties: false,
   required: ["summary", "external", "reversibility", "resource_refs"],
   properties: {
-    summary: text9,
+    summary: text10,
     external: { type: "boolean" },
     reversibility: { enum: ["none", "reversible", "irreversible"] },
     resource_refs: { type: "array", items: resourceRefSchema5 }
@@ -89717,19 +90191,19 @@ var approvalDecisionBindingSchema = {
     "outcome_port_ids"
   ],
   properties: {
-    scope_execution_id: text9,
-    composition_revision_id: text9,
-    node_execution_id: text9,
-    node_placement_id: text9,
+    scope_execution_id: text10,
+    composition_revision_id: text10,
+    node_execution_id: text10,
+    node_placement_id: text10,
     node_execution_state_revision: { type: "integer", minimum: 1 },
     outcome_port_ids: {
       type: "object",
       additionalProperties: false,
       required: ["approved", "rejected", "changes_requested"],
       properties: {
-        approved: text9,
-        rejected: text9,
-        changes_requested: text9
+        approved: text10,
+        rejected: text10,
+        changes_requested: text10
       }
     }
   }
@@ -89742,8 +90216,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles"],
       properties: {
         mode: { const: "any" },
-        principal_ids: { type: "array", items: text9, uniqueItems: true },
-        roles: { type: "array", items: text9, uniqueItems: true }
+        principal_ids: { type: "array", items: text10, uniqueItems: true },
+        roles: { type: "array", items: text10, uniqueItems: true }
       }
     },
     {
@@ -89752,7 +90226,7 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids"],
       properties: {
         mode: { const: "all_named" },
-        principal_ids: { type: "array", items: text9, minItems: 1, uniqueItems: true }
+        principal_ids: { type: "array", items: text10, minItems: 1, uniqueItems: true }
       }
     },
     {
@@ -89761,8 +90235,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles", "quorum"],
       properties: {
         mode: { const: "quorum" },
-        principal_ids: { type: "array", items: text9, uniqueItems: true },
-        roles: { type: "array", items: text9, uniqueItems: true },
+        principal_ids: { type: "array", items: text10, uniqueItems: true },
+        roles: { type: "array", items: text10, uniqueItems: true },
         quorum: { type: "integer", minimum: 1 }
       }
     }
@@ -89781,9 +90255,9 @@ var approvalDecisionPolicySchema = {
           required: ["kind", "policy_evaluation_id", "policy_revision_id", "rule_id", "facts_digest"],
           properties: {
             kind: { const: "policy_evaluation" },
-            policy_evaluation_id: text9,
-            policy_revision_id: text9,
-            rule_id: text9,
+            policy_evaluation_id: text10,
+            policy_revision_id: text10,
+            rule_id: text10,
             facts_digest: sha2565
           }
         },
@@ -89792,7 +90266,7 @@ var approvalDecisionPolicySchema = {
           type: "object",
           additionalProperties: false,
           required: ["kind", "principal_id"],
-          properties: { kind: { const: "local_operator" }, principal_id: text9 }
+          properties: { kind: { const: "local_operator" }, principal_id: text10 }
         }
       ]
     },
@@ -89804,9 +90278,9 @@ var approvalDecisionPolicyReferenceSchema = {
   additionalProperties: false,
   required: ["policy_evaluation_id", "policy_revision_id", "rule_id"],
   properties: {
-    policy_evaluation_id: text9,
-    policy_revision_id: text9,
-    rule_id: text9
+    policy_evaluation_id: text10,
+    policy_revision_id: text10,
+    rule_id: text10
   }
 };
 var approvalIndividualDecisionSchema = {
@@ -89829,25 +90303,25 @@ var approvalIndividualDecisionSchema = {
     "resolution_after"
   ],
   properties: {
-    approval_decision_id: text9,
-    approval_request_id: text9,
-    workspace_id: text9,
-    principal_id: text9,
+    approval_decision_id: text10,
+    approval_request_id: text10,
+    workspace_id: text10,
+    principal_id: text10,
     decision: { enum: ["approved", "rejected", "changes_requested"] },
-    reason: text9,
-    decision_event_id: text9,
-    authority_grant_ids: { type: "array", items: text9, uniqueItems: true },
+    reason: text10,
+    decision_event_id: text10,
+    authority_grant_ids: { type: "array", items: text10, uniqueItems: true },
     role_evidence: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
         required: ["role", "authority_ref"],
-        properties: { role: text9, authority_ref: text9 }
+        properties: { role: text10, authority_ref: text10 }
       }
     },
     supersedes_decision_id: nullableText9,
-    idempotency_key: text9,
+    idempotency_key: text10,
     decided_at: timestamp,
     decision_set_digest: sha2565,
     resolution_after: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
@@ -89873,11 +90347,11 @@ var APPROVAL_ACTION_SCHEMA = {
     "expected_effect"
   ],
   properties: {
-    operation_id: text9,
-    authorized_principal_id: text9,
+    operation_id: text10,
+    authorized_principal_id: text10,
     target: { oneOf: [resourceRefSchema5, { type: "null" }] },
     input_digest: sha2565,
-    artefact_version_ids: { type: "array", items: text9, uniqueItems: true },
+    artefact_version_ids: { type: "array", items: text10, uniqueItems: true },
     composition_revision_id: nullableText9,
     node_placement_id: nullableText9,
     scope_execution_id: nullableText9,
@@ -89885,7 +90359,7 @@ var APPROVAL_ACTION_SCHEMA = {
     connector_binding_revision_id: nullableText9,
     extension_package_version_id: nullableText9,
     approval_policy_ref: { oneOf: [resourceRefSchema5, { type: "null" }] },
-    capability_grant_ids: { type: "array", items: text9, uniqueItems: true },
+    capability_grant_ids: { type: "array", items: text10, uniqueItems: true },
     expected_effect: approvalEffectSchema
   }
 };
@@ -89922,8 +90396,8 @@ var approvalRequestSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_request_id: text9,
-    workspace_id: text9,
+    approval_request_id: text10,
+    workspace_id: text10,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
     context_id: nullableText9,
@@ -89941,16 +90415,16 @@ var approvalRequestSchema = {
         approvals_received: { type: "integer", minimum: 0 },
         approvals_required: { type: "integer", minimum: 1 },
         active_decision_count: { type: "integer", minimum: 0 },
-        remaining_named_principal_ids: { type: "array", items: text9, uniqueItems: true },
+        remaining_named_principal_ids: { type: "array", items: text10, uniqueItems: true },
         resolution: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
       }
     },
-    requested_by_principal_id: text9,
-    reason: text9,
+    requested_by_principal_id: text10,
+    reason: text10,
     requested_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
-    idempotency_key: text9,
+    idempotency_key: text10,
     status: { enum: ["pending", "approved", "rejected", "cancelled", "invalidated"] },
     decision: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] },
     state_revision: { type: "integer", minimum: 1 },
@@ -89985,16 +90459,16 @@ var approvalReceiptSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_receipt_id: text9,
-    approval_request_id: text9,
-    workspace_id: text9,
+    approval_receipt_id: text10,
+    approval_request_id: text10,
+    workspace_id: text10,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
     decision_set_digest: sha2565,
     context_id: nullableText9,
-    requested_by_principal_id: text9,
-    approved_by_principal_id: text9,
-    decision_event_id: text9,
+    requested_by_principal_id: text10,
+    approved_by_principal_id: text10,
+    decision_event_id: text10,
     issued_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
@@ -90176,10 +90650,10 @@ function requestApprovalOperation(backend) {
         required: ["action", "reason", "expires_at"],
         properties: {
           action: APPROVAL_ACTION_SCHEMA,
-          context_id: { oneOf: [text9, { type: "null" }] },
+          context_id: { oneOf: [text10, { type: "null" }] },
           decision_binding: { oneOf: [approvalDecisionBindingSchema, { type: "null" }] },
           decision_policy_ref: approvalDecisionPolicyReferenceSchema,
-          reason: text9,
+          reason: text10,
           expires_at: timestamp,
           maximum_uses: { type: "integer", minimum: 1 }
         }
@@ -90246,9 +90720,9 @@ function decideApprovalOperation(backend) {
         required: ["decision", "reason"],
         properties: {
           decision: { enum: ["approved", "rejected", "changes_requested"] },
-          reason: text9,
+          reason: text10,
           receipt_expires_at: timestamp,
-          supersedes_decision_id: text9
+          supersedes_decision_id: text10
         }
       }
     },
@@ -90334,7 +90808,7 @@ function cancelApprovalOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text9 }
+        properties: { reason: text10 }
       }
     },
     result: {
@@ -90381,7 +90855,7 @@ function revokeApprovalReceiptOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text9 }
+        properties: { reason: text10 }
       }
     },
     result: {
@@ -92765,6 +93239,7 @@ var PORTABLE_WORKSPACE_TABLES = /* @__PURE__ */ new Set([
   "budget_reservations",
   "canonical_extensions",
   "capability_grant_operations",
+  "capability_grant_delegation_only",
   "capability_grant_delegations",
   "capability_grant_targets",
   "capability_grants",
@@ -92885,6 +93360,7 @@ var EXPLICIT_PORTABLE_RELATIONSHIPS = [
   relation("audit_outcomes", "audit_id", "audit_requests", "audit_id"),
   relation("budget_reservation_items", "reservation_id", "budget_reservations", "reservation_id"),
   relation("capability_grant_operations", "grant_id", "capability_grants", "grant_id"),
+  relation("capability_grant_delegation_only", "grant_id", "capability_grants", "grant_id"),
   relation("capability_grant_delegations", "grant_id", "capability_grants", "grant_id"),
   relation("capability_grant_targets", "grant_id", "capability_grants", "grant_id"),
   relation("connector_binding_revisions", "connector_binding_id", "connector_bindings", "connector_binding_id"),
@@ -93942,12 +94418,12 @@ function contentDigest(contentRef) {
   return record.algorithm === "sha256" && typeof record.value === "string" && /^[a-f0-9]{64}$/i.test(record.value) ? record.value.toLowerCase() : null;
 }
 function containsSensitivePortableText(bytes, sourceWorkspaceLocator) {
-  const text11 = bytes.toString("utf8");
-  if (text11.includes(sourceWorkspaceLocator))
+  const text12 = bytes.toString("utf8");
+  if (text12.includes(sourceWorkspaceLocator))
     return true;
   return SECRET_VALUE_PATTERNS.some((pattern) => {
     pattern.lastIndex = 0;
-    return pattern.test(text11);
+    return pattern.test(text12);
   });
 }
 function sanitizePortableRecord(row, sourcePaths) {
@@ -94349,18 +94825,18 @@ var RESTORE_WORKSPACE_BUNDLE_OPERATION_ID = "workspace.package.restore";
 var INSPECT_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.inspect_restore";
 var RECONCILE_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.reconcile_restore";
 var RELEASE_WORKSPACE_RESTORE_HOLD_OPERATION_ID = "workspace.package.release_restore_hold";
-var text10 = { type: "string", minLength: 1 };
-var nullableText10 = { oneOf: [text10, { type: "null" }] };
+var text11 = { type: "string", minLength: 1 };
+var nullableText10 = { oneOf: [text11, { type: "null" }] };
 var empty = { type: "object", additionalProperties: false };
 var dependencySchema = {
   type: "object",
   additionalProperties: false,
   required: ["dependency_id", "kind", "resource_id", "reason"],
   properties: {
-    dependency_id: text10,
+    dependency_id: text11,
     kind: { enum: ["content", "secret_ref", "endpoint_attachment", "actor_runtime", "command_runtime", "connector_runtime", "extension_runtime"] },
-    resource_id: text10,
-    reason: text10
+    resource_id: text11,
+    reason: text11
   }
 };
 var bundleSummarySchema = {
@@ -94378,9 +94854,9 @@ var bundleSummarySchema = {
     "unresolved_dependencies"
   ],
   properties: {
-    bundle_id: text10,
-    bundle_digest: text10,
-    workspace_id: text10,
+    bundle_id: text11,
+    bundle_digest: text11,
+    workspace_id: text11,
     format_version: { type: "integer", minimum: 1 },
     source_database_schema_version: { type: "integer", minimum: 1 },
     record_count: { type: "integer", minimum: 0 },
@@ -94406,12 +94882,12 @@ var restoreHoldSchema = {
         "released_by_principal_id"
       ],
       properties: {
-        workspace_id: text10,
-        bundle_id: text10,
-        bundle_digest: text10,
+        workspace_id: text11,
+        bundle_id: text11,
+        bundle_digest: text11,
         state: { enum: ["held", "released"] },
-        reason: text10,
-        restored_at: text10,
+        reason: text11,
+        restored_at: text11,
         released_at: nullableText10,
         released_by_principal_id: nullableText10
       }
@@ -94519,7 +94995,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id"],
-        properties: { bundle_id: text10 }
+        properties: { bundle_id: text11 }
       }
     },
     result: {
@@ -94528,7 +95004,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id", "bundle_directory"],
-        properties: { bundle_id: text10, bundle_directory: text10 }
+        properties: { bundle_id: text11, bundle_directory: text11 }
       }
     },
     handler: async (_context, input) => {
@@ -94561,7 +95037,7 @@ function preflightDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory"],
-        properties: { bundle_directory: text10 }
+        properties: { bundle_directory: text11 }
       }
     },
     result: {
@@ -94608,7 +95084,7 @@ function restoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory", "workspace_locator"],
-        properties: { bundle_directory: text10, workspace_locator: text10 }
+        properties: { bundle_directory: text11, workspace_locator: text11 }
       }
     },
     result: {
@@ -94627,9 +95103,9 @@ function restoreDefinition(service) {
           "backup_created"
         ],
         properties: {
-          workspace_id: text10,
-          bundle_id: text10,
-          bundle_digest: text10,
+          workspace_id: text11,
+          bundle_id: text11,
+          bundle_digest: text11,
           state: { const: "held" },
           inserted_record_count: { type: "integer", minimum: 0 },
           retained_record_count: { type: "integer", minimum: 0 },
@@ -94721,10 +95197,10 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "expected_bundle_digest", "dependency_id", "source_path"],
         properties: {
-          workspace_id: text10,
-          expected_bundle_digest: text10,
-          dependency_id: text10,
-          source_path: text10
+          workspace_id: text11,
+          expected_bundle_digest: text11,
+          dependency_id: text11,
+          source_path: text11
         }
       }
     },
@@ -94735,11 +95211,11 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "bundle_digest", "dependency_id", "artefact_version_id", "digest", "size_bytes"],
         properties: {
-          workspace_id: text10,
-          bundle_digest: text10,
-          dependency_id: text10,
-          artefact_version_id: text10,
-          digest: text10,
+          workspace_id: text11,
+          bundle_digest: text11,
+          dependency_id: text11,
+          artefact_version_id: text11,
+          digest: text11,
           size_bytes: { type: "integer", minimum: 0 }
         }
       }
@@ -94777,7 +95253,7 @@ function reconcileRestoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text10 }
+        properties: { expected_bundle_digest: text11 }
       }
     },
     result: {
@@ -94841,7 +95317,7 @@ function releaseHoldDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text10 }
+        properties: { expected_bundle_digest: text11 }
       }
     },
     result: {
@@ -95076,7 +95552,7 @@ var WorkspaceConfigurationImportStore = class {
       interaction_mode: "unattended",
       boundary_kind: "workspace"
     }));
-    const unknownOperationIds = policy.actor_operation_authority.flatMap((entry) => entry.operation_ids).filter((operationId) => !currentOperationIds.has(operationId));
+    const unknownOperationIds = policy.actor_operation_authority.flatMap((entry) => entry.operation_ids).filter((operationId) => !currentOperationIds.has(operationId) && !isEngineToolOperation(operationId));
     if (unknownOperationIds.length > 0) {
       throw new WorkspaceConfigurationPolicyError(`import policy names unregistered Workspace operation '${unknownOperationIds[0]}'`);
     }
@@ -95592,7 +96068,8 @@ function normalizeActor(value, index) {
     "instructions",
     "knowledge_refs",
     "policy_refs",
-    "escalation_rules"
+    "escalation_rules",
+    "scope"
   ], `${path}.definition`);
   const runtime = exactObject(actor.runtime, [
     "label",
@@ -95660,7 +96137,8 @@ function normalizeActor(value, index) {
           action: rule.action,
           ...rule.target_actor_id == null ? {} : { target_actor_id: requiredText5(rule.target_actor_id, "target_actor_id") }
         };
-      })
+      }),
+      ...definition2.scope == null ? {} : { scope: normalizeActorScope(definition2.scope, `${path}.definition.scope`) }
     },
     runtime: {
       label: requiredText5(runtime.label, `${path}.runtime.label`),
@@ -95760,6 +96238,20 @@ function unique5(values, label) {
     seen.add(value);
   }
 }
+function normalizeActorScope(value, label) {
+  const scope = exactObject(value, ["paths"], label);
+  if (!Array.isArray(scope.paths) || scope.paths.length === 0) {
+    throw new WorkspaceConfigurationInventoryValidationError(`${label}.paths must list at least one folder`);
+  }
+  const paths = scope.paths.map((path, index) => {
+    const canonical = typeof path === "string" ? canonicalActorScopePath(path) : null;
+    if (!canonical) {
+      throw new WorkspaceConfigurationInventoryValidationError(`${label}.paths[${index}] must stay within the Workspace`);
+    }
+    return canonical;
+  });
+  return { paths: [...new Set(paths)].sort((left, right) => left.localeCompare(right)) };
+}
 function safeRelativePath(value, label) {
   const path = requiredText5(value, label).replace(/\\/g, "/").replace(/^\.\//, "");
   if (path.startsWith("/") || /^[a-z]:\//i.test(path) || path.split("/").includes("..")) {
@@ -95768,11 +96260,11 @@ function safeRelativePath(value, label) {
   return path;
 }
 function digestText(value, label) {
-  const text11 = requiredText5(value, label).toLowerCase();
-  if (!/^sha256:[a-f0-9]{64}$/.test(text11)) {
+  const text12 = requiredText5(value, label).toLowerCase();
+  if (!/^sha256:[a-f0-9]{64}$/.test(text12)) {
     throw new WorkspaceConfigurationInventoryValidationError(`${label} must be a SHA-256 digest`);
   }
-  return text11;
+  return text12;
 }
 function requiredText5(value, label) {
   if (typeof value !== "string" || !value.trim()) {
@@ -99757,7 +100249,11 @@ var BusStore = class {
     this.scopeCompositionStore = new ScopeCompositionStore(this.db);
     this.scopeExecutionStore = new ScopeExecutionStore(this.db);
     this.artefactStore = new ArtefactStore(this.db);
-    this.actorDefinitionStore = new ActorDefinitionStore(this.db, void 0, (actorId, workspaceId4, grantIds) => {
+    this.actorDefinitionStore = new ActorDefinitionStore(this.db, void 0, (actorId, workspaceId4, content) => {
+      const approval = resolveActorApprovalPolicy({ workspace_id: workspaceId4, content }, this.policyStore);
+      if (!approval.ok)
+        throw new ActorDefinitionValidationError(approval.reason);
+      const grantIds = content.capability_grant_ids;
       if (grantIds.length === 0)
         return;
       const inspection = this.capabilityGrantStore.inspectSessionGrantIds({
@@ -101548,6 +102044,9 @@ var BusStore = class {
     }
     const source = input.decision_policy.source;
     const evaluation = this.policyStore.getEvaluation(source.policy_evaluation_id);
+    if (evaluation?.facts?.tool) {
+      return evaluation.workspace_id === input.workspace_id && evaluation.facts_digest === source.facts_digest && this.toolApprovalIsCurrent(evaluation, input.action);
+    }
     if (!evaluation || evaluation.workspace_id !== input.workspace_id || !evaluation.facts || evaluation.facts_digest !== source.facts_digest || !this.approvalPolicyFactsMatchAction(evaluation.facts, input.action, input.context_id, input.decision_binding))
       return false;
     const canonicalFacts = this.withCanonicalPolicyPrincipalRoles(evaluation.facts, input.context_id, input.decision_binding);
@@ -101629,6 +102128,7 @@ var BusStore = class {
             invalidated_by_principal_id: "system:approval-validity",
             reason: error.reason
           });
+          this.broadcastFn?.("approval_invalidated", { request: invalidated });
           throw new ApprovalConflictError(invalidated.approval_request_id, "its exact Scope decision binding is no longer current");
         }
       }
@@ -101638,6 +102138,7 @@ var BusStore = class {
         invalidated_by_principal_id: "system:approval-validity"
       });
       if (validity.invalidated) {
+        this.broadcastFn?.("approval_invalidated", { request: validity.request });
         throw new ApprovalConflictError(validity.request.approval_request_id, "its exact action, evidence, authority, or Policy is no longer current");
       }
     }
@@ -103624,7 +104125,7 @@ var BusStore = class {
   /**
    * A message routed to an endpoint with no bound auth profile produces no delivery
    * (see tryCreateDeliveryForEndpoint). Without a signal the message vanishes silently.
-   * Emit visible runtime telemetry so the operator sees that a profile must be selected.
+   * Emit visible runtime telemetry saying the message is waiting and why the Actor cannot run.
    */
   signalIfRuntimeUnconfigured(event, endpointId, broadcast) {
     const endpoint = this.getEndpoint(endpointId);
@@ -103635,6 +104136,9 @@ var BusStore = class {
       WHERE endpoint_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1
     `).get(endpointId);
     const deferredReason = latest?.state === "deferred" ? latest.last_error : null;
+    const binding = this.runtimeProfileStore.getCurrentActorBindingForEndpoint(endpoint.workspace_id, endpointId);
+    const reasons = binding?.status === "unresolved" ? [...binding.unresolved_reasons] : [];
+    const why = reasons.length ? `Its runtime is unresolved (${reasons.join("; ")}).` : binding ? "Its Actor or runtime is not active." : "It has no runtime binding.";
     this.appendRuntimeTelemetry({
       workspace_id: endpoint.workspace_id,
       endpoint_id: endpointId,
@@ -103642,7 +104146,8 @@ var BusStore = class {
       payload: {
         code: "runtime_unconfigured",
         trigger_event_id: event.event_id,
-        message: deferredReason ? `The message was accepted and is waiting; it will be delivered when this Actor's runtime is ready (${deferredReason}).` : "No auth profile is bound to this agent/workspace, so the message was accepted but not delivered. Connect a model provider in Floe Settings and select it for this workspace to enable replies."
+        unresolved_reasons: reasons,
+        message: deferredReason ? `The message was accepted and is waiting; it will be delivered when this Actor's runtime is ready (${deferredReason}).` : `The message was accepted and is waiting, but this Actor cannot run yet. ${why} Fix the Actor's definition in the Workspace's .floe/agents folder, or change its runtime binding with the runtime profile operations; the message is delivered once the runtime resolves.`
       }
     }, broadcast);
   }
@@ -103878,7 +104383,12 @@ var BusStore = class {
           authority_session_id: issued.session.authority_session_id,
           bearer_token: issued.bearer_token,
           expires_at: issued.session.expires_at
-        }
+        },
+        engine_tool_operation_ids: [...new Set(this.capabilityGrantStore.inspectSessionGrantIds({
+          principal_id: issued.session.principal_id,
+          boundary: issued.session.boundary,
+          grant_ids: issued.session.grant_ids
+        }).active_grants.flatMap((grant) => grant.operation_ids).filter(isEngineToolOperation))].sort()
       };
     });
     if (claimedFromPush) {
@@ -103892,6 +104402,248 @@ var BusStore = class {
       node_execution_id: prepared.processing_contract.contract_kind === "scope_node" ? prepared.processing_contract.node_execution.node_execution_id : null
     });
     return prepared;
+  }
+  /**
+   * Decides one engine built-in tool call for a Delivery this Bridge is
+   * running: the Actor's live grants and scope bound it, then its pinned
+   * Approval Policy and bound policies may restrict it. Every call is
+   * recorded and pushed; nothing is remembered as a standing approval.
+   * A call that needs a decision becomes one ApprovalRequest per requirement,
+   * bound to this exact call and pushed to whoever may answer it.
+   */
+  evaluateRuntimeToolCall(input, broadcast) {
+    const inputs = this.runtimeToolPolicyInputs(input.delivery_id, input.bridge_id);
+    const toolFacts = toolFactsFromRequest(input.request, inputs.definition.actor_definition_revision_id);
+    const { evaluation, authority } = this.evaluateToolFacts(inputs, input.request.operation_id, toolFacts);
+    const requests = evaluation.decision === "require_approval" && authority.allowed ? this.transaction(() => evaluation.approval_requirements.map((requirement) => this.approvalStore.createRequest({
+      workspace_id: inputs.contract.workspace_id,
+      action: toolApprovalAction({
+        evaluation,
+        delivery_id: inputs.delivery.delivery_id,
+        grant_id: authority.grant_id,
+        scope_execution_id: inputs.scoped?.scope_execution.execution_id ?? null,
+        node_execution_id: inputs.scoped?.node_execution.node_execution_id ?? null
+      }),
+      context_id: inputs.contract.context.context_id,
+      decision_policy: {
+        source: {
+          kind: "policy_evaluation",
+          policy_evaluation_id: evaluation.evaluation_id,
+          policy_revision_id: requirement.policy_revision_id,
+          rule_id: requirement.rule_id,
+          facts_digest: evaluation.facts_digest
+        },
+        approvers: requirement.approvers
+      },
+      requested_by_principal_id: inputs.session.principal_id,
+      reason: requirement.reason,
+      expires_at: inputs.session.expires_at,
+      maximum_uses: 1,
+      idempotency_key: `tool:${evaluation.evaluation_id}:${requirement.policy_revision_id}:${requirement.rule_id}`
+    }))) : [];
+    const decision = runtimeToolDecision(evaluation, input.request.operation_id, toolFacts.tool_call_id, authority, requests);
+    broadcast("policy_decision", policyDecisionEvent(evaluation, {
+      delivery_id: inputs.delivery.delivery_id,
+      endpoint_id: inputs.delivery.endpoint_id,
+      actor_id: inputs.contract.actor.actor_id,
+      rule_id: decision.refusal?.rule_id ?? null
+    }));
+    for (const request of requests)
+      broadcast("approval_requested", { request });
+    return decision;
+  }
+  /**
+   * Reports how a tool call that needed a decision ended. A Bridge calls this
+   * once after registering for approval pushes (so no answer is missed), again
+   * when a push arrives, and with `abandon` when the turn is cancelled or its
+   * authority expires. An approval is used exactly once for this call.
+   */
+  resolveRuntimeToolApproval(input, broadcast) {
+    const delivery = this.requireBridgeDelivery(input.delivery_id, input.bridge_id);
+    const evaluation = this.policyStore.getEvaluation(input.evaluation_id);
+    const tool = evaluation?.facts?.tool;
+    if (!evaluation || !tool || evaluation.workspace_id !== delivery.workspace_id) {
+      throw new Error(`Policy evaluation '${input.evaluation_id}' is not a tool call decision for Delivery '${input.delivery_id}'.`);
+    }
+    const workspaceId4 = delivery.workspace_id;
+    const requestIds = this.db.prepare(`
+      SELECT approval_request_id FROM approval_requests
+      WHERE workspace_id = ?
+        AND json_extract(action_json, '$.approval_policy_ref.id') = ?
+        AND json_extract(action_json, '$.target.kind') = ?
+        AND json_extract(action_json, '$.target.id') = ?
+      ORDER BY approval_request_id
+    `).all(workspaceId4, evaluation.evaluation_id, TOOL_APPROVAL_TARGET_KIND, delivery.delivery_id).map((row) => row.approval_request_id);
+    const settle = () => requestIds.map((id) => {
+      const request = this.approvalStore.requireRequestForWorkspace(id, workspaceId4);
+      if (request.status !== "pending")
+        return request;
+      if (input.abandon) {
+        return this.approvalStore.cancelRequest({
+          workspace_id: workspaceId4,
+          approval_request_id: id,
+          expected_state_revision: request.state_revision,
+          cancelled_by_principal_id: `bridge:${input.bridge_id}`,
+          reason: input.abandon === "cancelled" ? "The turn waiting for this decision was cancelled." : "The turn stopped waiting before this decision arrived."
+        });
+      }
+      return this.approvalStore.refreshRequestValidity({
+        workspace_id: workspaceId4,
+        approval_request_id: id,
+        invalidated_by_principal_id: "system:tool-approval-validity"
+      }).request;
+    });
+    const requests = this.transaction(settle);
+    let outcome = toolApprovalOutcome(requests);
+    if (input.abandon && outcome === "cancelled")
+      outcome = input.abandon;
+    if (outcome === "allowed") {
+      try {
+        this.transaction(() => {
+          for (const request of requests) {
+            const receipt = this.approvalStore.getReceiptForRequest(request.approval_request_id);
+            if (!receipt)
+              throw new ApprovalDeniedError("approval_receipt_not_found");
+            this.approvalStore.consumeReceipt({
+              approval_receipt_id: receipt.approval_receipt_id,
+              use_id: `tool:${evaluation.evaluation_id}`,
+              workspace_id: workspaceId4,
+              principal_id: request.action.authorized_principal_id,
+              action: request.action
+            });
+          }
+        });
+      } catch (error) {
+        if (!(error instanceof ApprovalDeniedError))
+          throw error;
+        outcome = "unavailable";
+      }
+    }
+    const resolution = runtimeToolResolution(evaluation, requests, outcome);
+    if (outcome !== "pending") {
+      broadcast("policy_decision_resolved", {
+        ...resolution,
+        workspace_id: workspaceId4,
+        delivery_id: delivery.delivery_id,
+        endpoint_id: delivery.endpoint_id
+      });
+    }
+    return resolution;
+  }
+  requireBridgeDelivery(deliveryId, bridgeId) {
+    const row = this.db.prepare("SELECT * FROM delivery_bundles WHERE delivery_id = ?").get(deliveryId);
+    if (!row)
+      throw new Error(`Unknown delivery_id: ${deliveryId}`);
+    const endpoint = this.getEndpoint(String(row.endpoint_id));
+    if (endpoint?.bridge_id !== bridgeId) {
+      throw new Error(`Bridge '${bridgeId}' does not own Delivery '${deliveryId}'.`);
+    }
+    return { delivery_id: deliveryId, endpoint_id: String(row.endpoint_id), workspace_id: String(endpoint.workspace_id), row };
+  }
+  /** The running Delivery's pinned Actor definition, live authority session, and binding. */
+  runtimeToolPolicyInputs(deliveryId, bridgeId) {
+    const row = bridgeId ? this.requireBridgeDelivery(deliveryId, bridgeId).row : this.db.prepare("SELECT * FROM delivery_bundles WHERE delivery_id = ?").get(deliveryId);
+    if (!row)
+      throw new Error(`Unknown delivery_id: ${deliveryId}`);
+    if (row.state !== "delivered_to_bridge" && row.state !== "injected_to_runtime") {
+      throw new Error(`Delivery '${deliveryId}' is '${row.state}' and is not running.`);
+    }
+    const delivery = this.rowToDelivery(row);
+    const session = delivery.operation_authority_session_id ? this.operationAuthoritySessions.getSession(delivery.operation_authority_session_id) : null;
+    if (!session)
+      throw new Error(`Delivery '${deliveryId}' has no prepared runtime authority.`);
+    const contract = delivery.node_execution_id ? this.getRuntimeProcessingContract(delivery.execution_attempt_id) : this.resolveDirectRuntimeProcessingContract(delivery);
+    return {
+      delivery,
+      session,
+      contract,
+      definition: contract.actor.definition,
+      scoped: contract.contract_kind === "scope_node" ? contract : null
+    };
+  }
+  evaluateToolFacts(inputs, operationId, toolFacts) {
+    const { session, contract, definition: definition2, scoped } = inputs;
+    const sessionLive = session.revoked_at === null && Date.parse(session.expires_at) > Date.now();
+    const grants = sessionLive ? this.capabilityGrantStore.inspectSessionGrantIds({
+      principal_id: session.principal_id,
+      boundary: session.boundary,
+      grant_ids: session.grant_ids
+    }).active_grants : [];
+    const approvalPolicy = resolveActorApprovalPolicy(definition2, this.policyStore);
+    let authority = decideToolAuthority({
+      operation_id: operationId,
+      facts: toolFacts,
+      scope_paths: definition2.content.scope?.paths ?? null,
+      grants
+    });
+    if (authority.allowed && !approvalPolicy.ok) {
+      authority = { allowed: false, code: "tool_grant_missing", reason: approvalPolicy.reason };
+    }
+    const roles = this.actorRoleAuthorityStore.resolveCurrent({
+      workspace_id: contract.workspace_id,
+      principal_id: session.principal_id,
+      target: {
+        scope_id: scoped?.scope_execution.scope_id ?? null,
+        scope_composition_revision_id: scoped?.node_execution.revision_id ?? null,
+        node_placement_id: scoped?.node_execution.node_id ?? null,
+        node_execution_id: scoped?.node_execution.node_execution_id ?? null,
+        context_id: contract.context.context_id
+      }
+    });
+    const evaluation = this.policyStore.evaluate({
+      authority_boundary: { kind: "workspace", workspace_id: contract.workspace_id },
+      workspace_id: contract.workspace_id,
+      principal_id: session.principal_id,
+      principal_roles: roles.roles,
+      actor_role_evidence: roles.evidence,
+      interaction_mode: session.interaction_mode,
+      provenance: session.provenance,
+      operation_id: operationId,
+      target: null,
+      effects: toolOperationEffects(operationId),
+      scope_id: scoped?.scope_execution.scope_id ?? null,
+      actor_id: contract.actor.actor_id,
+      scope_composition_revision_id: scoped?.node_execution.revision_id ?? null,
+      node_placement_id: scoped?.node_execution.node_id ?? null,
+      connector_binding_id: null,
+      extension_installation_id: null,
+      extension_package_version_id: null,
+      data_classes: [],
+      worker_trust_level: null,
+      tool: toolFacts
+    }, {
+      direct_revision_ids: approvalPolicy.ok && approvalPolicy.policy_revision_id ? [approvalPolicy.policy_revision_id] : [],
+      ...authority.allowed ? {} : { authority_denial_reason: authority.reason }
+    });
+    return { evaluation, authority };
+  }
+  /**
+   * A pending tool approval stays answerable only while its Delivery runs under
+   * the same Actor definition and the same call would still need this decision.
+   */
+  toolApprovalIsCurrent(evaluation, action) {
+    const tool = evaluation.facts?.tool;
+    if (!tool || action.target?.kind !== TOOL_APPROVAL_TARGET_KIND || action.input_digest !== tool.argument_digest) {
+      return false;
+    }
+    let inputs;
+    try {
+      inputs = this.runtimeToolPolicyInputs(action.target.id, null);
+    } catch {
+      return false;
+    }
+    if (inputs.definition.actor_definition_revision_id !== tool.actor_definition_revision_id)
+      return false;
+    const current = this.evaluateToolFacts(inputs, evaluation.facts.operation_id, tool);
+    if (!current.authority.allowed || !action.capability_grant_ids.includes(current.authority.grant_id))
+      return false;
+    return current.evaluation.decision === "require_approval" && canonicalJson20({
+      evaluated_policy_revision_ids: current.evaluation.evaluated_policy_revision_ids,
+      approval_requirements: current.evaluation.approval_requirements
+    }) === canonicalJson20({
+      evaluated_policy_revision_ids: evaluation.evaluated_policy_revision_ids,
+      approval_requirements: evaluation.approval_requirements
+    });
   }
   reportDeliveryStatus(input, broadcast) {
     const delivery = this.db.prepare("SELECT * FROM delivery_bundles WHERE delivery_id = ?").get(input.delivery_id);
@@ -110990,12 +111742,12 @@ __export2(nip04_exports, {
   decrypt: () => decrypt2,
   encrypt: () => encrypt2
 });
-function encrypt2(secretKey, pubkey, text11) {
+function encrypt2(secretKey, pubkey, text12) {
   const privkey = secretKey instanceof Uint8Array ? secretKey : hexToBytes(secretKey);
   const key = secp256k1.getSharedSecret(privkey, hexToBytes("02" + pubkey));
   const normalizedKey = getNormalizedX(key);
   let iv = Uint8Array.from(randomBytes6(16));
-  let plaintext = utf8Encoder2.encode(text11);
+  let plaintext = utf8Encoder2.encode(text12);
   let ciphertext = cbc(normalizedKey, iv).encrypt(plaintext);
   let ctb64 = base64.encode(new Uint8Array(ciphertext));
   let ivb64 = base64.encode(new Uint8Array(iv.buffer));
@@ -111196,43 +111948,43 @@ __export2(nip13_exports, {
   minePow: () => minePow
 });
 function getPow(hex) {
-  let count = 0;
+  let count2 = 0;
   for (let i22 = 0; i22 < 64; i22 += 8) {
     const nibble = parseInt(hex.substring(i22, i22 + 8), 16);
     if (nibble === 0) {
-      count += 32;
+      count2 += 32;
     } else {
-      count += Math.clz32(nibble);
+      count2 += Math.clz32(nibble);
       break;
     }
   }
-  return count;
+  return count2;
 }
 function getPowFromBytes(hash2) {
-  let count = 0;
+  let count2 = 0;
   for (let i22 = 0; i22 < hash2.length; i22++) {
     const byte = hash2[i22];
     if (byte === 0) {
-      count += 8;
+      count2 += 8;
     } else {
-      count += Math.clz32(byte) - 24;
+      count2 += Math.clz32(byte) - 24;
       break;
     }
   }
-  return count;
+  return count2;
 }
 function minePow(unsigned, difficulty) {
-  let count = 0;
+  let count2 = 0;
   const event = unsigned;
-  const tag = ["nonce", count.toString(), difficulty.toString()];
+  const tag = ["nonce", count2.toString(), difficulty.toString()];
   event.tags.push(tag);
   while (true) {
     const now22 = Math.floor((/* @__PURE__ */ new Date()).getTime() / 1e3);
     if (now22 !== event.created_at) {
-      count = 0;
+      count2 = 0;
       event.created_at = now22;
     }
-    tag[1] = (++count).toString();
+    tag[1] = (++count2).toString();
     const hash2 = sha2568(
       utf8Encoder2.encode(JSON.stringify([0, event.pubkey, event.created_at, event.kind, event.tags, event.content]))
     );
@@ -112495,16 +113247,16 @@ var NegentropyStorageVector = class {
       throw Error("bad range");
   }
   _binarySearch(arr, first, last, cmp) {
-    let count = last - first;
-    while (count > 0) {
+    let count2 = last - first;
+    while (count2 > 0) {
       let it = first;
-      let step = Math.floor(count / 2);
+      let step = Math.floor(count2 / 2);
       it += step;
       if (cmp(arr[it])) {
         first = ++it;
-        count -= step + 1;
+        count2 -= step + 1;
       } else {
-        count = step;
+        count2 = step;
       }
     }
     return first;
@@ -113880,6 +114632,28 @@ async function createBusServer(configPath, config, options = {}) {
         socketAuthorities.delete(socket);
       }
     }
+    if (type === "workspace_attachment_requested" && typeof payload.workspace_id === "string") {
+      for (const bridgeId of connectedBridgeIds(payload.workspace_id)) {
+        broadcast("bridge_connected", { bridge_id: bridgeId, workspace_id: payload.workspace_id });
+      }
+    }
+  }
+  function connectedBridgeIds(workspaceId4) {
+    const ids = [];
+    for (const [socket, authority] of socketAuthorities) {
+      if (authority.audience !== "bridge_service" || bridgeSockets.get(authority.bridge_id) !== socket)
+        continue;
+      if (workspaceId4 === null || bridgeMayUseWorkspace(store, authority, workspaceId4))
+        ids.push(authority.bridge_id);
+    }
+    return ids.sort();
+  }
+  function broadcastBridgePresence(type, authority) {
+    const workspaceIds = store.workspaceIdentityStore.listLocalProjections(authority.host_id).filter((workspace) => workspace.binding !== null).map((workspace) => String(workspace.workspace_id));
+    if (workspaceIds.length === 0)
+      broadcast(type, { bridge_id: authority.bridge_id });
+    for (const workspaceId4 of workspaceIds)
+      broadcast(type, { bridge_id: authority.bridge_id, workspace_id: workspaceId4 });
   }
   function requireLocalControl(request, reply) {
     if (testBypassedRequests.has(request)) {
@@ -114475,9 +115249,10 @@ async function createBusServer(configPath, config, options = {}) {
           break;
         replaySequence = replay.at(-1)?.sequence ?? replaySequence;
       }
+      const presence = authority.audience === "bridge_service" ? {} : { connected_bridge_ids: connectedBridgeIds(authority.audience === "workspace_operation" ? authority.workspace_id : null) };
       client.send(JSON.stringify({
         type: "caught_up",
-        payload: { cursor: pushStream.cursorForSequence(highWater) },
+        payload: { cursor: pushStream.cursorForSequence(highWater), ...presence },
         at: (/* @__PURE__ */ new Date()).toISOString()
       }));
       socketAuthorities.set(client, authority);
@@ -114488,7 +115263,7 @@ async function createBusServer(configPath, config, options = {}) {
           previous.close(4409, "Bridge connection replaced");
         bridgeSockets.set(authority.bridge_id, client);
         store.reportBridgeLiveness(authority.bridge_id);
-        broadcast("bridge_connected", { bridge_id: authority.bridge_id });
+        broadcastBridgePresence("bridge_connected", authority);
       }
     });
     const removeSocket = () => {
@@ -114497,7 +115272,8 @@ async function createBusServer(configPath, config, options = {}) {
       clearTimeout(sessionExpiryTimeout);
       if (connectedBridgeId !== null && bridgeSockets.get(connectedBridgeId) === client) {
         bridgeSockets.delete(connectedBridgeId);
-        broadcast("bridge_disconnected", { bridge_id: connectedBridgeId });
+        if (socketAuthority?.audience === "bridge_service")
+          broadcastBridgePresence("bridge_disconnected", socketAuthority);
       }
     };
     client.on("close", removeSocket);
@@ -116102,6 +116878,69 @@ async function createBusServer(configPath, config, options = {}) {
       });
     }
   });
+  app.post("/v1/delivery/:delivery_id/tool-policy/evaluate", async (request, reply) => {
+    const bridgeAuthority = requireBridgeService(request, reply);
+    if (!bridgeAuthority)
+      return reply;
+    const params = external_exports.object({ delivery_id: external_exports.string().min(1) }).parse(request.params);
+    if (!testBypassedRequests.has(request) && !bridgeOwnsDelivery(store, bridgeAuthority.bridge_id, params.delivery_id)) {
+      return sendTransportForbidden(reply);
+    }
+    const body = external_exports.object({
+      operation_id: external_exports.string().min(1),
+      tool_call_id: external_exports.string().min(1).nullable(),
+      engine: external_exports.string().min(1),
+      manifest_version: external_exports.string().min(1),
+      native_tools: external_exports.array(external_exports.string().min(1)),
+      paths: external_exports.array(external_exports.string().min(1).nullable()),
+      executables: external_exports.array(external_exports.string().min(1).nullable()),
+      urls: external_exports.array(external_exports.string()),
+      write_redirection: external_exports.boolean(),
+      sandbox_bypass: external_exports.boolean(),
+      argument_digest: external_exports.string().regex(/^[a-f0-9]{64}$/)
+    }).strict().safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "tool_call_facts_invalid", message: body.error.message });
+    }
+    try {
+      return store.evaluateRuntimeToolCall({
+        bridge_id: bridgeAuthority.bridge_id,
+        delivery_id: params.delivery_id,
+        request: body.data
+      }, broadcast);
+    } catch (error) {
+      return reply.code(409).send({
+        error: "tool_policy_unavailable",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  app.post("/v1/delivery/:delivery_id/tool-policy/:evaluation_id/resolve", async (request, reply) => {
+    const bridgeAuthority = requireBridgeService(request, reply);
+    if (!bridgeAuthority)
+      return reply;
+    const params = external_exports.object({ delivery_id: external_exports.string().min(1), evaluation_id: external_exports.string().min(1) }).parse(request.params);
+    if (!testBypassedRequests.has(request) && !bridgeOwnsDelivery(store, bridgeAuthority.bridge_id, params.delivery_id)) {
+      return sendTransportForbidden(reply);
+    }
+    const body = external_exports.object({ abandon: external_exports.enum(["cancelled", "unavailable"]).nullable() }).strict().safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ error: "tool_approval_resolution_invalid", message: body.error.message });
+    }
+    try {
+      return store.resolveRuntimeToolApproval({
+        bridge_id: bridgeAuthority.bridge_id,
+        delivery_id: params.delivery_id,
+        evaluation_id: params.evaluation_id,
+        abandon: body.data.abandon
+      }, broadcast);
+    } catch (error) {
+      return reply.code(409).send({
+        error: "tool_policy_unavailable",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
   app.get("/v1/delivery/:delivery_id/runtime-credentials/:secret_ref_id", async (request, reply) => {
     const bridgeAuthority = requireBridgeService(request, reply);
     if (!bridgeAuthority)
@@ -117387,7 +118226,7 @@ function resolveTransportRequirement(request, store) {
   if (route === "/v1/delivery/claim" || route === "/v1/runtime/turn-result") {
     return { kind: "bridge_or_workspace", workspace_id: workspace.workspace_id };
   }
-  if (route.startsWith("/v1/bridge/") || route === "/v1/bridges/register" || route === "/v1/bridges/liveness" || route === "/v1/bridges/:bridge_id/liveness" || route === "/v1/delivery/:delivery_id/status" || route === "/v1/delivery/:delivery_id/runtime-prepare" || route === "/v1/delivery/:delivery_id/runtime-credentials/:secret_ref_id" || route === "/v1/runtime/telemetry" && method === "POST" || route === "/v1/endpoints/:endpoint_id/status" && method === "POST" || route === "/v1/endpoints/:endpoint_id/turn-end" || route === "/v1/workspaces/:workspace_id/attachment-result" || route === "/v1/workspaces/:workspace_id/import-config") {
+  if (route.startsWith("/v1/bridge/") || route === "/v1/bridges/register" || route === "/v1/bridges/liveness" || route === "/v1/bridges/:bridge_id/liveness" || route === "/v1/delivery/:delivery_id/status" || route === "/v1/delivery/:delivery_id/runtime-prepare" || route === "/v1/delivery/:delivery_id/tool-policy/evaluate" || route === "/v1/delivery/:delivery_id/tool-policy/:evaluation_id/resolve" || route === "/v1/delivery/:delivery_id/runtime-credentials/:secret_ref_id" || route === "/v1/runtime/telemetry" && method === "POST" || route === "/v1/endpoints/:endpoint_id/status" && method === "POST" || route === "/v1/endpoints/:endpoint_id/turn-end" || route === "/v1/workspaces/:workspace_id/attachment-result" || route === "/v1/workspaces/:workspace_id/import-config") {
     return { kind: "bridge_service", workspace_id: workspace.workspace_id };
   }
   if (route.startsWith("/v1/local/") || route === "/v1/local-config/status" || route === "/v1/workspaces" || route === "/v1/workspaces/register" || route === "/v1/workspaces/:workspace_id/select" || route === "/v1/workspaces/:workspace_id/delete" || route === "/v1/workspaces/:workspace_id/config-snapshot" || route === "/v1/workspaces/:workspace_id/apply-config" || route === "/v1/bridges/service-credential" || route.startsWith("/v1/auth/") || route === "/v1/runtime/status" || route === "/v1/fs/capability" || route === "/v1/fs/browse" || route === "/v1/workspaces/:workspace_id/fs/agents" || route === "/v1/workspaces/:workspace_id/fs/file" || route.startsWith("/v1/webhooks/") || route === "/v1/identities" || route === "/v1/clients" || route === "/v1/clients/:identity_id" || route === "/v1/clients/:identity_id/sessions/:authority_session_id" || route === "/v1/configs" && method !== "GET") {
@@ -117581,7 +118420,8 @@ function resolveBroadcastWorkspaceId(store, payload) {
     "pulse",
     "context",
     "endpoint",
-    "binding"
+    "binding",
+    "request"
   ]) {
     add(asRecord(payload[key]).workspace_id);
   }
@@ -117827,7 +118667,9 @@ var LOCAL_FLOE_ACTOR_OPERATIONS_V1 = Object.freeze([
   "scope.node-execution.retry",
   "scope.node-output.publish",
   "scope.plan.inspect",
-  "workspace.inspect"
+  "workspace.inspect",
+  // Engine built-ins are unrestricted by default; a person may choose limits.
+  ...Object.values(ENGINE_TOOL_OPERATIONS)
 ]);
 var localProductWorkspacePolicy = (input) => {
   if (input.creation_kind !== "created" || !input.init_authorized)

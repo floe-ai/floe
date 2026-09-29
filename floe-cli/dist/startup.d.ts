@@ -54,3 +54,11 @@ export declare function floeHome(configPath: string, config: LocalConfig): strin
  */
 export declare function ensureIdentityAgent(configPath: string, config: LocalConfig): Promise<void>;
 export declare function startAll(configPath: string, config: LocalConfig): Promise<void>;
+/**
+ * Connect-first for the Bridge: if its engine control answers for this Floe
+ * home, use it. Otherwise start it with a fresh service credential, obtained
+ * through the native broker and handed over in its environment only, and wait
+ * until its engine control answers. Launching is not starting: a Bridge that
+ * died on its first line must not be reported as started.
+ */
+export declare function ensureBridge(configPath: string, config: LocalConfig): Promise<void>;
