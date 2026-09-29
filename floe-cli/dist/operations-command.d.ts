@@ -11,7 +11,7 @@ type CommonOptions = {
 };
 export type OperationsCommandDependencies = Readonly<{
     cwd?: () => string;
-    client?: () => CliOperationClient;
+    client: () => CliOperationClient;
     confirm?: (confirmation: OperationConfirmation) => Promise<boolean>;
     output?: (message: string) => void;
     read_file?: (path: string) => string;

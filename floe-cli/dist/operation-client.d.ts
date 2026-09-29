@@ -115,7 +115,7 @@ export type NativeAuthorityCommandRunner = (command: Readonly<Record<string, unk
  */
 export declare class NativeCliOperationAuthorityBroker implements CliOperationAuthorityBroker {
     private readonly run;
-    constructor(run?: NativeAuthorityCommandRunner);
+    constructor(run: NativeAuthorityCommandRunner);
     listLocalWorkspaces(): Promise<unknown>;
     discoverOperations(input: DiscoverOperationsInput): Promise<unknown>;
     invokeOperation(input: Readonly<{
@@ -132,6 +132,8 @@ export declare class NativeCliOperationAuthorityBroker implements CliOperationAu
         invocation: CliOperationInvocation;
     }>): Promise<unknown>;
 }
+/** The native broker, talking to the Bus at the configured URL. */
+export declare function nativeOperationBroker(busHttpBase: string): NativeCliOperationAuthorityBroker;
 /**
  * CLI projection over the same Bus-owned semantic operations used by the app
  * and Actors. A native broker owns authentication and sessions; this client
@@ -140,7 +142,7 @@ export declare class NativeCliOperationAuthorityBroker implements CliOperationAu
 export declare class CliOperationClient {
     private readonly broker;
     private readonly interactionSessionId;
-    constructor(broker?: CliOperationAuthorityBroker, interactionSessionId?: string);
+    constructor(broker: CliOperationAuthorityBroker, interactionSessionId?: string);
     listLocalWorkspaces(): Promise<LocalWorkspaceProjection[]>;
     discover(input: DiscoverOperationsInput): Promise<CliOperationDescriptor[]>;
     describe(boundary: CliOperationBoundary, operationId: string, target?: OperationTarget | null): Promise<CliOperationDescriptor>;
@@ -154,7 +156,7 @@ export declare class CliOperationClient {
  * returned value must be injected into the Bus process environment only and
  * must never be logged, echoed into an error, or written to disk.
  */
-export declare function fetchHostControlToken(busHttpBase?: string): Promise<string>;
+export declare function fetchHostControlToken(busHttpBase: string): Promise<string>;
 /**
  * The vault key that seals a device-protected identity, scoped to one Floe
  * home. Reading never mints one; `create` does, once. Only the identity agent
@@ -172,13 +174,13 @@ export declare function forgetIdentityDeviceKey(home: string): Promise<boolean>;
  * injected into the Bridge process environment only and never logged or
  * persisted.
  */
-export declare function fetchBridgeServiceToken(bridgeId?: string, busHttpBase?: string): Promise<string>;
+export declare function fetchBridgeServiceToken(bridgeId: string, busHttpBase: string): Promise<string>;
 /**
  * Register the current directory as a local Workspace and select it, through
  * the native broker. Registration is a host-control bootstrap route, so the CLI
  * authenticates through the broker rather than an unauthenticated HTTP call.
  */
-export declare function registerLocalWorkspaceViaBroker(locator: string, initAuthorized: boolean, busHttpBase?: string): Promise<{
+export declare function registerLocalWorkspaceViaBroker(locator: string, initAuthorized: boolean, busHttpBase: string): Promise<{
     workspace_id: string;
     name: string;
 }>;

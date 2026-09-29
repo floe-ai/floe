@@ -17,7 +17,7 @@ import {
   resolveLocalPath,
   runFilePath,
   thisInstallation
-} from "./chunk-NZ4OQWLD.js";
+} from "./chunk-2CSRJ5FI.js";
 
 // floe-cli/dist/startup.js
 import { randomUUID } from "node:crypto";
@@ -58,9 +58,13 @@ function isPidRunning(pid) {
 }
 function serviceEntry(service) {
   if (service === "identity") {
-    const entry = join(dirname(fileURLToPath(import.meta.url)), "identity", "agent-main.js");
+    const here = dirname(fileURLToPath(import.meta.url));
+    const entry = join(here, "identity", "agent-main.js");
+    const built = resolve(here, "..", "dist", "identity", "agent-main.js");
     if (existsSync(entry))
       return entry;
+    if (existsSync(built))
+      return built;
     throw new Error(`Floe cannot find its identity agent at ${entry}. The install is incomplete. In a dev checkout, run \`npm run build --workspace floe-cli\`; a released install already includes it.`);
   }
   const pkg = service === "bus" ? "floe-bus" : "floe-bridge";
@@ -83,7 +87,7 @@ async function startService(configPath, config, service, extraEnv = {}, instance
     return existing;
   const entry = await runnableEntry(configPath, config, records, serviceEntry(service));
   const command = process.execPath;
-  const args = [entry, "daemon", "--config", configPath];
+  const args = [entry, "daemon", "--config", configPath, ...service === "bus" && instanceId ? ["--instance-id", instanceId] : []];
   const defaultLogFile = serviceLogPath(configPath, config, service);
   mkdirSync(dirname(defaultLogFile), { recursive: true });
   const { logFile, logFd } = openServiceLog(defaultLogFile, service);
@@ -92,13 +96,11 @@ async function startService(configPath, config, service, extraEnv = {}, instance
     detached: true,
     stdio: ["ignore", logFd, logFd],
     windowsHide: true,
+    // Services read everything from the config named by --config. The only
+    // values passed through the environment are per-start secrets (extraEnv),
+    // which must not appear on a command line.
     env: {
       ...process.env,
-      FLOE_CONFIG: configPath,
-      FLOE_BUS_HTTP_URL: config.bus.http_base_url,
-      FLOE_BUS_WS_URL: config.bus.ws_base_url,
-      ...service === "bus" && instanceId ? { FLOE_BUS_INSTANCE_ID: instanceId } : {},
-      ...service === "bridge" && config.bridge.runtime_adapter ? { FLOE_RUNTIME_ADAPTER: config.bridge.runtime_adapter } : {},
       ...extraEnv
     }
   });

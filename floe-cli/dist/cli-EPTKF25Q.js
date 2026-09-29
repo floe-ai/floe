@@ -16,7 +16,7 @@ import {
   startAll,
   stopService,
   waitForBusHealth
-} from "./chunk-72JYSOQF.js";
+} from "./chunk-6VDGR2FR.js";
 import {
   CliOperationClient,
   __commonJS,
@@ -28,12 +28,13 @@ import {
   external_exports,
   fetchHostControlToken,
   forgetIdentityDeviceKey,
+  nativeOperationBroker,
   registerLocalWorkspaceViaBroker,
   require_dist,
   resolveLocalPath,
   selectLocalWorkspace,
   thisInstallation
-} from "./chunk-NZ4OQWLD.js";
+} from "./chunk-2CSRJ5FI.js";
 
 // node_modules/commander/lib/error.js
 var require_error = __commonJS({
@@ -3193,7 +3194,7 @@ ${confirmation.description}
   }
 }
 function createClient(dependencies) {
-  return dependencies.client?.() ?? new CliOperationClient();
+  return dependencies.client();
 }
 function write(dependencies, message) {
   (dependencies.output ?? console.log)(message);
@@ -4047,7 +4048,9 @@ program2.command("reset").description("Factory reset: wipe all Floe state (works
   }
   console.log("\nReset complete. Run `floe setup` or `floe start` to start fresh.");
 });
-registerOperationsCommand(program2, {});
+registerOperationsCommand(program2, {
+  client: () => new CliOperationClient(nativeOperationBroker(ensureConfig(program2.opts().config).config.bus.http_base_url))
+});
 registerIdentityCommand(program2, {});
 var surfaceCommand = program2.command("surface").description("List and manage surfaces (how you use Floe)");
 surfaceCommand.command("list").description("List detected and registered surfaces").action(() => {

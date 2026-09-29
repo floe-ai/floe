@@ -11496,7 +11496,7 @@ function expandHome(pathValue) {
   return pathValue;
 }
 function resolveConfigPath(explicitPath) {
-  return resolve(expandHome(explicitPath ?? process.env.FLOE_CONFIG ?? join(homedir(), ".floe", "config.yaml")));
+  return resolve(expandHome(explicitPath ?? join(homedir(), ".floe", "config.yaml")));
 }
 function resolveLocalPath(configPath, home, pathValue) {
   const expanded = expandHome(pathValue);
@@ -11943,7 +11943,7 @@ var CliAuthorityBrokerUnavailableError = class extends Error {
 };
 var NativeCliOperationAuthorityBroker = class {
   run;
-  constructor(run = runNativeAuthorityCommand) {
+  constructor(run) {
     this.run = run;
   }
   listLocalWorkspaces() {
@@ -11968,10 +11968,13 @@ var NativeCliOperationAuthorityBroker = class {
     return this.run({ command: "confirm_and_invoke_workspace_operation", ...input });
   }
 };
+function nativeOperationBroker(busHttpBase) {
+  return new NativeCliOperationAuthorityBroker((command) => runNativeAuthorityCommand(command, busHttpBase));
+}
 var CliOperationClient = class {
   broker;
   interactionSessionId;
-  constructor(broker = new NativeCliOperationAuthorityBroker(), interactionSessionId) {
+  constructor(broker, interactionSessionId) {
     this.broker = broker;
     this.interactionSessionId = interactionSessionId ?? `cli_${randomBytes2(18).toString("base64url")}`;
   }
@@ -12036,15 +12039,13 @@ async function runNativeAuthorityCommand(command, busHttpBase) {
   if (!helper)
     throw new CliAuthorityBrokerUnavailableError();
   const payload = JSON.stringify(command);
+  const { FLOE_BUS_HTTP_BASE: _inherited, ...inherited } = process.env;
   return new Promise((resolveResult, reject) => {
     const child = spawn(helper, [], {
       shell: false,
       windowsHide: true,
       stdio: ["pipe", "pipe", "ignore"],
-      // The Bus location has one source of truth: config.bus.http_base_url.
-      // The broker must talk to that same Bus, so we derive its FLOE_BUS_HTTP_BASE
-      // here instead of relying on a value a human would have to know to export.
-      env: busHttpBase ? { ...process.env, FLOE_BUS_HTTP_BASE: busHttpBase } : process.env
+      env: busHttpBase ? { ...inherited, FLOE_BUS_HTTP_BASE: busHttpBase } : inherited
     });
     const chunks = [];
     let bytes = 0;
@@ -12105,7 +12106,7 @@ async function fetchHostControlToken(busHttpBase) {
   return result.token;
 }
 async function fetchIdentityDeviceKey(home, create) {
-  const result = await runNativeAuthorityCommand({ command: "identity_device_key", home, create });
+  const result = await runNativeAuthorityCommand({ command: "identity_device_key", home, create }, null);
   if (!isRecord(result) || !("key" in result))
     throw new Error("Floe's native authority broker returned no device key answer.");
   if (result.key === null)
@@ -12118,10 +12119,10 @@ async function fetchIdentityDeviceKey(home, create) {
   return key;
 }
 async function forgetIdentityDeviceKey(home) {
-  const result = await runNativeAuthorityCommand({ command: "forget_identity_device_key", home });
+  const result = await runNativeAuthorityCommand({ command: "forget_identity_device_key", home }, null);
   return isRecord(result) && result.removed === true;
 }
-async function fetchBridgeServiceToken(bridgeId = "bridge:local", busHttpBase) {
+async function fetchBridgeServiceToken(bridgeId, busHttpBase) {
   const result = await runNativeAuthorityCommand({
     command: "provide_bridge_service_token",
     bridge_id: bridgeId
@@ -12144,13 +12145,11 @@ async function registerLocalWorkspaceViaBroker(locator, initAuthorized, busHttpB
 }
 function resolveNativeAuthorityBrokerPath() {
   const executable = process.platform === "win32" ? "floe-authority-broker.exe" : "floe-authority-broker";
-  const configured = process.env.FLOE_AUTHORITY_BROKER_PATH?.trim();
   const moduleDirectory = dirname4(fileURLToPath2(import.meta.url));
   const candidates = [
-    configured,
     resolve3(moduleDirectory, "..", "native", executable),
     resolve3(dirname4(process.execPath), executable)
-  ].filter((candidate) => Boolean(candidate));
+  ];
   return candidates.find((candidate) => existsSync5(candidate)) ?? null;
 }
 function selectLocalWorkspace(workspaces, explicitWorkspaceId, cwd = process.cwd()) {
@@ -12248,6 +12247,7 @@ export {
   pruneStages,
   thisInstallation,
   directInstallRequiredMessage,
+  nativeOperationBroker,
   CliOperationClient,
   fetchHostControlToken,
   fetchIdentityDeviceKey,

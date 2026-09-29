@@ -62968,7 +62968,7 @@ function expandHome(pathValue) {
   return pathValue;
 }
 function resolveConfigPath(explicitPath) {
-  const configured = explicitPath ?? process.env.FLOE_CONFIG ?? join(homedir(), ".floe", "config.yaml");
+  const configured = explicitPath ?? join(homedir(), ".floe", "config.yaml");
   return resolve(expandHome(configured));
 }
 function resolveLocalPath(configPath, home, pathValue) {
@@ -103383,6 +103383,33 @@ var BusStore = class {
     return result;
   }
   /**
+   * The event that started the chain a runtime turn belongs to. A resumed turn
+   * is caused by an answer (request.result), which answers a request, which a
+   * turn made while handling its own trigger; follow those links back to the
+   * first event that no turn caused — normally what the person sent.
+   */
+  originEventId(event) {
+    let current = event;
+    for (let hops = 0; hops < 32; hops += 1) {
+      const requestEventId = current.type === "request.result" ? typeof current.metadata?.request_event_id === "string" ? current.metadata.request_event_id : null : current.type === "request" ? current.event_id : null;
+      if (!requestEventId)
+        return current.event_id;
+      const requestRow = this.db.prepare("SELECT * FROM events WHERE event_id = ?").get(requestEventId);
+      if (!requestRow)
+        return current.event_id;
+      const request = this.rowToEvent(requestRow);
+      const parentDeliveryId = request.metadata?.request_parent_delivery_id;
+      if (typeof parentDeliveryId !== "string")
+        return request.event_id;
+      const parent = this.db.prepare("SELECT trigger_event_id FROM delivery_bundles WHERE delivery_id = ?").get(parentDeliveryId);
+      const parentTriggerRow = parent ? this.db.prepare("SELECT * FROM events WHERE event_id = ?").get(parent.trigger_event_id) : null;
+      if (!parentTriggerRow)
+        return request.event_id;
+      current = this.rowToEvent(parentTriggerRow);
+    }
+    return current.event_id;
+  }
+  /**
    * Record one runtime delivery's public conclusion without routing it. When
    * the delivery was caused by an exact correlated request to this endpoint,
    * also enqueue a compact return event in the requester's original Context.
@@ -103421,6 +103448,19 @@ var BusStore = class {
       if (!context || context.workspace_id !== trigger.workspace_id) {
         throw new Error(`Context not found for runtime result: ${resultContextId}`);
       }
+      const childRequestRows = this.db.prepare(`
+        SELECT pr.*, e.metadata_json
+        FROM pending_responses pr
+        JOIN events e ON e.event_id = pr.source_event_id
+        WHERE pr.waiting_endpoint_id = ?
+      `).all(delivery.endpoint_id);
+      const awaitingRequestEventIds = childRequestRows.filter((row) => parseJson4(row.metadata_json).request_parent_delivery_id === input.delivery_id).map((row) => String(row.source_event_id));
+      const madeChildRequest = awaitingRequestEventIds.length > 0;
+      const chain2 = {
+        final: !madeChildRequest,
+        awaiting_request_event_ids: awaitingRequestEventIds,
+        origin_event_id: this.originEventId(trigger)
+      };
       const resultEvent = this.insertEvent({
         type: "message",
         workspace_id: trigger.workspace_id,
@@ -103438,7 +103478,8 @@ var BusStore = class {
             scope_execution_id: canonicalNode?.execution_id ?? null,
             composition_revision_id: canonicalNode?.revision_id ?? null,
             node_execution_id: canonicalNode?.node_execution_id ?? null,
-            execution_attempt_id: canonicalAttempt?.attempt_id ?? null
+            execution_attempt_id: canonicalAttempt?.attempt_id ?? null,
+            ...chain2
           }
         },
         metadata: {
@@ -103450,7 +103491,8 @@ var BusStore = class {
           scope_execution_id: canonicalNode?.execution_id ?? null,
           composition_revision_id: canonicalNode?.revision_id ?? null,
           node_execution_id: canonicalNode?.node_execution_id ?? null,
-          execution_attempt_id: canonicalAttempt?.attempt_id ?? null
+          execution_attempt_id: canonicalAttempt?.attempt_id ?? null,
+          ...chain2
         },
         idempotency_key: resultIdempotencyKey
       }, this.normalizeResponse({ expected: false }), resultContextId);
@@ -103463,16 +103505,6 @@ var BusStore = class {
       const requestRow = continuationRequestEventId ? this.db.prepare("SELECT * FROM events WHERE event_id = ?").get(continuationRequestEventId) : null;
       const requestEvent = requestRow ? this.rowToEvent(requestRow) : null;
       const requestedDestination = requestEvent?.destination_json.kind === "endpoint" ? requestEvent.destination_json.endpoint_id : null;
-      const childRequestRows = this.db.prepare(`
-        SELECT pr.*, e.metadata_json
-        FROM pending_responses pr
-        JOIN events e ON e.event_id = pr.source_event_id
-        WHERE pr.waiting_endpoint_id = ?
-      `).all(delivery.endpoint_id);
-      const madeChildRequest = childRequestRows.some((row) => {
-        const metadata = parseJson4(row.metadata_json);
-        return metadata.request_parent_delivery_id === input.delivery_id;
-      });
       if (madeChildRequest && canonicalNode && !["completed", "failed", "cancelled"].includes(canonicalNode.status)) {
         this.scopeExecutionStore.setNodeExecutionStatus(canonicalNode.node_execution_id, "waiting_external", {
           code: "actor_request_pending",
@@ -103508,7 +103540,8 @@ var BusStore = class {
               request_event_id: requestEvent.event_id,
               result_event_id: resultEvent.event_id,
               responding_endpoint_id: delivery.endpoint_id,
-              result_context_id: resultContextId
+              result_context_id: resultContextId,
+              origin_event_id: chain2.origin_event_id
             }
           },
           metadata: {
@@ -103518,6 +103551,7 @@ var BusStore = class {
             result_event_id: resultEvent.event_id,
             responding_endpoint_id: delivery.endpoint_id,
             result_context_id: resultContextId,
+            origin_event_id: chain2.origin_event_id,
             scope_execution_id: canonicalContinuationValid ? parentNodeExecution.execution_id : null,
             composition_revision_id: canonicalContinuationValid ? parentNodeExecution.revision_id : null,
             node_execution_id: canonicalContinuationValid ? parentNodeExecution.node_execution_id : null,
@@ -113072,8 +113106,8 @@ function registerContextDiagnosticRoutes(app, store, getRuntimeStatus) {
       generated_at: (/* @__PURE__ */ new Date()).toISOString(),
       source: {
         component: "floe-bus",
-        release_version: process.env.FLOE_RELEASE_VERSION ?? null,
-        build_sha: process.env.FLOE_BUILD_SHA ?? null
+        release_version: BUS_VERSION,
+        build_sha: null
       },
       workspace: { workspace_id: params.workspace_id },
       context: {
@@ -113138,7 +113172,7 @@ var DEFAULT_TRUSTED_BROWSER_ORIGINS = Object.freeze([
   "http://localhost:5379",
   "http://127.0.0.1:5379"
 ]);
-function trustedBrowserOrigins(configured = process.env.FLOE_ALLOWED_ORIGINS) {
+function trustedBrowserOrigins(configured) {
   const additions = (configured ?? "").split(",").map((value) => value.trim()).filter(Boolean);
   return /* @__PURE__ */ new Set([...DEFAULT_TRUSTED_BROWSER_ORIGINS, ...additions]);
 }
@@ -114188,11 +114222,8 @@ async function createBusServer(configPath, config, options = {}) {
   app.get("/health", async () => ({
     ok: true,
     service: "floe-bus",
-    // The instance id is minted by whoever started this process (the CLI sets
-    // FLOE_BUS_INSTANCE_ID) and recorded alongside the pid. It lets the starter
-    // prove that a bus answering on a URL is the exact process it launched — not
-    // a stale predecessor or a different install that happens to hold the port.
-    instance_id: process.env.FLOE_BUS_INSTANCE_ID ?? null,
+    // See BusServerOptions.instance_id.
+    instance_id: options.instance_id ?? null,
     // The Floe release this bus is. Two copies of Floe can exist on one machine
     // (a direct install and one inside a surface); whichever started serves, so
     // a client needs this to tell it connected to a different version.
@@ -117005,7 +117036,9 @@ async function createBusServer(configPath, config, options = {}) {
     const body = external_exports.object({
       delivery_id: external_exports.string().min(1),
       outcome: external_exports.enum(["completed", "failed"]),
-      text: external_exports.string().min(1),
+      // A turn that ends without visible text still ends: it is recorded with
+      // empty text so a finished turn is a fact, not an inference.
+      text: external_exports.string(),
       metadata: external_exports.record(external_exports.unknown()).optional()
     }).parse(request.body);
     if (!testBypassedRequests.has(request) && !bridgeOwnsDelivery(store, bridgeAuthority.bridge_id, body.delivery_id)) {
@@ -117898,6 +117931,7 @@ async function main() {
   delete process.env.FLOE_HOST_CONTROL_TOKEN;
   const server = await createBusServer(configPath, config, {
     host_control_token: hostControlToken,
+    instance_id: getArgValue("--instance-id"),
     local_browser_access: true,
     workspace_configuration_policy: localProductWorkspacePolicy
   });

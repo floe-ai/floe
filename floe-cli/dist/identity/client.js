@@ -4,8 +4,8 @@ import {
   IdentityClient,
   IdentityError,
   connectIdentity
-} from "../chunk-72JYSOQF.js";
-import "../chunk-NZ4OQWLD.js";
+} from "../chunk-6VDGR2FR.js";
+import "../chunk-2CSRJ5FI.js";
 export {
   AgentUnavailableError,
   IdentityClient,

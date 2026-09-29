@@ -4125,7 +4125,7 @@ function expandHome(pathValue) {
   return pathValue;
 }
 function resolveConfigPath(explicitPath) {
-  return resolve(expandHome(explicitPath ?? process.env.FLOE_CONFIG ?? join(homedir(), ".floe", "config.yaml")));
+  return resolve(expandHome(explicitPath ?? join(homedir(), ".floe", "config.yaml")));
 }
 function resolveLocalPath(configPath, home, pathValue) {
   const expanded = expandHome(pathValue);
@@ -4174,15 +4174,11 @@ function ensureConfig(explicitPath) {
   return { configPath, config };
 }
 function bridgeHttpBase(config) {
-  if (process.env.FLOE_BUS_HTTP_URL)
-    return process.env.FLOE_BUS_HTTP_URL;
   if (config.bus.http_base_url)
     return config.bus.http_base_url;
   return config.bridge.bus_url.replace(/^ws:/, "http:").replace(/^wss:/, "https:");
 }
 function bridgeWsBase(config) {
-  if (process.env.FLOE_BUS_WS_URL)
-    return process.env.FLOE_BUS_WS_URL;
   if (config.bus.ws_base_url)
     return config.bus.ws_base_url;
   return config.bridge.bus_url;
@@ -9143,41 +9139,33 @@ var FloeRuntimeAdapter = class {
       return;
     turn.finalized = true;
     const output = turn.visible_output.trim();
-    if (output.length > 0) {
-      const recorded = await context.bus.recordRuntimeTurnResult({
-        delivery_id: turn.delivery_id,
-        outcome: "completed",
-        text: output,
-        metadata: {
-          runtime: this.name,
-          runtime_turn_id: turn.runtime_turn_id,
-          execution_attempt_id: turn.execution_attempt_id,
-          node_execution_id: turn.node_execution_id,
-          composition_revision_id: turn.composition_revision_id,
-          stop_reason: result2.stopReason,
-          session_id: result2.sessionId
-        }
-      });
-      console.log("[bridge] floe-runtime turn result recorded", {
+    const recorded = await context.bus.recordRuntimeTurnResult({
+      delivery_id: turn.delivery_id,
+      outcome: "completed",
+      text: output,
+      metadata: {
+        runtime: this.name,
         runtime_turn_id: turn.runtime_turn_id,
-        delivery_id: turn.delivery_id,
-        output_length: output.length,
-        request_resolved: recorded.request_resolved
-      });
-      await this.appendTelemetry(context, turn, "turn_result", {
-        text: output,
-        result_event_id: recorded.result_event.event_id,
-        request_resolved: recorded.request_resolved,
-        return_event_id: recorded.return_event?.event_id ?? null,
-        stop_reason: result2.stopReason
-      });
-    } else {
-      console.log("[bridge] floe-runtime no visible output", {
-        runtime_turn_id: turn.runtime_turn_id,
-        delivery_id: turn.delivery_id,
-        stop_reason: result2.stopReason
-      });
-    }
+        execution_attempt_id: turn.execution_attempt_id,
+        node_execution_id: turn.node_execution_id,
+        composition_revision_id: turn.composition_revision_id,
+        stop_reason: result2.stopReason,
+        session_id: result2.sessionId
+      }
+    });
+    console.log("[bridge] floe-runtime turn result recorded", {
+      runtime_turn_id: turn.runtime_turn_id,
+      delivery_id: turn.delivery_id,
+      output_length: output.length,
+      request_resolved: recorded.request_resolved
+    });
+    await this.appendTelemetry(context, turn, "turn_result", {
+      text: output,
+      result_event_id: recorded.result_event.event_id,
+      request_resolved: recorded.request_resolved,
+      return_event_id: recorded.return_event?.event_id ?? null,
+      stop_reason: result2.stopReason
+    });
   }
   async recordUsage(context, turn, result2) {
     await this.appendTelemetry(context, turn, "visible_output", { text: turn.visible_output });
@@ -9756,7 +9744,7 @@ var BridgeDaemon = class {
   constructor(configPath, config, options = {}) {
     this.configPath = configPath;
     this.config = config;
-    this.bridgeId = options.bridge_id ?? process.env.FLOE_BRIDGE_ID ?? "bridge:local";
+    this.bridgeId = options.bridge_id ?? "bridge:local";
     const injectedToken = Object.prototype.hasOwnProperty.call(options, "transport_authority") ? options.transport_authority?.bearer_token ?? "" : process.env.FLOE_BRIDGE_SERVICE_TOKEN ?? "";
     this.#bridgeServiceToken = injectedToken.trim() || null;
     this.bus = new BusClient(bridgeHttpBase(config), this.#bridgeServiceToken ? { audience: "bridge_service", bearer_token: this.#bridgeServiceToken } : null);
@@ -9776,9 +9764,7 @@ var BridgeDaemon = class {
     await this.bus.registerBridge({
       runtime_adapters: [this.adapter.name],
       workspace_access: this.config.bridge.workspace_access,
-      capabilities: ["workspace_attach", "project_template_init", "agent_endpoint_registration", "delivery_claim"],
-      release_version: process.env.FLOE_RELEASE_VERSION ?? null,
-      build_sha: process.env.FLOE_BUILD_SHA ?? null
+      capabilities: ["workspace_attach", "project_template_init", "agent_endpoint_registration", "delivery_claim"]
     });
     this.openEventStream();
     await this.attachKnownWorkspaces();
@@ -10682,7 +10668,7 @@ var BridgeDaemon = class {
   }
 };
 function chooseAdapter(_configPath, config) {
-  const configured = process.env.FLOE_RUNTIME_ADAPTER ?? config.bridge.runtime_adapter;
+  const configured = config.bridge.runtime_adapter;
   if (!configured)
     return new FloeRuntimeAdapter();
   const selected = configured.trim().toLowerCase();
@@ -10690,7 +10676,7 @@ function chooseAdapter(_configPath, config) {
     return new FakeRuntimeAdapter();
   if (selected === "floe-runtime")
     return new FloeRuntimeAdapter();
-  throw new Error(`Unsupported FLOE runtime adapter "${selected}". Use "fake" or "floe-runtime".`);
+  throw new Error(`Unsupported bridge.runtime_adapter "${selected}" in the Floe config. Use "fake" or "floe-runtime".`);
 }
 function runtimeAdapterMatches(requiredAdapterId, activeAdapterName) {
   const required = requiredAdapterId.trim().toLowerCase();

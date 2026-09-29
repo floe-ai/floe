@@ -14,7 +14,7 @@ export type IdentityCommandDependencies = Readonly<{
     resolve_config?: () => {
         config: LocalConfig;
     };
-    fetch_host_control_token?: (busHttpBase?: string) => Promise<string>;
+    fetch_host_control_token?: (busHttpBase: string) => Promise<string>;
     fetch?: typeof fetch;
     cwd?: () => string;
 }>;
