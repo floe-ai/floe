@@ -11682,7 +11682,8 @@ import { fileURLToPath } from "node:url";
 // floe-cli/dist/staging.js
 import { existsSync as existsSync3, mkdirSync as mkdirSync3, readdirSync, readFileSync as readFileSync3, realpathSync, renameSync as renameSync2, rmSync, statSync, writeFileSync as writeFileSync3 } from "node:fs";
 import { copyFile, link } from "node:fs/promises";
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash2, randomBytes as randomBytes2 } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
 import { basename, dirname as dirname2, join as join3, relative, sep } from "node:path";
 var STAGE_MANIFEST = "stage.json";
 function isNpmInstalled(packageDir) {
@@ -11832,22 +11833,40 @@ async function ensureStage(home, source) {
     root,
     created_at: (/* @__PURE__ */ new Date()).toISOString()
   };
-  const partial = join3(runtime, `.partial-${id}-${process.pid}`);
-  rmSync(partial, { recursive: true, force: true });
+  const partial = join3(runtime, `.partial-${id}-${randomBytes2(4).toString("hex")}-${process.pid}`);
   mkdirSync3(partial, { recursive: true });
   await buildTree(closure, root, join3(partial, "tree"));
   writeFileSync3(join3(partial, STAGE_MANIFEST), `${JSON.stringify(manifest, null, 2)}
 `, "utf8");
-  try {
-    renameSync2(partial, dir);
-  } catch (error) {
-    rmSync(partial, { recursive: true, force: true });
-    const raced = readJson(join3(dir, STAGE_MANIFEST));
-    if (raced?.kind !== "floe-stage")
-      throw error;
-    return makeStage(dir, raced);
+  const placed = await placeStage(partial, dir);
+  return makeStage(dir, placed ?? manifest);
+}
+var RENAME_PATIENCE_MS = 3e4;
+async function placeStage(partial, dir) {
+  const deadline = Date.now() + RENAME_PATIENCE_MS;
+  for (let wait = 25; ; wait = Math.min(wait * 2, 1e3)) {
+    try {
+      renameSync2(partial, dir);
+      return null;
+    } catch (error) {
+      const placed = readJson(join3(dir, STAGE_MANIFEST));
+      if (placed?.kind === "floe-stage") {
+        discard(partial);
+        return placed;
+      }
+      if (!["EPERM", "EACCES", "EBUSY", "ENOTEMPTY", "EEXIST"].includes(error?.code) || Date.now() >= deadline) {
+        discard(partial);
+        throw new Error(`Floe could not finish preparing its runtime copy in ${dir}: another program kept its files in use (${error?.code ?? "unknown"}). Close anything scanning or using that folder, then start Floe again.`, { cause: error });
+      }
+      await sleep(wait);
+    }
   }
-  return makeStage(dir, manifest);
+}
+function discard(partial) {
+  try {
+    rmSync(partial, { recursive: true, force: true, maxRetries: 3 });
+  } catch {
+  }
 }
 function stageOf(path) {
   let dir = path;
@@ -11948,7 +11967,7 @@ start-at-login. Install Floe directly for that, then run \`floe service install\
 
 // floe-cli/dist/operation-client.js
 import { isAbsolute as isAbsolute2, relative as relative2, resolve as resolve3, dirname as dirname4 } from "node:path";
-import { randomBytes as randomBytes2 } from "node:crypto";
+import { randomBytes as randomBytes3 } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync as existsSync5 } from "node:fs";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
@@ -11993,7 +12012,7 @@ var CliOperationClient = class {
   interactionSessionId;
   constructor(broker, interactionSessionId) {
     this.broker = broker;
-    this.interactionSessionId = interactionSessionId ?? `cli_${randomBytes2(18).toString("base64url")}`;
+    this.interactionSessionId = interactionSessionId ?? `cli_${randomBytes3(18).toString("base64url")}`;
   }
   async listLocalWorkspaces() {
     const response = await this.broker.listLocalWorkspaces();
@@ -12234,7 +12253,7 @@ function resolveIdempotencyKey(descriptor, provided) {
   if (descriptor.effects.mode === "write") {
     throw new Error(`Operation '${descriptor.operation_id}' writes, so it needs --idempotency-key <stable key> \u2014 a stable key lets a retry replay safely instead of applying twice.`);
   }
-  return `read:${randomBytes2(12).toString("base64url")}`;
+  return `read:${randomBytes3(12).toString("base64url")}`;
 }
 
 export {

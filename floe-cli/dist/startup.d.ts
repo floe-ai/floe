@@ -43,7 +43,8 @@ export declare function planSubstrateStart(reachable: boolean, startOnDemand: bo
  * "connect". Otherwise consult the machine's start_on_demand policy — start the
  * substrate ("start") or refuse and report "blocked". This is the single
  * client-side readiness path shared by the launcher, `floe up`, and
- * `floe <surface>`.
+ * `floe <surface>`. It runs as one start (start-lock.ts): a client that
+ * arrives while another start is running waits for it, then connects.
  */
 export declare function ensureSubstrateForClient(configPath: string, config: LocalConfig): Promise<SubstratePlan>;
 export declare function floeHome(configPath: string, config: LocalConfig): string;
@@ -53,6 +54,10 @@ export declare function floeHome(configPath: string, config: LocalConfig): strin
  * it completes a real handshake, failing with its log if it exits first.
  */
 export declare function ensureIdentityAgent(configPath: string, config: LocalConfig): Promise<void>;
+/**
+ * Start Floe for this home. Starts of the same home take turns (start-lock.ts),
+ * so a second start waits for the first and then finds its services running.
+ */
 export declare function startAll(configPath: string, config: LocalConfig): Promise<void>;
 /**
  * Connect-first for the Bridge: if its engine control answers for this Floe

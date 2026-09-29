@@ -2,10 +2,10 @@ import { createRequire as __floeCreateRequire } from 'node:module'; const requir
 import {
   ChannelClient,
   connectChannel
-} from "./chunk-K6MQI5X7.js";
+} from "./chunk-S743VT2Q.js";
 import {
   IDENTITY_CHANNEL
-} from "./chunk-PQSQM3MJ.js";
+} from "./chunk-FUQ57RD4.js";
 
 // floe-cli/dist/identity/client.js
 var IdentityError = class extends Error {

@@ -22,7 +22,7 @@ import {
   resolveLocalPath,
   thisInstallation,
   writeChannelRunFile
-} from "../chunk-PQSQM3MJ.js";
+} from "../chunk-FUQ57RD4.js";
 
 // floe-cli/dist/identity/agent.js
 import { randomUUID } from "node:crypto";

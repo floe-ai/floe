@@ -7167,7 +7167,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
         this.#publishSignIn(
           operation,
           "waiting_for_person",
-          mode === "browser" ? "A browser should open for GitHub sign-in. If it doesn't, cancel this sign-in and run the official Copilot CLI sign-in in a terminal, then try again." : "Finish GitHub device sign-in in the terminal running Floe. If you can't see the code, cancel this sign-in and run the official Copilot CLI sign-in in a terminal, then try again."
+          mode === "browser" ? "A browser should open for GitHub sign-in. If it doesn't, cancel this sign-in and try again." : "Finish GitHub device sign-in with the code shown for this sign-in. If no code is visible, cancel this sign-in and try again."
         );
       }
     });

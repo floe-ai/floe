@@ -3,8 +3,10 @@ import {
   IDENTITY_CHANNEL,
   PROTOCOL_VERSION,
   canonicalHome,
+  channelAddress,
   channelProof,
   ensureConfig,
+  ensureRunDir,
   ensureStage,
   fetchBridgeServiceToken,
   fetchHostControlToken,
@@ -19,7 +21,7 @@ import {
   resolveLocalPath,
   runFilePath,
   thisInstallation
-} from "./chunk-PQSQM3MJ.js";
+} from "./chunk-FUQ57RD4.js";
 
 // floe-cli/dist/process-manager.js
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
@@ -289,6 +291,106 @@ var ENGINES_CHANNEL = {
 // floe-cli/dist/startup.js
 import { randomUUID } from "node:crypto";
 import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+
+// floe-cli/dist/start-lock.js
+import { createConnection as createConnection2, createServer } from "node:net";
+import { unlinkSync as unlinkSync2 } from "node:fs";
+var START_CHANNEL = {
+  name: "start",
+  label: "Floe start",
+  runFile: "start.json",
+  socketFile: "start.sock"
+};
+var WAIT_LIMIT_MS = 18e4;
+var StartInProgressError = class extends Error {
+  home;
+  code = "E_START_IN_PROGRESS";
+  constructor(home) {
+    super(`Another start of Floe for ${home} has not finished after ${WAIT_LIMIT_MS / 6e4} minutes. If nothing else is starting Floe, run \`floe stop\` and start it again.`);
+    this.home = home;
+    this.name = "StartInProgressError";
+  }
+};
+async function withStartLock(home, start, waitLimitMs = WAIT_LIMIT_MS) {
+  const release = await acquire(home, waitLimitMs);
+  try {
+    return await start();
+  } finally {
+    await release();
+  }
+}
+async function acquire(home, waitLimitMs) {
+  ensureRunDir(home);
+  const address = channelAddress(START_CHANNEL, home);
+  const deadline = Date.now() + waitLimitMs;
+  for (; ; ) {
+    const release = await hold(address);
+    if (release)
+      return release;
+    const outcome = await waitForRelease(address, deadline - Date.now());
+    if (outcome === "timeout")
+      throw new StartInProgressError(home);
+    if (outcome === "stale") {
+      try {
+        unlinkSync2(address);
+      } catch {
+      }
+    }
+  }
+}
+function hold(address) {
+  const waiting = /* @__PURE__ */ new Set();
+  const server = createServer((socket) => {
+    waiting.add(socket);
+    socket.on("error", () => {
+    });
+    socket.on("close", () => waiting.delete(socket));
+  });
+  return new Promise((resolve2, reject) => {
+    server.once("error", (error) => {
+      if (error.code === "EADDRINUSE")
+        resolve2(null);
+      else
+        reject(error);
+    });
+    server.listen(address, () => {
+      resolve2(() => new Promise((done) => {
+        server.close(() => done());
+        for (const socket of waiting)
+          socket.destroy();
+      }));
+    });
+  });
+}
+function waitForRelease(address, remainingMs) {
+  if (remainingMs <= 0)
+    return Promise.resolve("timeout");
+  return new Promise((resolve2) => {
+    let connected = false;
+    const socket = createConnection2(address);
+    const timer = setTimeout(() => {
+      socket.destroy();
+      resolve2("timeout");
+    }, remainingMs);
+    const finish = (outcome) => {
+      clearTimeout(timer);
+      resolve2(outcome);
+    };
+    socket.once("connect", () => {
+      connected = true;
+    });
+    socket.on("data", () => {
+    });
+    socket.once("error", (error) => {
+      if (connected)
+        return;
+      finish(process.platform !== "win32" && error.code === "ECONNREFUSED" ? "stale" : "released");
+    });
+    socket.once("close", () => finish("released"));
+  });
+}
+
+// floe-cli/dist/startup.js
 var ForeignBusError = class extends Error {
   url;
   code = "E_FOREIGN_BUS";
@@ -386,11 +488,14 @@ function planSubstrateStart(reachable, startOnDemand) {
     return "connect";
   return startOnDemand ? "start" : "blocked";
 }
-async function ensureSubstrateForClient(configPath, config) {
+function ensureSubstrateForClient(configPath, config) {
+  return withStartLock(floeHome(configPath, config), () => ensureSubstrateHeld(configPath, config));
+}
+async function ensureSubstrateHeld(configPath, config) {
   const reachable = await isHealthy(config.bus.http_base_url);
   const plan = planSubstrateStart(reachable, config.services.start_on_demand);
   if (plan === "start")
-    await startAll(configPath, config);
+    await startAllHeld(configPath, config);
   if (plan === "connect" && config.services.start_on_demand) {
     await ensureIdentityAgent(configPath, config);
     if ((await classifyRunningBus(configPath, config)).state === "mine")
@@ -422,7 +527,10 @@ ${readLogTail(record.log_file)}`);
   throw new Error(`${label} did not become ready within 15s. Last lines of ${record.log_file}:
 ${readLogTail(record.log_file)}`);
 }
-async function startAll(configPath, config) {
+function startAll(configPath, config) {
+  return withStartLock(floeHome(configPath, config), () => startAllHeld(configPath, config));
+}
+async function startAllHeld(configPath, config) {
   const busUrl = config.bus.http_base_url;
   const before = await classifyRunningBus(configPath, config);
   if (before.state === "foreign")
