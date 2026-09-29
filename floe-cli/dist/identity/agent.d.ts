@@ -29,6 +29,8 @@ export type AgentDeps = {
     lockAfterIdleMs: number;
     /** Read (or with `create`, mint) the vault key for device protection; null when absent. */
     deviceKey: (create: boolean) => Promise<Uint8Array | null>;
+    /** Remove this home's device key from the vault; true when one was removed. */
+    forgetDeviceKey: () => Promise<boolean>;
     /** host_control from the native broker, for re-admission and revocation only. */
     hostToken: () => Promise<string>;
     fetch?: typeof fetch;
@@ -68,7 +70,7 @@ export declare class IdentityAgent {
      * "I forgot my passphrase and have no recovery phrase": re-admission, not
      * recovery. A new identity is made, admitted to every workspace the old one
      * was in, and the old one is revoked on this Floe. The old file is set aside
-     * under a dated name, never deleted.
+     * under a dated name; only the person deletes it, with `delete_identity`.
      */
     private replace;
     /**
@@ -77,6 +79,16 @@ export declare class IdentityAgent {
      * only the agent decrypts.
      */
     private importLegacy;
+    /** Every identity Floe holds here. The npub only when asked for. */
+    private listIdentities;
+    /**
+     * Delete one identity for good. For the current one this machine stops being
+     * that identity: its file goes, and the vault key goes once no identity Floe
+     * still holds needs it. Only its recovery phrase can bring it back elsewhere.
+     */
+    private deleteIdentity;
+    private revokeAdmissions;
+    private forgetDeviceKey;
     private joinFolder;
     private startSession;
     private selectWorkspace;

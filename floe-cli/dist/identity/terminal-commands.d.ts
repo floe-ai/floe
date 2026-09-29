@@ -1,5 +1,5 @@
 /**
- * `floe identity status|create|unlock|lock|reveal|restore|replace|join|sessions`
+ * `floe identity status|create|unlock|lock|reveal|restore|replace|join|sessions|held|delete`
  *
  * The person's identity from a terminal. Every command is a client of the
  * identity agent, exactly like any surface: the terminal never holds the key.

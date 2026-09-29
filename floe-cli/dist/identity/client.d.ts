@@ -16,6 +16,18 @@ export type Workspace = {
     workspace_id: string;
     name: string;
 };
+/** One identity Floe holds. Unreadable ones have null details but can still be deleted. */
+export type HeldIdentity = {
+    id: string;
+    current: boolean;
+    readable: boolean;
+    display_name: string | null;
+    created_at: string | null;
+    set_aside_at: string | null;
+    protection: Protection | null;
+    has_recovery_phrase: boolean | null;
+    npub?: string | null;
+};
 export type SessionEvent = {
     status: "ready";
     bearer_token: string;
@@ -176,6 +188,29 @@ export declare class IdentityClient {
     }>;
     revokeSession(sessionId: string): Promise<{
         revoked: boolean;
+    }>;
+    /** Every identity Floe holds here: the current one and each one set aside. */
+    listIdentities(input?: {
+        include_npub?: boolean;
+    }): Promise<{
+        identities: HeldIdentity[];
+    }>;
+    /**
+     * Delete one identity for good. The current one also needs `revoke_admissions`
+     * (the person's choice) and, when passphrase protected, its passphrase.
+     */
+    deleteIdentity(input: {
+        id: string;
+        confirm: true;
+        revoke_admissions?: boolean;
+        passphrase?: string;
+    }): Promise<{
+        deleted: string;
+        revoked_admissions: {
+            revoked: boolean;
+            workspaces: Workspace[];
+        } | null;
+        device_key_removed: boolean;
     }>;
     close(): void;
     private request;

@@ -60,10 +60,10 @@ declare const IdentityFileSchema: z.ZodObject<{
 }, "strict", z.ZodTypeAny, {
     version: 2;
     display_name: string;
+    protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
     created_at: string;
-    protection: "passphrase" | "device";
     secret_kind: "phrase" | "nsec";
     seal: {
         name: "scrypt";
@@ -83,10 +83,10 @@ declare const IdentityFileSchema: z.ZodObject<{
 }, {
     version: 2;
     display_name: string;
+    protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
     created_at: string;
-    protection: "passphrase" | "device";
     secret_kind: "phrase" | "nsec";
     seal: {
         name: "scrypt";
@@ -132,6 +132,8 @@ export declare function openIdentity(file: IdentityFile, unlock: {
 export declare function identityDir(home: string): string;
 export declare function identityFilePath(home: string): string;
 export declare function loadIdentityFile(home: string): IdentityFile | null;
+/** The identity file format, or null when the value is not one. */
+export declare function parseIdentityFile(value: unknown): IdentityFile | null;
 /** Write atomically, so a crash never leaves half an identity. */
 export declare function saveIdentityFile(home: string, file: IdentityFile): void;
 /**

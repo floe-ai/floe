@@ -9,6 +9,7 @@ import {
   external_exports,
   fetchHostControlToken,
   fetchIdentityDeviceKey,
+  forgetIdentityDeviceKey,
   frame,
   lineReader,
   newAgentSecret,
@@ -130,11 +131,15 @@ function loadIdentityFile(home) {
   const path = identityFilePath(home);
   if (!existsSync(path))
     return null;
-  const parsed = IdentityFileSchema.safeParse(JSON.parse(readFileSync(path, "utf8")));
-  if (!parsed.success) {
+  const parsed = parseIdentityFile(JSON.parse(readFileSync(path, "utf8")));
+  if (!parsed) {
     throw new Error(`The identity at ${path} is unreadable. Set it aside and restore from the recovery phrase.`);
   }
-  return parsed.data;
+  return parsed;
+}
+function parseIdentityFile(value) {
+  const parsed = IdentityFileSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 function saveIdentityFile(home, file) {
   const dir = identityDir(home);
@@ -182,6 +187,57 @@ function openLegacyConsoleFile(file, passphrase) {
   const secret = file.protection === "device" ? "" : passphrase;
   const wrappingKey = scryptKey(secret, Buffer.from(file.kdf.salt, "base64"), file.kdf);
   return decrypt({ name: "aes-256-gcm", iv: file.cipher.iv, ciphertext: file.cipher.ciphertext, tag: file.cipher.tag }, wrappingKey);
+}
+
+// floe-cli/dist/identity/held-identities.js
+import { readdirSync, readFileSync as readFileSync2, rmSync } from "node:fs";
+import { join as join2 } from "node:path";
+var CURRENT_IDENTITY_ID = "current";
+var CURRENT_FILE = "identity.json";
+var SET_ASIDE = /^identity\.(set-aside-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z)\.json$/;
+function listHeldIdentities(home) {
+  let names;
+  try {
+    names = readdirSync(identityDir(home));
+  } catch {
+    return [];
+  }
+  const held = [];
+  for (const name of names) {
+    if (name === CURRENT_FILE) {
+      held.push({ id: CURRENT_IDENTITY_ID, current: true, file_name: name, file: read(home, name), set_aside_at: null });
+      continue;
+    }
+    const match = SET_ASIDE.exec(name);
+    if (!match)
+      continue;
+    const [, id, day, hh, mm, ss, ms] = match;
+    held.push({ id, current: false, file_name: name, file: read(home, name), set_aside_at: `${day}T${hh}:${mm}:${ss}.${ms}Z` });
+  }
+  return held.sort((a, b) => Number(b.current) - Number(a.current) || (b.set_aside_at ?? "").localeCompare(a.set_aside_at ?? ""));
+}
+function findHeldIdentity(home, id) {
+  return listHeldIdentities(home).find((entry) => entry.id === id) ?? null;
+}
+function deleteHeldIdentityFile(home, entry) {
+  const dir = identityDir(home);
+  rmSync(join2(dir, entry.file_name), { force: true });
+  if (!entry.current)
+    return;
+  for (const name of readdirSync(dir)) {
+    if (/^identity\.json\.\d+\.tmp$/.test(name))
+      rmSync(join2(dir, name), { force: true });
+  }
+}
+function anyNeedsDeviceKey(home) {
+  return listHeldIdentities(home).some((entry) => entry.file === null || entry.file.protection === "device");
+}
+function read(home, name) {
+  try {
+    return parseIdentityFile(JSON.parse(readFileSync2(join2(identityDir(home), name), "utf8")));
+  } catch {
+    return null;
+  }
 }
 
 // node_modules/@noble/hashes/utils.js
@@ -3104,7 +3160,7 @@ function alphabet(letters) {
   };
 }
 // @__NO_SIDE_EFFECTS__
-function join2(separator = "") {
+function join3(separator = "") {
   astr("join", separator);
   return {
     encode: (from) => {
@@ -3315,7 +3371,7 @@ var utils = {
   convertRadix2,
   radix,
   radix2,
-  join: join2,
+  join: join3,
   padding
 };
 var hasBase64Builtin = /* @__PURE__ */ (() => typeof Uint8Array.from([]).toBase64 === "function" && typeof Uint8Array.fromBase64 === "function")();
@@ -3335,11 +3391,11 @@ var base64 = hasBase64Builtin ? {
   decode(s) {
     return decodeBase64Builtin(s, false);
   }
-} : /* @__PURE__ */ chain(/* @__PURE__ */ radix2(6), /* @__PURE__ */ alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"), /* @__PURE__ */ padding(6), /* @__PURE__ */ join2(""));
-var genBase58 = /* @__NO_SIDE_EFFECTS__ */ (abc) => /* @__PURE__ */ chain(/* @__PURE__ */ radix(58), /* @__PURE__ */ alphabet(abc), /* @__PURE__ */ join2(""));
+} : /* @__PURE__ */ chain(/* @__PURE__ */ radix2(6), /* @__PURE__ */ alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"), /* @__PURE__ */ padding(6), /* @__PURE__ */ join3(""));
+var genBase58 = /* @__NO_SIDE_EFFECTS__ */ (abc) => /* @__PURE__ */ chain(/* @__PURE__ */ radix(58), /* @__PURE__ */ alphabet(abc), /* @__PURE__ */ join3(""));
 var base58 = /* @__PURE__ */ genBase58("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz");
 var createBase58check = (sha2562) => /* @__PURE__ */ chain(checksum(4, (data) => sha2562(sha2562(data))), base58);
-var BECH_ALPHABET = /* @__PURE__ */ chain(/* @__PURE__ */ alphabet("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ join2(""));
+var BECH_ALPHABET = /* @__PURE__ */ chain(/* @__PURE__ */ alphabet("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ join3(""));
 var POLYMOD_GENERATORS = [996825010, 642813549, 513874426, 1027748829, 705979059];
 function bech32Polymod(pre) {
   const b = pre >> 25;
@@ -9934,6 +9990,10 @@ var IdentityAgent = class {
         return this.serial(() => this.replace(args));
       case "import_legacy":
         return this.serial(() => this.importLegacy(args));
+      case "list_identities":
+        return this.listIdentities(args);
+      case "delete_identity":
+        return this.serial(() => this.deleteIdentity(args));
       case "join_folder":
         return this.joinFolder(args);
       case "session":
@@ -10025,7 +10085,7 @@ var IdentityAgent = class {
    * "I forgot my passphrase and have no recovery phrase": re-admission, not
    * recovery. A new identity is made, admitted to every workspace the old one
    * was in, and the old one is revoked on this Floe. The old file is set aside
-   * under a dated name, never deleted.
+   * under a dated name; only the person deletes it, with `delete_identity`.
    */
   async replace(args) {
     const previous = this.requireFile();
@@ -10119,6 +10179,82 @@ var IdentityAgent = class {
     this.log(`imported identity ${legacy.npub} (${secretKind === "nsec" ? "no recovery phrase" : "with recovery phrase"})`);
     this.broadcastState();
     return { npub: legacy.npub, secret_kind: secretKind, protection, set_aside_as: setAside };
+  }
+  // ── identities held ────────────────────────────────────────────────────────
+  /** Every identity Floe holds here. The npub only when asked for. */
+  listIdentities(args) {
+    const includeNpub = args.include_npub === true;
+    return {
+      identities: listHeldIdentities(this.deps.home).map((entry) => ({
+        id: entry.id,
+        current: entry.current,
+        readable: entry.file !== null,
+        display_name: entry.file?.display_name ?? null,
+        created_at: entry.file?.created_at ?? null,
+        set_aside_at: entry.set_aside_at,
+        protection: entry.file?.protection ?? null,
+        has_recovery_phrase: entry.file ? entry.file.secret_kind === "phrase" : null,
+        ...includeNpub ? { npub: entry.file?.npub ?? null } : {}
+      }))
+    };
+  }
+  /**
+   * Delete one identity for good. For the current one this machine stops being
+   * that identity: its file goes, and the vault key goes once no identity Floe
+   * still holds needs it. Only its recovery phrase can bring it back elsewhere.
+   */
+  async deleteIdentity(args) {
+    const id = requireString(args, "id");
+    const entry = findHeldIdentity(this.deps.home, id);
+    if (!entry)
+      throw new AgentError("identity_not_found", "Floe holds no identity with that id. List them with list_identities.");
+    if (args.confirm !== true) {
+      throw new AgentError("confirmation_required", "Deleting an identity is final. Confirm to delete it.");
+    }
+    let revoked = null;
+    if (entry.current) {
+      if (typeof args.revoke_admissions !== "boolean") {
+        throw new AgentError("revoke_choice_required", "Say whether to revoke this identity's workspace admissions on this machine (revoke_admissions: true or false).");
+      }
+      if (entry.file?.protection === "passphrase") {
+        const passphrase = optionalString(args, "passphrase");
+        if (!passphrase)
+          throw new AgentError("passphrase_required", "Enter the passphrase to delete this identity.");
+        (await this.openSecret(entry.file, passphrase)).fill(0);
+      }
+      if (args.revoke_admissions && entry.file)
+        revoked = await this.revokeAdmissions(entry.file);
+      this.lock("deleting the identity");
+    }
+    deleteHeldIdentityFile(this.deps.home, entry);
+    const deviceKeyRemoved = anyNeedsDeviceKey(this.deps.home) ? false : await this.forgetDeviceKey();
+    this.log(`deleted identity ${entry.id}${revoked ? `; revoked its admissions to ${revoked.workspaces.length} workspace(s)` : ""}${deviceKeyRemoved ? "; device key removed" : ""}`);
+    if (entry.current)
+      this.broadcastState();
+    return { deleted: entry.id, revoked_admissions: revoked, device_key_removed: deviceKeyRemoved };
+  }
+  async revokeAdmissions(file) {
+    let token;
+    let clients;
+    try {
+      token = await this.deps.hostToken();
+      clients = await this.bus.listClients(token);
+    } catch (error) {
+      throw new AgentError("bus_unreachable", `Floe could not reach its bus to revoke the admissions, so nothing was deleted. ${messageOf(error)}`);
+    }
+    const client = clients.find((entry) => entry.pubkey_hex === file.pubkey_hex && !entry.revoked_at);
+    if (!client)
+      return { revoked: false, workspaces: [] };
+    await this.bus.revokeIdentity(token, client.identity_id);
+    return { revoked: true, workspaces: client.workspaces };
+  }
+  async forgetDeviceKey() {
+    try {
+      return await this.deps.forgetDeviceKey();
+    } catch (error) {
+      this.log(`could not remove the device key from the credential vault: ${messageOf(error)}`);
+      return false;
+    }
   }
   // ── acting for the identity ────────────────────────────────────────────────
   async joinFolder(args) {
@@ -10441,7 +10577,7 @@ function messageOf(error) {
 
 // floe-cli/dist/identity/agent-server.js
 import { createConnection, createServer } from "node:net";
-import { rmSync, unlinkSync } from "node:fs";
+import { rmSync as rmSync2, unlinkSync } from "node:fs";
 var HANDSHAKE_TIMEOUT_MS = 5e3;
 var AgentAddressInUseError = class extends Error {
   address;
@@ -10478,7 +10614,7 @@ async function serveAgent(agent, options) {
     close: () => new Promise((resolve) => {
       const run = readRunFile(options.home);
       if (run && run.pid === process.pid)
-        rmSync(runFilePath(options.home), { force: true });
+        rmSync2(runFilePath(options.home), { force: true });
       for (const socket of sockets)
         socket.destroy();
       server.close(() => resolve());
@@ -10617,6 +10753,7 @@ async function main(argv) {
     version: thisInstallation().version,
     lockAfterIdleMs: minutes * 6e4,
     deviceKey: (create) => fetchIdentityDeviceKey(home, create),
+    forgetDeviceKey: () => forgetIdentityDeviceKey(home),
     hostToken: () => fetchHostControlToken(busUrl),
     log
   });

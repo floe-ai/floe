@@ -6009,6 +6009,7 @@ import { CopilotClient } from "@github/copilot-sdk";
 import { defineTool } from "@github/copilot-sdk";
 var COMPLETE_FINISH_REASONS = /* @__PURE__ */ new Set(["stop", "end_turn", "completed", "success"]);
 var DEFAULT_QUIESCE_TIMEOUT_MS = 1e4;
+var TOKEN_USAGE_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
 function sdkError(code, message, status = 502, cause) {
   const error = new RuntimeFault(code, message, status);
   if (cause) error.cause = cause;
@@ -6019,6 +6020,20 @@ function normalizeTool(tool) {
     throw new TypeError("Copilot host tools require a name and handler.");
   }
   return { ...tool };
+}
+function aggregateUsage(modelCalls, numToolCalls) {
+  if (modelCalls.length === 0) return null;
+  const latest = modelCalls.at(-1);
+  const usage = {
+    ...latest,
+    numModelCalls: modelCalls.length,
+    numToolCalls,
+    modelCalls: modelCalls.map((call) => ({ ...call }))
+  };
+  for (const field of TOKEN_USAGE_FIELDS) {
+    usage[field] = modelCalls.reduce((total, call) => total + (Number.isFinite(call[field]) ? call[field] : 0), 0);
+  }
+  return usage;
 }
 function promptOptions(input) {
   if (typeof input.prompt === "string") return { prompt: input.prompt };
@@ -6222,10 +6237,13 @@ var CopilotRuntime = class extends Runtime {
     } else if (event.type === "assistant.reasoning_delta") {
       this.#publishStream(sessionId, task, "reasoning", data.deltaContent || "", event);
     } else if (event.type === "assistant.usage") {
-      task.usage = data;
-      this.publish(sessionId, "usage", { runtime: "copilot", sessionId, ...data });
+      task.modelCalls.push({ ...data });
+      task.usage = aggregateUsage(task.modelCalls, task.toolCallIds.size);
+      this.publish(sessionId, "usage", { runtime: "copilot", sessionId, ...task.usage });
     } else if (event.type === "tool.execution_start") {
       task.items.push(data);
+      task.toolCallIds.add(data.toolCallId);
+      if (task.usage) task.usage = aggregateUsage(task.modelCalls, task.toolCallIds.size);
       task.activities.set(data.toolCallId, { title: data.toolName || data.toolCallId, startedAt: Date.now(), command: null });
       this.publish(sessionId, "activity", {
         runtime: "copilot",
@@ -6277,6 +6295,7 @@ var CopilotRuntime = class extends Runtime {
     this.turns.delete(sessionId);
     this.sessions.markStopped(sessionId);
     task.unsubscribe?.();
+    if (task.usage) task.usage = aggregateUsage(task.modelCalls, task.toolCallIds.size);
     const finish = task.finishReason;
     let error = null;
     if (task.aborted) error = sdkError("interrupted", "Turn was cancelled.", 409);
@@ -6331,6 +6350,8 @@ var CopilotRuntime = class extends Runtime {
       finalMessage: null,
       finishReason: null,
       usage: null,
+      modelCalls: [],
+      toolCallIds: /* @__PURE__ */ new Set(),
       activities: /* @__PURE__ */ new Map(),
       resolve: resolveResult,
       reject: rejectResult,
@@ -8765,6 +8786,34 @@ var TurnFailedError = class extends Error {
   }
 };
 
+// floe-bridge/dist/adapters/turn-usage.js
+function turnUsage(usage) {
+  if (!usage || typeof usage !== "object") {
+    return { measurement_scope: "unmeasured", model_calls: null, tool_calls: null, tokens: null };
+  }
+  const record = usage;
+  const modelCalls = count(record.numModelCalls);
+  const wholeTurn = modelCalls !== null && modelCalls > 0;
+  return {
+    measurement_scope: wholeTurn ? "turn" : "last_model_call",
+    model_calls: modelCalls,
+    // Without the turn count, the SDK's per-call tool count says nothing about the turn.
+    tool_calls: wholeTurn ? count(record.numToolCalls) : null,
+    tokens: {
+      input: tokens(record.inputTokens),
+      output: tokens(record.outputTokens),
+      cache_read: tokens(record.cacheReadTokens),
+      cache_write: tokens(record.cacheWriteTokens)
+    }
+  };
+}
+function count(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+function tokens(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 // floe-bridge/dist/adapters/floe-runtime-adapter.js
 function recordToolActivity(turn, entry) {
   const existing = entry.call_id ? turn.tool_activity.find((activity) => activity.call_id === entry.call_id) : void 0;
@@ -8879,7 +8928,10 @@ var FloeRuntimeAdapter = class {
       endpoint_id: bundle.endpoint_id,
       fresh_session: freshSession,
       model: model ?? "(default)",
-      prompt_length: prompt.length
+      prompt_length: prompt.length,
+      // Instructions reach the model only as the system message of a new
+      // session; a resumed session already holds them, so this is 0 there.
+      system_message_bytes: systemMessage.length
     });
     try {
       await this.throwIfCancelled(session, turn);
@@ -9170,7 +9222,7 @@ var FloeRuntimeAdapter = class {
   async recordUsage(context, turn, result2) {
     await this.appendTelemetry(context, turn, "visible_output", { text: turn.visible_output });
     await this.appendTelemetry(context, turn, "usage", {
-      measurement_scope: "turn",
+      ...turnUsage(result2.usage),
       usage: result2.usage ?? null,
       stop_reason: result2.stopReason,
       elapsed_ms: result2.elapsedMs
@@ -10457,7 +10509,7 @@ var BridgeDaemon = class {
         model_source: effectiveRuntime.model_source ?? "(none)",
         auth_profile: effectiveRuntime.auth_profile ?? "(none)",
         auth_profile_source: effectiveRuntime.auth_profile_source ?? "(none)",
-        instructions_bytes: instructions?.length ?? 0
+        instructions_bytes: effectiveRuntime.instructions?.length ?? 0
       });
       const injected = await this.bus.reportDeliveryStatus(delivery.delivery_id, "injected_to_runtime");
       delivery.execution_attempt_id = injected?.execution_attempt_id ?? delivery.execution_attempt_id ?? null;

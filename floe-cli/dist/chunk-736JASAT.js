@@ -559,6 +559,17 @@ var IdentityClient = class {
   revokeSession(sessionId) {
     return this.request("revoke_session", { session_id: sessionId });
   }
+  /** Every identity Floe holds here: the current one and each one set aside. */
+  listIdentities(input = {}) {
+    return this.request("list_identities", input);
+  }
+  /**
+   * Delete one identity for good. The current one also needs `revoke_admissions`
+   * (the person's choice) and, when passphrase protected, its passphrase.
+   */
+  deleteIdentity(input) {
+    return this.request("delete_identity", input);
+  }
   close() {
     this.channel.socket.end();
   }
