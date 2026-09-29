@@ -4464,7 +4464,7 @@ function bridgeWsBase(config) {
 }
 
 // floe-bridge/dist/daemon.js
-import { existsSync as existsSync9 } from "node:fs";
+import { existsSync as existsSync10 } from "node:fs";
 import { isAbsolute as isAbsolute4, relative as relative3, resolve as resolve5 } from "node:path";
 
 // floe-bridge/dist/auth.js
@@ -5343,6 +5343,184 @@ function declaresWholeFolder(frontmatter) {
   }
 }
 
+// floe-bridge/dist/worklog-location-migration.js
+import { spawnSync } from "node:child_process";
+import { existsSync as existsSync6, readdirSync as readdirSync2, readFileSync as readFileSync6, rmdirSync, rmSync as rmSync2, writeFileSync as writeFileSync6 } from "node:fs";
+import { join as join7 } from "node:path";
+
+// floe-bridge/dist/runtime-core/worklog.js
+import { appendFileSync } from "node:fs";
+import { join as join6 } from "node:path";
+
+// floe-bridge/dist/workspace-state.js
+import { existsSync as existsSync5, mkdirSync as mkdirSync4, writeFileSync as writeFileSync5 } from "node:fs";
+import { join as join5 } from "node:path";
+function workspaceStateDirectory(workspacePath, ...segments) {
+  const root = join5(workspacePath, ".floe", "state");
+  mkdirSync4(root, { recursive: true });
+  const ignore = join5(root, ".gitignore");
+  if (!existsSync5(ignore))
+    writeFileSync5(ignore, "*\n", "utf8");
+  const directory = join5(root, ...segments);
+  mkdirSync4(directory, { recursive: true });
+  return directory;
+}
+
+// floe-bridge/dist/runtime-core/worklog.js
+function workLogDirectory(workspaceLocator, agentId) {
+  return workspaceStateDirectory(workspaceLocator, "agents", agentId, "worklogs");
+}
+function appendWorkLog(workspaceLocator, entry) {
+  const date = entry.started_at.slice(0, 10);
+  const filePath = join6(workLogDirectory(workspaceLocator, entry.agent_id), `${date}.md`);
+  const markdown = renderWorkLogEntry(entry);
+  appendFileSync(filePath, markdown, "utf-8");
+}
+function renderWorkLogEntry(entry) {
+  const lines = [];
+  lines.push(`## Turn ${entry.runtime_turn_id}`);
+  lines.push("");
+  lines.push(`**Started:** ${entry.started_at}`);
+  lines.push(`**Ended:** ${entry.ended_at}`);
+  lines.push(`**Trigger:** ${entry.trigger_type}`);
+  lines.push(`**Scope:** ${entry.scope_id ?? "(unscoped)"}`);
+  lines.push(`**Thread:** ${entry.thread_id}`);
+  lines.push(`**Delivery:** ${entry.delivery_id}`);
+  lines.push("");
+  lines.push("### Delivered events");
+  if (entry.delivered_events.length === 0) {
+    lines.push("- (none)");
+  } else {
+    for (const evt of entry.delivered_events) {
+      const preview = evt.text.length > 120 ? evt.text.slice(0, 120) + "\u2026" : evt.text;
+      lines.push(`- [${evt.type}] from ${evt.source_endpoint_id}: ${preview}`);
+    }
+  }
+  lines.push("");
+  lines.push("### Runtime notes / visible output");
+  if (entry.visible_output && entry.visible_output.trim()) {
+    lines.push("");
+    lines.push(entry.visible_output.trim());
+  } else {
+    lines.push("(no visible output)");
+  }
+  lines.push("");
+  lines.push("### Tool activity");
+  if (entry.tool_activity.length === 0) {
+    lines.push("- (none)");
+  } else {
+    for (const tool of entry.tool_activity) {
+      const status = tool.is_error ? " \u274C" : "";
+      const summary = tool.summary ? `: ${tool.summary}` : "";
+      const duration = tool.duration_ms != null ? ` (${tool.duration_ms}ms)` : "";
+      const lifecycle = tool.lifecycle ? ` [${tool.lifecycle}]` : "";
+      lines.push(`- ${tool.name}${lifecycle}${summary}${duration}${status}`);
+      if (tool.files_touched && tool.files_touched.length > 0) {
+        for (const file of tool.files_touched) {
+          lines.push(`  - \u{1F4C4} ${file}`);
+        }
+      }
+    }
+  }
+  lines.push("");
+  lines.push("### Emitted events");
+  if (entry.emitted_events.length === 0) {
+    lines.push("- (none \u2014 no explicit communication)");
+  } else {
+    for (const emit of entry.emitted_events) {
+      const preview = emit.text_preview.length > 80 ? emit.text_preview.slice(0, 80) + "\u2026" : emit.text_preview;
+      lines.push(`- [${emit.type}] \u2192 ${emit.destination}: ${preview}`);
+    }
+  }
+  lines.push("");
+  lines.push(`### Outcome`);
+  lines.push(`${entry.lifecycle_outcome}`);
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+  return lines.join("\n");
+}
+
+// floe-bridge/dist/worklog-location-migration.js
+var LEGACY_ROOT = [".floe", "agents"];
+function migrateWorkLogsToState(workspacePath) {
+  const legacy = legacyWorkLogs(workspacePath);
+  if (legacy.length === 0)
+    return { moved: [], kept_tracked: [], kept_uncertain: null };
+  const tracked = trackedPaths(workspacePath);
+  if ("reason" in tracked) {
+    return { moved: [], kept_tracked: [], kept_uncertain: { paths: legacy.map((item) => item.relative), reason: tracked.reason } };
+  }
+  const moved = [];
+  const keptTracked = [];
+  for (const log of legacy) {
+    if (tracked.paths.has(log.relative)) {
+      keptTracked.push(log.relative);
+      continue;
+    }
+    const destination = join7(workLogDirectory(workspacePath, log.agentId), log.file);
+    const content = readFileSync6(log.absolute);
+    if (existsSync6(destination))
+      writeFileSync6(destination, Buffer.concat([content, readFileSync6(destination)]));
+    else
+      writeFileSync6(destination, content);
+    rmSync2(log.absolute);
+    moved.push(log.relative);
+  }
+  for (const agentId of new Set(legacy.map((log) => log.agentId))) {
+    removeIfEmpty(join7(workspacePath, ...LEGACY_ROOT, agentId, "worklogs"));
+    removeIfEmpty(join7(workspacePath, ...LEGACY_ROOT, agentId));
+  }
+  return { moved, kept_tracked: keptTracked, kept_uncertain: null };
+}
+function legacyWorkLogs(workspacePath) {
+  const agentsRoot = join7(workspacePath, ...LEGACY_ROOT);
+  if (!existsSync6(agentsRoot))
+    return [];
+  const logs = [];
+  for (const agent of readdirSync2(agentsRoot, { withFileTypes: true })) {
+    if (!agent.isDirectory())
+      continue;
+    const directory = join7(agentsRoot, agent.name, "worklogs");
+    if (!existsSync6(directory))
+      continue;
+    for (const file of readdirSync2(directory, { withFileTypes: true })) {
+      if (!file.isFile())
+        continue;
+      logs.push({
+        agentId: agent.name,
+        file: file.name,
+        absolute: join7(directory, file.name),
+        relative: [...LEGACY_ROOT, agent.name, "worklogs", file.name].join("/")
+      });
+    }
+  }
+  return logs;
+}
+function trackedPaths(workspacePath) {
+  const result2 = spawnSync("git", ["ls-files", "--full-name", "-z", "--", LEGACY_ROOT.join("/")], { cwd: workspacePath, encoding: "utf8", windowsHide: true });
+  if (result2.error?.code === "ENOENT")
+    return { paths: /* @__PURE__ */ new Set() };
+  if (result2.status !== 0 && /not a git repository/i.test(result2.stderr ?? ""))
+    return { paths: /* @__PURE__ */ new Set() };
+  if (result2.error || result2.status !== 0) {
+    return { reason: `git could not list tracked files: ${(result2.stderr || String(result2.error ?? "")).trim()}` };
+  }
+  const prefix = repositoryPrefix(workspacePath);
+  if (prefix === null)
+    return { reason: "git could not report where this workspace sits in its repository" };
+  const paths = result2.stdout.split("\0").filter(Boolean).filter((path3) => path3.startsWith(prefix)).map((path3) => path3.slice(prefix.length));
+  return { paths: new Set(paths) };
+}
+function repositoryPrefix(workspacePath) {
+  const result2 = spawnSync("git", ["rev-parse", "--show-prefix"], { cwd: workspacePath, encoding: "utf8", windowsHide: true });
+  return result2.status === 0 ? result2.stdout.trim() : null;
+}
+function removeIfEmpty(directory) {
+  if (existsSync6(directory) && readdirSync2(directory).length === 0)
+    rmdirSync(directory);
+}
+
 // floe-bridge/dist/engines/engine-control.js
 var EngineControl = class {
   accounts;
@@ -5509,17 +5687,17 @@ function runtimeEndpointRegistration(workspaceId, runtime, engine, heldForEngine
 }
 
 // floe-cli/dist/installation.js
-import { existsSync as existsSync6, readFileSync as readFileSync7, realpathSync as realpathSync2 } from "node:fs";
-import { basename as basename3, dirname as dirname4, join as join6 } from "node:path";
+import { existsSync as existsSync8, readFileSync as readFileSync8, realpathSync as realpathSync2 } from "node:fs";
+import { basename as basename3, dirname as dirname4, join as join9 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // floe-cli/dist/staging.js
-import { existsSync as existsSync5, mkdirSync as mkdirSync4, readdirSync as readdirSync2, readFileSync as readFileSync6, realpathSync, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2, writeFileSync as writeFileSync5 } from "node:fs";
-import { basename as basename2, dirname as dirname3, join as join5, relative as relative2, sep } from "node:path";
+import { existsSync as existsSync7, mkdirSync as mkdirSync5, readdirSync as readdirSync3, readFileSync as readFileSync7, realpathSync, renameSync as renameSync2, rmSync as rmSync3, statSync as statSync2, writeFileSync as writeFileSync7 } from "node:fs";
+import { basename as basename2, dirname as dirname3, join as join8, relative as relative2, sep } from "node:path";
 var STAGE_MANIFEST = "stage.json";
 function readJson(path3) {
   try {
-    return JSON.parse(readFileSync6(path3, "utf8"));
+    return JSON.parse(readFileSync7(path3, "utf8"));
   } catch {
     return null;
   }
@@ -5531,7 +5709,7 @@ function stageOf(path3) {
     if (parent === dir)
       return null;
     if (basename2(dir) === "tree") {
-      const manifest = readJson(join5(parent, STAGE_MANIFEST));
+      const manifest = readJson(join8(parent, STAGE_MANIFEST));
       if (manifest?.kind === "floe-stage")
         return manifest;
     }
@@ -5543,7 +5721,7 @@ function stageOf(path3) {
 function nearestPackageDir(start) {
   let dir = start;
   for (; ; ) {
-    if (existsSync6(join6(dir, "package.json")))
+    if (existsSync8(join9(dir, "package.json")))
       return dir;
     const parent = dirname4(dir);
     if (parent === dir)
@@ -5553,7 +5731,7 @@ function nearestPackageDir(start) {
 }
 function readPackage(dir) {
   try {
-    return JSON.parse(readFileSync7(join6(dir, "package.json"), "utf8"));
+    return JSON.parse(readFileSync8(join9(dir, "package.json"), "utf8"));
   } catch {
     return {};
   }
@@ -5567,7 +5745,7 @@ function classifyPackageDir(packageDir) {
   if (basename3(holder) !== "node_modules")
     return { packageDir, version, dependencyOf: null };
   const owner = dirname4(holder);
-  if (!existsSync6(join6(owner, "package.json")))
+  if (!existsSync8(join9(owner, "package.json")))
     return { packageDir, version, dependencyOf: null };
   const ownerName = readPackage(owner).name;
   return { packageDir, version, dependencyOf: typeof ownerName === "string" ? ownerName : owner };
@@ -5902,7 +6080,7 @@ import { EventEmitter as EventEmitter2 } from "node:events";
 
 // node_modules/floe-runtime/src/jsonrpc.mjs
 import { spawn } from "node:child_process";
-import { existsSync as existsSync7 } from "node:fs";
+import { existsSync as existsSync9 } from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { EventEmitter } from "node:events";
@@ -5958,7 +6136,7 @@ function resolveExecutable(command, env = process.env) {
       candidates.push(path.join(dir, command));
     }
   }
-  const resolved = candidates.find((candidate) => existsSync7(candidate));
+  const resolved = candidates.find((candidate) => existsSync9(candidate));
   const file = resolved || command;
   const ext = path.extname(file).toLowerCase();
   return { file, needsShellWrapper: ext === ".cmd" || ext === ".bat" };
@@ -8334,11 +8512,11 @@ function resolvedScopeIdFromCreatePulseResult(result2) {
   return typeof scopeId === "string" && scopeId ? scopeId : void 0;
 }
 async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
-  const { readFileSync: readFileSync8, writeFileSync: writeFileSync6 } = await import("node:fs");
-  const { join: join10 } = await import("node:path");
+  const { readFileSync: readFileSync9, writeFileSync: writeFileSync8 } = await import("node:fs");
+  const { join: join12 } = await import("node:path");
   const YAML4 = (await import("./dist-BSYBXLJX.js")).default;
-  const yamlPath = join10(workspaceLocator, ".floe", "floe.yaml");
-  const doc = YAML4.parseDocument(readFileSync8(yamlPath, "utf8"));
+  const yamlPath = join12(workspaceLocator, ".floe", "floe.yaml");
+  const doc = YAML4.parseDocument(readFileSync9(yamlPath, "utf8"));
   if (!doc.get("pulses"))
     doc.set("pulses", doc.createNode([]));
   const entry = {
@@ -8352,7 +8530,7 @@ async function writePulseToFloeYaml(workspaceLocator, pulseDef) {
   if (pulseDef.subscribers.length > 0)
     entry.subscribers = pulseDef.subscribers;
   doc.get("pulses").add(doc.createNode(entry));
-  writeFileSync6(yamlPath, doc.toString(), "utf8");
+  writeFileSync8(yamlPath, doc.toString(), "utf8");
 }
 async function executeCreatePulse(bus, turn, params) {
   if (params?.persistence !== void 0 && params.persistence !== "workspace" && params.persistence !== "local") {
@@ -8521,84 +8699,6 @@ Continue this version with offset: ${nextOffset}.`}`
   } catch (error) {
     return failure3(error instanceof Error ? error.message : String(error), versionId);
   }
-}
-
-// floe-bridge/dist/runtime-core/worklog.js
-import { existsSync as existsSync8, mkdirSync as mkdirSync5, appendFileSync } from "node:fs";
-import { join as join7 } from "node:path";
-function appendWorkLog(workspaceLocator, entry) {
-  const date = entry.started_at.slice(0, 10);
-  const dir = join7(workspaceLocator, ".floe", "agents", entry.agent_id, "worklogs");
-  if (!existsSync8(dir)) {
-    mkdirSync5(dir, { recursive: true });
-  }
-  const filePath = join7(dir, `${date}.md`);
-  const markdown = renderWorkLogEntry(entry);
-  appendFileSync(filePath, markdown, "utf-8");
-}
-function renderWorkLogEntry(entry) {
-  const lines = [];
-  lines.push(`## Turn ${entry.runtime_turn_id}`);
-  lines.push("");
-  lines.push(`**Started:** ${entry.started_at}`);
-  lines.push(`**Ended:** ${entry.ended_at}`);
-  lines.push(`**Trigger:** ${entry.trigger_type}`);
-  lines.push(`**Scope:** ${entry.scope_id ?? "(unscoped)"}`);
-  lines.push(`**Thread:** ${entry.thread_id}`);
-  lines.push(`**Delivery:** ${entry.delivery_id}`);
-  lines.push("");
-  lines.push("### Delivered events");
-  if (entry.delivered_events.length === 0) {
-    lines.push("- (none)");
-  } else {
-    for (const evt of entry.delivered_events) {
-      const preview = evt.text.length > 120 ? evt.text.slice(0, 120) + "\u2026" : evt.text;
-      lines.push(`- [${evt.type}] from ${evt.source_endpoint_id}: ${preview}`);
-    }
-  }
-  lines.push("");
-  lines.push("### Runtime notes / visible output");
-  if (entry.visible_output && entry.visible_output.trim()) {
-    lines.push("");
-    lines.push(entry.visible_output.trim());
-  } else {
-    lines.push("(no visible output)");
-  }
-  lines.push("");
-  lines.push("### Tool activity");
-  if (entry.tool_activity.length === 0) {
-    lines.push("- (none)");
-  } else {
-    for (const tool of entry.tool_activity) {
-      const status = tool.is_error ? " \u274C" : "";
-      const summary = tool.summary ? `: ${tool.summary}` : "";
-      const duration = tool.duration_ms != null ? ` (${tool.duration_ms}ms)` : "";
-      const lifecycle = tool.lifecycle ? ` [${tool.lifecycle}]` : "";
-      lines.push(`- ${tool.name}${lifecycle}${summary}${duration}${status}`);
-      if (tool.files_touched && tool.files_touched.length > 0) {
-        for (const file of tool.files_touched) {
-          lines.push(`  - \u{1F4C4} ${file}`);
-        }
-      }
-    }
-  }
-  lines.push("");
-  lines.push("### Emitted events");
-  if (entry.emitted_events.length === 0) {
-    lines.push("- (none \u2014 no explicit communication)");
-  } else {
-    for (const emit of entry.emitted_events) {
-      const preview = emit.text_preview.length > 80 ? emit.text_preview.slice(0, 80) + "\u2026" : emit.text_preview;
-      lines.push(`- [${emit.type}] \u2192 ${emit.destination}: ${preview}`);
-    }
-  }
-  lines.push("");
-  lines.push(`### Outcome`);
-  lines.push(`${entry.lifecycle_outcome}`);
-  lines.push("");
-  lines.push("---");
-  lines.push("");
-  return lines.join("\n");
 }
 
 // node_modules/zod-to-json-schema/dist/esm/Options.js
@@ -10218,9 +10318,9 @@ function tokens(value) {
 // floe-bridge/dist/engines/copilot.js
 import { mkdirSync as mkdirSync6 } from "node:fs";
 import { createRequire } from "node:module";
-import { join as join8 } from "node:path";
+import { join as join10 } from "node:path";
 function copilotHome(configPath, config) {
-  return join8(resolveLocalPath(configPath, config.home, config.bridge.data_dir), "copilot");
+  return join10(resolveLocalPath(configPath, config.home, config.bridge.data_dir), "copilot");
 }
 function packagedCopilotCliPath() {
   const require2 = createRequire(import.meta.url);
@@ -11201,7 +11301,7 @@ var HookRegistry = class {
 // floe-bridge/dist/folder-watcher.js
 import { createHash as createHash5 } from "node:crypto";
 import { statSync as statSync3, watch as fsWatch } from "node:fs";
-import { extname, join as join9, resolve as resolve4 } from "node:path";
+import { extname, join as join11, resolve as resolve4 } from "node:path";
 function watchFolder(folderPath, onFile, options = {}) {
   let watcher;
   const settleMs = Math.max(0, options.settle_ms ?? 250);
@@ -11239,7 +11339,7 @@ function watchFolder(folderPath, onFile, options = {}) {
       if (!filename)
         return;
       const fileName = filename.toString();
-      const filePath = join9(folderPath, fileName);
+      const filePath = join11(folderPath, fileName);
       const existing = pending.get(filePath);
       if (existing)
         clearTimeout(existing);
@@ -12092,7 +12192,7 @@ var BridgeDaemon = class {
     const workspaceId = String(workspace.workspace_id);
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!this.config.bridge.workspace_access.local_paths || !existsSync9(locator)) {
+    if (!this.config.bridge.workspace_access.local_paths || !existsSync10(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -12108,6 +12208,7 @@ var BridgeDaemon = class {
       try {
         ensureProjectTemplate(locator, String(workspace.name ?? "Floe Project"));
         reportTemplateScopeMigration(workspaceId, migrateTemplateDefaultScope(locator));
+        reportWorkLogLocationMigration(workspaceId, migrateWorkLogsToState(locator));
         project = loadProject(locator);
         canonicalImport = await this.importProjectConfiguration(workspaceId, bindingId, project);
       } catch (error) {
@@ -12191,8 +12292,8 @@ var BridgeDaemon = class {
           console.error("[bridge] watcher path escapes workspace \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           return;
         }
-        if (!existsSync9(watchPath) || startedWatchers.has(watcherKey)) {
-          if (!existsSync9(watchPath)) {
+        if (!existsSync10(watchPath) || startedWatchers.has(watcherKey)) {
+          if (!existsSync10(watchPath)) {
             console.error("[bridge] watcher path does not exist \u2014 skipping", { watcher_id: watcherDef.id, path: watchPath });
           }
           return;
@@ -12276,7 +12377,7 @@ var BridgeDaemon = class {
       return;
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!existsSync9(locator))
+    if (!existsSync10(locator))
       return;
     const project = loadProject(locator);
     await this.importProjectConfiguration(workspaceId, bindingId, project);
@@ -12291,7 +12392,7 @@ var BridgeDaemon = class {
       return;
     const bindingId = String(binding.binding_id);
     const locator = resolve5(String(binding.locator));
-    if (!existsSync9(locator)) {
+    if (!existsSync10(locator)) {
       await this.reportOnce(workspaceId, bindingId, "workspace_inaccessible", "workspace_locator_inaccessible", null, {
         ok: false,
         warnings: [],
@@ -12739,6 +12840,17 @@ function extractRuntimeConfig(frontmatter) {
     model: typeof runtime.model === "string" ? runtime.model : void 0,
     auth_profile: typeof runtime.auth_profile === "string" ? runtime.auth_profile : void 0
   };
+}
+function reportWorkLogLocationMigration(workspaceId, migration) {
+  if (migration.moved.length > 0) {
+    console.log("[floe-bridge] moved Actor work logs into .floe/state", { workspace_id: workspaceId, moved: migration.moved });
+  }
+  if (migration.kept_tracked.length > 0) {
+    console.warn("[floe-bridge] kept Actor work logs that are committed to git; new entries go to .floe/state", { workspace_id: workspaceId, kept: migration.kept_tracked });
+  }
+  if (migration.kept_uncertain) {
+    console.warn("[floe-bridge] kept Actor work logs because git could not say which are committed", { workspace_id: workspaceId, kept: migration.kept_uncertain.paths, reason: migration.kept_uncertain.reason });
+  }
 }
 function reportTemplateScopeMigration(workspaceId, migration) {
   if (migration.outcome === "removed") {
