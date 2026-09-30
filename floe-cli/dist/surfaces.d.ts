@@ -65,7 +65,10 @@ export declare function removeSurface(configPath: string, config: LocalConfig, n
  * a shell shim should register the interpreter or the real executable as its
  * launch command.
  */
-/** Set in a surface's environment when Floe launches it, so the surface can tell. */
-export declare const LAUNCHED_BY_ENV = "FLOE_LAUNCHED_BY";
+/**
+ * Appended as the last argument when Floe launches a surface, so the surface can
+ * tell a launch from Floe apart from one started by its own command in a folder.
+ */
+export declare const LAUNCHED_BY_FLOE_ARG = "--launched-by=floe";
 export declare function launchSurface(entry: SurfaceEntry): Promise<number>;
 export {};

@@ -1,6 +1,6 @@
 {
   "name": "floe",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Floe — the local substrate and its command line, as one installable package.",
   "license": "UNLICENSED",
   "private": false,

@@ -3739,13 +3739,10 @@ function removeSurface(configPath, config, name) {
   rmSync2(path);
   return true;
 }
-var LAUNCHED_BY_ENV = "FLOE_LAUNCHED_BY";
+var LAUNCHED_BY_FLOE_ARG = "--launched-by=floe";
 function launchSurface(entry) {
   return new Promise((resolve5, reject) => {
-    const child = spawn(entry.launch.command, entry.launch.args, {
-      stdio: "inherit",
-      env: { ...process.env, [LAUNCHED_BY_ENV]: "floe" }
-    });
+    const child = spawn(entry.launch.command, [...entry.launch.args, LAUNCHED_BY_FLOE_ARG], { stdio: "inherit" });
     child.on("error", reject);
     child.on("exit", (code) => resolve5(code ?? 0));
   });

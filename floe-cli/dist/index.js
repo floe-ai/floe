@@ -7,7 +7,7 @@ import {
 
 // floe-cli/dist/index.js
 try {
-  const { runCli } = await import("./cli-HBNKGARD.js");
+  const { runCli } = await import("./cli-S47MZIN6.js");
   await runCli(process.argv);
 } catch (error) {
   printCliFailure(reportCliFailure(error, {
