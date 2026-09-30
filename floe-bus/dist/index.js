@@ -71091,8 +71091,7 @@ function normalizeCompositionContent(content) {
       bindings: node.bindings ?? [],
       capability_grant_ids: [...node.capability_grant_ids ?? []].sort(),
       ...node.activation ? { activation: node.activation } : {},
-      ...node.context_policy ? { context_policy: node.context_policy } : {},
-      ...node.distinct_actor_from?.length ? { distinct_actor_from: [...node.distinct_actor_from].sort() } : {}
+      ...node.context_policy ? { context_policy: node.context_policy } : {}
     })),
     ports: content.ports.map((port) => ({
       port_id: port.port_id,
@@ -71196,24 +71195,6 @@ function validateScopeComposition(content, routingMode = "edge") {
   for (const node of content.nodes) {
     requireUnique(node.capability_grant_ids ?? [], `CapabilityGrant id on node '${node.node_id}'`);
     validateNodePolicies(node, content.ports, routingMode);
-  }
-  assertDistinctActors(content.nodes);
-}
-function assertDistinctActors(nodes) {
-  const byId = new Map(nodes.map((node) => [node.node_id, node]));
-  for (const node of nodes) {
-    for (const otherId of node.distinct_actor_from ?? []) {
-      const other = byId.get(otherId);
-      if (!other) {
-        throw new ScopeCompositionInvalidError(`node '${node.node_id}' must differ from node '${otherId}', which does not exist`);
-      }
-      if (node.kind !== "actor" || other.kind !== "actor" || !node.resource_id || !other.resource_id) {
-        throw new ScopeCompositionInvalidError(`node '${node.node_id}' and node '${otherId}' must both be Actor nodes naming their Actor to be kept distinct`);
-      }
-      if (node.resource_id === other.resource_id) {
-        throw new ScopeCompositionInvalidError(`node '${node.node_id}' and node '${otherId}' must have different Actors, but both are '${node.resource_id}'`);
-      }
-    }
   }
 }
 function inspectScopeCompositionValidation(content, routingMode = "edge") {
@@ -71529,7 +71510,6 @@ function applyScopeCompositionSchema(db) {
   if (!placementColumns.some((column) => column.name === "capability_grant_ids_json")) {
     db.exec("ALTER TABLE scope_node_placements ADD COLUMN capability_grant_ids_json TEXT NOT NULL DEFAULT '[]'");
   }
-  addColumnIfMissing4(db, "scope_node_placements", "distinct_actor_from_json", "TEXT");
   addColumnIfMissing4(db, "scope_ports", "schema_json", "TEXT");
   const retained = new ScopeCompositionStore(db);
   const ids = db.prepare(`SELECT revision_id FROM scope_composition_revisions`).all();
@@ -71787,8 +71767,7 @@ var ScopeCompositionStore = class {
         bindings: parseJson(node.bindings_json, []),
         capability_grant_ids: parseJson(node.capability_grant_ids_json, []),
         ...Object.keys(activation).length > 0 ? { activation } : {},
-        ...Object.keys(contextPolicy).length > 0 ? { context_policy: contextPolicy } : {},
-        ...node.distinct_actor_from_json ? { distinct_actor_from: parseJson(node.distinct_actor_from_json, []) } : {}
+        ...Object.keys(contextPolicy).length > 0 ? { context_policy: contextPolicy } : {}
       };
     });
     const ports = this.db.prepare(`
@@ -71836,12 +71815,11 @@ var ScopeCompositionStore = class {
     const insertNode = this.db.prepare(`
       INSERT INTO scope_node_placements (
         revision_id, node_id, kind, label, resource_id, config_json,
-        bindings_json, capability_grant_ids_json, activation_json, context_policy_json,
-        distinct_actor_from_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bindings_json, capability_grant_ids_json, activation_json, context_policy_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const node of content.nodes) {
-      insertNode.run(revisionId, node.node_id, node.kind, node.label ?? null, node.resource_id ?? null, json(node.config), json(node.bindings ?? []), json(node.capability_grant_ids ?? []), json(node.activation), json(node.context_policy), node.distinct_actor_from?.length ? JSON.stringify(node.distinct_actor_from) : null);
+      insertNode.run(revisionId, node.node_id, node.kind, node.label ?? null, node.resource_id ?? null, json(node.config), json(node.bindings ?? []), json(node.capability_grant_ids ?? []), json(node.activation), json(node.context_policy));
     }
     const insertPort = this.db.prepare(`
       INSERT INTO scope_ports (
@@ -99869,11 +99847,7 @@ var nodeSchema = {
     },
     capability_grant_ids: stringArray3,
     activation: activationPolicySchema,
-    context_policy: contextPolicySchema,
-    distinct_actor_from: {
-      ...stringArray3,
-      description: "Separation of duties: node ids of other Actor nodes whose Actor must differ from this node's Actor, for example a judge that must not be a builder. A route that breaks it is refused at publish and at start."
-    }
+    context_policy: contextPolicySchema
   }
 };
 var portSchema = {
@@ -105055,13 +105029,6 @@ var BusStore = class {
     }
     if (revision.routing_mode !== "edge") {
       throw new ScopeExecutionInvalidError(`revision '${revision.revision_id}' uses legacy routing and cannot start through the Edge execution API`);
-    }
-    try {
-      assertDistinctActors(revision.nodes);
-    } catch (error) {
-      if (error instanceof ScopeCompositionInvalidError)
-        throw new ScopeExecutionInvalidError(error.reason);
-      throw error;
     }
     const ingressNode = revision.nodes.find((node) => node.node_id === input.ingress_node_id);
     if (!ingressNode || ingressNode.kind !== "event") {
@@ -119814,8 +119781,7 @@ async function createBusServer(configPath, config, options = {}) {
       text: external_exports.string().min(1)
     })).optional(),
     activation: external_exports.record(external_exports.unknown()).optional(),
-    context_policy: external_exports.record(external_exports.unknown()).optional(),
-    distinct_actor_from: external_exports.array(external_exports.string().min(1)).optional()
+    context_policy: external_exports.record(external_exports.unknown()).optional()
   });
   const ScopePortSchema = external_exports.object({
     port_id: external_exports.string().min(1),
