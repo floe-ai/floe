@@ -49,6 +49,10 @@ var EnginesClient = class extends ChannelClient {
   refresh(engine) {
     return this.request("refresh", { engine });
   }
+  /** The engine's own list of models for the signed-in account, to choose an Actor's model from. */
+  models(engine) {
+    return this.request("models", { engine });
+  }
   /** Start the vendor's own sign-in. Progress arrives through onSignIn. */
   signIn(engine, options = {}) {
     return this.request("sign_in", { engine, ...options.mode ? { mode: options.mode } : {} });

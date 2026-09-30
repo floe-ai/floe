@@ -991,14 +991,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text15, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text17, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text15;
+        return text17;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text15.length <= endStep)
-        return text15;
+      if (text17.length <= endStep)
+        return text17;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -1015,14 +1015,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i3 = consumeMoreIndentedLines(text15, i3, indent.length);
+        i3 = consumeMoreIndentedLines(text17, i3, indent.length);
         if (i3 !== -1)
           end = i3 + endStep;
       }
-      for (let ch; ch = text15[i3 += 1]; ) {
+      for (let ch; ch = text17[i3 += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i3;
-          switch (text15[i3 + 1]) {
+          switch (text17[i3 + 1]) {
             case "x":
               i3 += 3;
               break;
@@ -1039,12 +1039,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i3 = consumeMoreIndentedLines(text15, i3, indent.length);
+            i3 = consumeMoreIndentedLines(text17, i3, indent.length);
           end = i3 + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text15[i3 + 1];
+            const next = text17[i3 + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i3;
           }
@@ -1056,12 +1056,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text15[i3 += 1];
+                ch = text17[i3 += 1];
                 overflow = true;
               }
               const j = i3 > escEnd + 1 ? i3 - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text15;
+                return text17;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -1076,39 +1076,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text15;
+        return text17;
       if (onFold)
         onFold();
-      let res = text15.slice(0, folds[0]);
+      let res = text17.slice(0, folds[0]);
       for (let i4 = 0; i4 < folds.length; ++i4) {
         const fold = folds[i4];
-        const end2 = folds[i4 + 1] || text15.length;
+        const end2 = folds[i4 + 1] || text17.length;
         if (fold === 0)
           res = `
-${indent}${text15.slice(0, end2)}`;
+${indent}${text17.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text15[fold]}\\`;
+            res += `${text17[fold]}\\`;
           res += `
-${indent}${text15.slice(fold + 1, end2)}`;
+${indent}${text17.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text15, i3, indent) {
+    function consumeMoreIndentedLines(text17, i3, indent) {
       let end = i3;
       let start = i3 + 1;
-      let ch = text15[start];
+      let ch = text17[start];
       while (ch === " " || ch === "	") {
         if (i3 < start + indent) {
-          ch = text15[++i3];
+          ch = text17[++i3];
         } else {
           do {
-            ch = text15[++i3];
+            ch = text17[++i3];
           } while (ch && ch !== "\n");
           end = i3;
           start = i3 + 1;
-          ch = text15[start];
+          ch = text17[start];
         }
       }
       return end;
@@ -13476,25 +13476,25 @@ var require_transport = __commonJS({
       stream.flushSync();
     }
     function transport(fullOptions) {
-      const { pipeline, targets: targets3, levels, dedupe, worker = {}, caller = getCallers(), sync = false } = fullOptions;
+      const { pipeline, targets: targets2, levels, dedupe, worker = {}, caller = getCallers(), sync = false } = fullOptions;
       const options = {
         ...fullOptions.options
       };
       const callers = typeof caller === "string" ? [caller] : caller;
       const bundlerOverrides = typeof globalThis === "object" && Object.prototype.hasOwnProperty.call(globalThis, "__bundlerPathsOverrides") && globalThis.__bundlerPathsOverrides && typeof globalThis.__bundlerPathsOverrides === "object" ? globalThis.__bundlerPathsOverrides : /* @__PURE__ */ Object.create(null);
       let target = fullOptions.target;
-      if (target && targets3) {
+      if (target && targets2) {
         throw new Error("only one of target or targets can be specified");
       }
-      if (targets3) {
+      if (targets2) {
         target = bundlerOverrides["pino-worker"] || join13(__dirname, "worker.js");
-        options.targets = targets3.filter((dest) => dest.target).map((dest) => {
+        options.targets = targets2.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
             target: fixTarget(dest.target)
           };
         });
-        options.pipelines = targets3.filter((dest) => dest.pipeline).map((dest) => {
+        options.pipelines = targets2.filter((dest) => dest.pipeline).map((dest) => {
           return dest.pipeline.map((t) => {
             return {
               ...t,
@@ -13520,7 +13520,7 @@ var require_transport = __commonJS({
         options.dedupe = dedupe;
       }
       options.pinoWillSendConfig = true;
-      const name = targets3 || pipeline ? "pino.transport" : target;
+      const name = targets2 || pipeline ? "pino.transport" : target;
       return buildStream(fixTarget(target), options, worker, sync, name);
       function fixTarget(origin) {
         origin = bundlerOverrides[origin] || origin;
@@ -18539,13 +18539,13 @@ var require_context = __commonJS({
       this.server = server;
     }
     function defaultSchemaErrorFormatter(errors, dataVar) {
-      let text15 = "";
+      let text17 = "";
       const separator = ", ";
       for (let i3 = 0; i3 !== errors.length; ++i3) {
         const e = errors[i3];
-        text15 += dataVar + (e.instancePath || "") + " " + e.message + separator;
+        text17 += dataVar + (e.instancePath || "") + " " + e.message + separator;
       }
-      return new Error(text15.slice(0, -separator.length));
+      return new Error(text17.slice(0, -separator.length));
     }
     module.exports = Context;
   }
@@ -19241,20 +19241,20 @@ var require_secure_json_parse = __commonJS({
     var hasBuffer = typeof Buffer !== "undefined";
     var suspectProtoRx = /"(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])"\s*:/;
     var suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
-    function _parse(text15, reviver, options) {
+    function _parse(text17, reviver, options) {
       if (options == null) {
         if (reviver !== null && typeof reviver === "object") {
           options = reviver;
           reviver = void 0;
         }
       }
-      if (hasBuffer && Buffer.isBuffer(text15)) {
-        text15 = text15.toString();
+      if (hasBuffer && Buffer.isBuffer(text17)) {
+        text17 = text17.toString();
       }
-      if (text15 && text15.charCodeAt(0) === 65279) {
-        text15 = text15.slice(1);
+      if (text17 && text17.charCodeAt(0) === 65279) {
+        text17 = text17.slice(1);
       }
-      const obj = JSON.parse(text15, reviver);
+      const obj = JSON.parse(text17, reviver);
       if (obj === null || typeof obj !== "object") {
         return obj;
       }
@@ -19264,15 +19264,15 @@ var require_secure_json_parse = __commonJS({
         return obj;
       }
       if (protoAction !== "ignore" && constructorAction !== "ignore") {
-        if (suspectProtoRx.test(text15) === false && suspectConstructorRx.test(text15) === false) {
+        if (suspectProtoRx.test(text17) === false && suspectConstructorRx.test(text17) === false) {
           return obj;
         }
       } else if (protoAction !== "ignore" && constructorAction === "ignore") {
-        if (suspectProtoRx.test(text15) === false) {
+        if (suspectProtoRx.test(text17) === false) {
           return obj;
         }
       } else {
-        if (suspectConstructorRx.test(text15) === false) {
+        if (suspectConstructorRx.test(text17) === false) {
           return obj;
         }
       }
@@ -19310,20 +19310,20 @@ var require_secure_json_parse = __commonJS({
       }
       return obj;
     }
-    function parse5(text15, reviver, options) {
+    function parse5(text17, reviver, options) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text15, reviver, options);
+        return _parse(text17, reviver, options);
       } finally {
         Error.stackTraceLimit = stackTraceLimit;
       }
     }
-    function safeParse(text15, reviver) {
+    function safeParse(text17, reviver) {
       const { stackTraceLimit } = Error;
       Error.stackTraceLimit = 0;
       try {
-        return _parse(text15, reviver, { safe: true });
+        return _parse(text17, reviver, { safe: true });
       } catch {
         return void 0;
       } finally {
@@ -23966,7 +23966,7 @@ var require_core = __commonJS({
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
         if (!errors || errors.length === 0)
           return "No errors";
-        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text15, msg) => text15 + separator + msg);
+        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text17, msg) => text17 + separator + msg);
       }
       $dataMetaSchema(metaSchema, keywordsJsonPointers) {
         const rules = this.RULES.all;
@@ -52796,12 +52796,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISO('P5Y3M').toObject() //=> { years: 5, months: 3 }
        * @return {Duration}
        */
-      static fromISO(text15, opts) {
-        const [parsed] = parseISODuration(text15);
+      static fromISO(text17, opts) {
+        const [parsed] = parseISODuration(text17);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text17}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -52820,12 +52820,12 @@ var require_luxon = __commonJS({
        * @example Duration.fromISOTime('T1100').toObject() //=> { hours: 11, minutes: 0, seconds: 0 }
        * @return {Duration}
        */
-      static fromISOTime(text15, opts) {
-        const [parsed] = parseISOTimeOnly(text15);
+      static fromISOTime(text17, opts) {
+        const [parsed] = parseISOTimeOnly(text17);
         if (parsed) {
           return _Duration.fromObject(parsed, opts);
         } else {
-          return _Duration.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
+          return _Duration.invalid("unparsable", `the input "${text17}" can't be parsed as ISO 8601`);
         }
       }
       /**
@@ -53490,8 +53490,8 @@ var require_luxon = __commonJS({
        * @see https://en.wikipedia.org/wiki/ISO_8601#Time_intervals
        * @return {Interval}
        */
-      static fromISO(text15, opts) {
-        const [s2, e] = (text15 || "").split("/", 2);
+      static fromISO(text17, opts) {
+        const [s2, e] = (text17 || "").split("/", 2);
         if (s2 && e) {
           let start, startIsValid;
           try {
@@ -53522,7 +53522,7 @@ var require_luxon = __commonJS({
             }
           }
         }
-        return _Interval.invalid("unparsable", `the input "${text15}" can't be parsed as ISO 8601`);
+        return _Interval.invalid("unparsable", `the input "${text17}" can't be parsed as ISO 8601`);
       }
       /**
        * Check if an object is an Interval. Works across context boundaries
@@ -54752,7 +54752,7 @@ var require_luxon = __commonJS({
         o
       };
     }
-    function parseDataToDateTime(parsed, parsedZone, opts, format, text15, specificOffset) {
+    function parseDataToDateTime(parsed, parsedZone, opts, format, text17, specificOffset) {
       const {
         setZone,
         zone
@@ -54765,7 +54765,7 @@ var require_luxon = __commonJS({
         });
         return setZone ? inst : inst.setZone(zone);
       } else {
-        return DateTime.invalid(new Invalid("unparsable", `the input "${text15}" can't be parsed as ${format}`));
+        return DateTime.invalid(new Invalid("unparsable", `the input "${text17}" can't be parsed as ${format}`));
       }
     }
     function toTechFormat(dt, format, allowZ = true) {
@@ -55287,9 +55287,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromISO('2016-W05-4')
        * @return {DateTime}
        */
-      static fromISO(text15, opts = {}) {
-        const [vals, parsedZone] = parseISODate(text15);
-        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text15);
+      static fromISO(text17, opts = {}) {
+        const [vals, parsedZone] = parseISODate(text17);
+        return parseDataToDateTime(vals, parsedZone, opts, "ISO 8601", text17);
       }
       /**
        * Create a DateTime from an RFC 2822 string
@@ -55306,9 +55306,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromRFC2822('25 Nov 2016 13:23 Z')
        * @return {DateTime}
        */
-      static fromRFC2822(text15, opts = {}) {
-        const [vals, parsedZone] = parseRFC2822Date(text15);
-        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text15);
+      static fromRFC2822(text17, opts = {}) {
+        const [vals, parsedZone] = parseRFC2822Date(text17);
+        return parseDataToDateTime(vals, parsedZone, opts, "RFC 2822", text17);
       }
       /**
        * Create a DateTime from an HTTP header date
@@ -55326,8 +55326,8 @@ var require_luxon = __commonJS({
        * @example DateTime.fromHTTP('Sun Nov  6 08:49:37 1994')
        * @return {DateTime}
        */
-      static fromHTTP(text15, opts = {}) {
-        const [vals, parsedZone] = parseHTTPDate(text15);
+      static fromHTTP(text17, opts = {}) {
+        const [vals, parsedZone] = parseHTTPDate(text17);
         return parseDataToDateTime(vals, parsedZone, opts, "HTTP", opts);
       }
       /**
@@ -55344,8 +55344,8 @@ var require_luxon = __commonJS({
        * @param {string} opts.outputCalendar - the output calendar to set on the resulting DateTime instance
        * @return {DateTime}
        */
-      static fromFormat(text15, fmt, opts = {}) {
-        if (isUndefined(text15) || isUndefined(fmt)) {
+      static fromFormat(text17, fmt, opts = {}) {
+        if (isUndefined(text17) || isUndefined(fmt)) {
           throw new InvalidArgumentError("fromFormat requires an input string and a format");
         }
         const {
@@ -55355,18 +55355,18 @@ var require_luxon = __commonJS({
           locale,
           numberingSystem,
           defaultToEN: true
-        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text15, fmt);
+        }), [vals, parsedZone, specificOffset, invalid2] = parseFromTokens(localeToUse, text17, fmt);
         if (invalid2) {
           return _DateTime.invalid(invalid2);
         } else {
-          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text15, specificOffset);
+          return parseDataToDateTime(vals, parsedZone, opts, `format ${fmt}`, text17, specificOffset);
         }
       }
       /**
        * @deprecated use fromFormat instead
        */
-      static fromString(text15, fmt, opts = {}) {
-        return _DateTime.fromFormat(text15, fmt, opts);
+      static fromString(text17, fmt, opts = {}) {
+        return _DateTime.fromFormat(text17, fmt, opts);
       }
       /**
        * Create a DateTime from a SQL date, time, or datetime
@@ -55389,9 +55389,9 @@ var require_luxon = __commonJS({
        * @example DateTime.fromSQL('09:12:34.342')
        * @return {DateTime}
        */
-      static fromSQL(text15, opts = {}) {
-        const [vals, parsedZone] = parseSQL(text15);
-        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text15);
+      static fromSQL(text17, opts = {}) {
+        const [vals, parsedZone] = parseSQL(text17);
+        return parseDataToDateTime(vals, parsedZone, opts, "SQL", text17);
       }
       /**
        * Create an invalid DateTime.
@@ -56576,7 +56576,7 @@ var require_luxon = __commonJS({
        * @param {Object} options - options taken by fromFormat()
        * @return {Object}
        */
-      static fromFormatExplain(text15, fmt, options = {}) {
+      static fromFormatExplain(text17, fmt, options = {}) {
         const {
           locale = null,
           numberingSystem = null
@@ -56585,13 +56585,13 @@ var require_luxon = __commonJS({
           numberingSystem,
           defaultToEN: true
         });
-        return explainFromTokens(localeToUse, text15, fmt);
+        return explainFromTokens(localeToUse, text17, fmt);
       }
       /**
        * @deprecated use fromFormatExplain instead
        */
-      static fromStringExplain(text15, fmt, options = {}) {
-        return _DateTime.fromFormatExplain(text15, fmt, options);
+      static fromStringExplain(text17, fmt, options = {}) {
+        return _DateTime.fromFormatExplain(text17, fmt, options);
       }
       /**
        * Build a parser for `fmt` using the given locale. This parser can be passed
@@ -56626,8 +56626,8 @@ var require_luxon = __commonJS({
        * @param {Object} opts - options taken by fromFormat()
        * @returns {DateTime}
        */
-      static fromFormatParser(text15, formatParser, opts = {}) {
-        if (isUndefined(text15) || isUndefined(formatParser)) {
+      static fromFormatParser(text17, formatParser, opts = {}) {
+        if (isUndefined(text17) || isUndefined(formatParser)) {
           throw new InvalidArgumentError("fromFormatParser requires an input string and a format parser");
         }
         const {
@@ -56646,11 +56646,11 @@ var require_luxon = __commonJS({
           zone,
           specificOffset,
           invalidReason
-        } = formatParser.explainFromTokens(text15);
+        } = formatParser.explainFromTokens(text17);
         if (invalidReason) {
           return _DateTime.invalid(invalidReason);
         } else {
-          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text15, specificOffset);
+          return parseDataToDateTime(result, zone, opts, `format ${formatParser.format}`, text17, specificOffset);
         }
       }
       // FORMAT PRESETS
@@ -64450,12 +64450,12 @@ var ContextStore = class {
     } catch {
       return null;
     }
-    const text15 = parsed && typeof parsed.text === "string" ? parsed.text : null;
-    if (!text15)
+    const text17 = parsed && typeof parsed.text === "string" ? parsed.text : null;
+    if (!text17)
       return null;
-    if (text15.length <= maxChars)
-      return text15;
-    return text15.slice(0, maxChars) + "\u2026";
+    if (text17.length <= maxChars)
+      return text17;
+    return text17.slice(0, maxChars) + "\u2026";
   }
   getLatestMessagePreview(context_id, maxChars = 160) {
     const row = this.db.prepare("SELECT content_json FROM events WHERE context_id = ? AND type = 'message' ORDER BY created_at DESC LIMIT 1").get(context_id);
@@ -64463,10 +64463,10 @@ var ContextStore = class {
       return null;
     try {
       const parsed = JSON.parse(row.content_json);
-      const text15 = typeof parsed.text === "string" ? parsed.text.trim() : "";
-      if (!text15)
+      const text17 = typeof parsed.text === "string" ? parsed.text.trim() : "";
+      if (!text17)
         return null;
-      return text15.length <= maxChars ? text15 : `${text15.slice(0, maxChars)}\u2026`;
+      return text17.length <= maxChars ? text17 : `${text17.slice(0, maxChars)}\u2026`;
     } catch {
       return null;
     }
@@ -65800,7 +65800,7 @@ var SqliteCapabilityGrantStore = class {
     const boundary = normalizeBoundary2(input.boundary);
     assertNonEmpty("issuer_id", input.issuer_id);
     const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets3 = normalizeTargets(input.targets ?? []);
+    const targets2 = normalizeTargets(input.targets ?? []);
     const evidence = normalizeEvidence(input.evidence);
     const issuedAt = this.now();
     const issuedAtMs = parseTimestamp("issued_at", issuedAt);
@@ -65829,7 +65829,7 @@ var SqliteCapabilityGrantStore = class {
         INSERT INTO capability_grant_targets (grant_id, target_kind, target_id)
         VALUES (?, ?, ?)
       `);
-      for (const target of targets3)
+      for (const target of targets2)
         insertTarget.run(grantId, target.kind, target.id);
       if (input.delegation_only) {
         this.db.prepare("INSERT INTO capability_grant_delegation_only (grant_id) VALUES (?)").run(grantId);
@@ -65860,11 +65860,11 @@ var SqliteCapabilityGrantStore = class {
       throw new Error("Delegating access requires a current delegation grant for this recipient.");
     }
     const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets3 = normalizeTargets(input.targets ?? parent.targets);
+    const targets2 = normalizeTargets(input.targets ?? parent.targets);
     if (operations.some((id) => !parent.operation_ids.includes(id))) {
       throw new Error("Delegated operations must be a subset of the source grant.");
     }
-    if (parent.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !parent.targets.some((allowed) => targetContains(allowed, target))))) {
+    if (parent.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !parent.targets.some((allowed) => targetContains(allowed, target))))) {
       throw new Error("Delegated targets must be contained in the source grant.");
     }
     if (input.expires_at === void 0) {
@@ -65880,7 +65880,7 @@ var SqliteCapabilityGrantStore = class {
         principal_id: input.principal_id,
         boundary: authority.boundary,
         operation_ids: operations,
-        targets: targets3,
+        targets: targets2,
         expires_at: expiry,
         issuer_id: authority.principal_id,
         evidence: [{ kind: "operation_invocation", ref: input.invocation_id }],
@@ -65905,11 +65905,11 @@ var SqliteCapabilityGrantStore = class {
       throw new Error("Access can only depend on an active source grant.");
     }
     const operations = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets3 = normalizeTargets(input.targets ?? []);
+    const targets2 = normalizeTargets(input.targets ?? []);
     if (operations.some((id) => !source.operation_ids.includes(id))) {
       throw new Error("Dependent operations must be a subset of the source grant.");
     }
-    if (source.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !source.targets.some((allowed) => targetContains(allowed, target))))) {
+    if (source.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !source.targets.some((allowed) => targetContains(allowed, target))))) {
       throw new Error("Dependent targets must be contained in the source grant.");
     }
     const expiry = input.expires_at ?? null;
@@ -65922,7 +65922,7 @@ var SqliteCapabilityGrantStore = class {
         principal_id: input.principal_id,
         boundary: source.boundary,
         operation_ids: operations,
-        targets: targets3,
+        targets: targets2,
         expires_at: expiry,
         issuer_id: source.principal_id,
         evidence: input.evidence
@@ -65967,14 +65967,14 @@ var SqliteCapabilityGrantStore = class {
     const policyRevision = assertNonEmpty("policy_revision", input.policy_revision);
     const issuerId = assertNonEmpty("issuer_id", input.issuer_id);
     const operationIds = normalizeNonEmptySet(input.operation_ids, "operation_id", true);
-    const targets3 = normalizeTargets(input.targets ?? []);
+    const targets2 = normalizeTargets(input.targets ?? []);
     const evidence = normalizeEvidence(input.evidence);
     const policyId = hostCapabilityPolicyId(hostId, purpose);
     const grantId = hostCapabilityPolicyGrantId(policyId, policyRevision);
     const existingPolicy = this.getHostPolicyRevision(policyId, policyRevision);
     if (existingPolicy) {
       const existingGrant = this.requireGrant(existingPolicy.grant_id);
-      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets3) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
+      const exact = existingPolicy.host_id === hostId && existingPolicy.principal_id === principalId && existingPolicy.purpose === purpose && existingGrant.issuer_id === issuerId && existingGrant.expires_at === input.expires_at && JSON.stringify(existingGrant.operation_ids) === JSON.stringify(operationIds) && JSON.stringify(existingGrant.targets) === JSON.stringify(targets2) && JSON.stringify(existingGrant.evidence) === JSON.stringify(evidence);
       if (!exact) {
         throw new Error(`Host capability policy '${policyId}@${policyRevision}' already identifies different authority.`);
       }
@@ -66002,7 +66002,7 @@ var SqliteCapabilityGrantStore = class {
         principal_id: principalId,
         boundary: { kind: "host", host_id: hostId },
         operation_ids: operationIds,
-        targets: targets3,
+        targets: targets2,
         expires_at: input.expires_at,
         issuer_id: issuerId,
         evidence
@@ -66073,7 +66073,7 @@ var SqliteCapabilityGrantStore = class {
     if (operationIds.length === 0) {
       throw new Error(`Stored CapabilityGrant '${grantId}' has no semantic operations.`);
     }
-    const targets3 = this.db.prepare(`
+    const targets2 = this.db.prepare(`
       SELECT target_kind, target_id
       FROM capability_grant_targets
       WHERE grant_id = ?
@@ -66087,7 +66087,7 @@ var SqliteCapabilityGrantStore = class {
       principal_id: row.principal_id,
       boundary: boundaryFromRow(row.boundary_kind, row.boundary_id),
       operation_ids: operationIds,
-      targets: targets3,
+      targets: targets2,
       issued_at: row.issued_at,
       expires_at: row.expires_at,
       revoked_at: row.revoked_at,
@@ -66294,9 +66294,9 @@ function targetContains(allowed, child) {
   }
   return false;
 }
-function normalizeTargets(targets3) {
+function normalizeTargets(targets2) {
   const normalized = /* @__PURE__ */ new Map();
-  for (const target of targets3) {
+  for (const target of targets2) {
     assertNonEmpty("target kind", target.kind);
     if (target.id !== null)
       assertNonEmpty("target id", target.id);
@@ -67412,10 +67412,10 @@ var LegacyCredentialSourceError = class extends Error {
     this.name = "LegacyCredentialSourceError";
   }
 };
-function parseProfiles(text15) {
+function parseProfiles(text17) {
   let value;
   try {
-    value = import_yaml2.default.parse(text15);
+    value = import_yaml2.default.parse(text17);
   } catch {
     throw new LegacyCredentialSourceError("legacy_credential_invalid");
   }
@@ -68573,6 +68573,49 @@ function transaction(db, action) {
   }
 }
 
+// floe-bus/dist/capability-grant-schema.js
+var text3 = { type: "string", minLength: 1 };
+var grantTargetsSchema = { type: "array", items: {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "id"],
+  properties: { kind: text3, id: { oneOf: [text3, { type: "null" }] } }
+} };
+var capabilityGrantSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence", "delegation_only"],
+  properties: {
+    grant_id: text3,
+    principal_id: text3,
+    boundary: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "workspace_id"],
+      properties: { kind: { const: "workspace" }, workspace_id: text3 }
+    },
+    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
+    targets: grantTargetsSchema,
+    issued_at: text3,
+    expires_at: { oneOf: [text3, { type: "null" }], description: "Null means until revoked." },
+    revoked_at: { oneOf: [text3, { type: "null" }] },
+    issuer_id: text3,
+    evidence: { type: "array", items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "ref"],
+      properties: { kind: text3, ref: text3 }
+    } },
+    delegation_only: { type: "boolean" }
+  }
+};
+var unavailableGrantSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["grant_id", "code"],
+  properties: { grant_id: text3, code: text3 }
+};
+
 // floe-bus/dist/tool-policy.js
 var ENGINE_TOOL_OPERATIONS = {
   filesystem_read: "engine.tool.filesystem.read",
@@ -68786,6 +68829,19 @@ function passOnEngineToolAccess(input) {
     }
   };
 }
+function actorAccess(grants, workspaceId4, actorId, definition2) {
+  const inspected = grants.inspectSessionGrantIds({
+    principal_id: actorId,
+    boundary: { kind: "workspace", workspace_id: workspaceId4 },
+    grant_ids: definition2?.content.capability_grant_ids ?? []
+  });
+  return {
+    active_grants: inspected.active_grants,
+    delegable_grants: inspected.delegable_grants,
+    unavailable_grants: inspected.unavailable_grants,
+    engine_tool_operation_ids: [...new Set(inspected.active_grants.flatMap((grant) => grant.operation_ids).filter((id) => ALL_ENGINE_TOOL_OPERATION_IDS.includes(id)))].sort()
+  };
+}
 function heldGrants(grants, authority) {
   const inspection = grants.inspectSessionGrantIds({
     principal_id: authority.principal_id,
@@ -68986,13 +69042,25 @@ var actorListResultSchema = {
 var actorInspectionSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["actor", "current_definition", "history_complete", "revisions", "head_changes"],
+  required: ["actor", "current_definition", "history_complete", "revisions", "head_changes", "access"],
   properties: {
     actor: actorSchema,
     current_definition: { oneOf: [actorDefinitionRevisionSchema, { type: "null" }] },
     history_complete: { type: "boolean" },
     revisions: { type: "array", items: actorDefinitionRevisionSchema },
-    head_changes: { type: "array", items: actorHeadChangeSchema }
+    head_changes: { type: "array", items: actorHeadChangeSchema },
+    access: {
+      type: "object",
+      additionalProperties: false,
+      description: "What this Actor may do right now, checked the same way as its own turns. Grants carry the operations and their target limits; engine_tool_operation_ids is its file, command and network access.",
+      required: ["active_grants", "delegable_grants", "unavailable_grants", "engine_tool_operation_ids"],
+      properties: {
+        active_grants: { type: "array", items: capabilityGrantSchema },
+        delegable_grants: { type: "array", items: capabilityGrantSchema, description: "Access it may only pass on, never use itself." },
+        unavailable_grants: { type: "array", items: unavailableGrantSchema, description: "Grants its definition names that no longer count, with why." },
+        engine_tool_operation_ids: { type: "array", items: { enum: [...ALL_ENGINE_TOOL_OPERATION_IDS] } }
+      }
+    }
   }
 };
 var newActorToolAccessSchema = {
@@ -69195,7 +69263,7 @@ function listActorsOperation(store) {
     }))
   };
 }
-function inspectActorOperation(store) {
+function inspectActorOperation(store, grants) {
   return {
     operation_id: INSPECT_ACTOR_OPERATION_ID,
     operation_version: "1",
@@ -69216,14 +69284,16 @@ function inspectActorOperation(store) {
         throw new ActorNotFoundError(context.target.ref.id);
       const all = store.listRevisions(actor.actor_id);
       const includeHistory = input.include_history === true;
+      const currentDefinition = store.getCurrentDefinition(actor.actor_id);
       return {
         state: "completed",
         result: {
           actor,
-          current_definition: store.getCurrentDefinition(actor.actor_id),
+          current_definition: currentDefinition,
           history_complete: includeHistory,
           revisions: includeHistory ? all : all.filter((revision) => revision.actor_definition_revision_id === actor.current_definition_revision_id || !revision.published_at && !revision.withdrawn_at),
-          head_changes: includeHistory ? store.listHeadChanges(actor.actor_id) : []
+          head_changes: includeHistory ? store.listHeadChanges(actor.actor_id) : [],
+          access: actorAccess(grants, actor.workspace_id, actor.actor_id, currentDefinition)
         },
         audit_ref: auditRef2(context)
       };
@@ -69521,7 +69591,7 @@ function actorStatusOperation(store, status) {
 function actorDefinitionOperationDefinitions(store, grants) {
   return [
     listActorsOperation(store),
-    inspectActorOperation(store),
+    inspectActorOperation(store, grants),
     getActorDefinitionOperation(store),
     createActorOperation(store, grants),
     createActorDefinitionDraftOperation(store),
@@ -69540,41 +69610,7 @@ function registerActorDefinitionOperations(registry, store, grants) {
 
 // floe-bus/dist/capability-grant-operations.js
 var CAPABILITY_GRANT_OPERATION_IDS = ["capability.grant.list", "capability.grant.delegate", "capability.grant.revoke"];
-var text3 = { type: "string", minLength: 1 };
-var targets = { type: "array", items: {
-  type: "object",
-  additionalProperties: false,
-  required: ["kind", "id"],
-  properties: { kind: text3, id: { oneOf: [text3, { type: "null" }] } }
-} };
-var grantSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["grant_id", "principal_id", "boundary", "operation_ids", "targets", "issued_at", "expires_at", "revoked_at", "issuer_id", "evidence", "delegation_only"],
-  properties: {
-    grant_id: text3,
-    principal_id: text3,
-    boundary: {
-      type: "object",
-      additionalProperties: false,
-      required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text3 }
-    },
-    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
-    targets,
-    issued_at: text3,
-    expires_at: { oneOf: [text3, { type: "null" }], description: "Null means until revoked." },
-    revoked_at: { oneOf: [text3, { type: "null" }] },
-    issuer_id: text3,
-    evidence: { type: "array", items: {
-      type: "object",
-      additionalProperties: false,
-      required: ["kind", "ref"],
-      properties: { kind: text3, ref: text3 }
-    } },
-    delegation_only: { type: "boolean" }
-  }
-};
+var text4 = { type: "string", minLength: 1 };
 var resultSchema = (properties) => ({ version: "1", schema: {
   type: "object",
   additionalProperties: false,
@@ -69586,15 +69622,15 @@ var delegationRequestSchema = {
   additionalProperties: false,
   required: ["source_grant_id", "operation_ids"],
   properties: {
-    source_grant_id: text3,
-    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text3 },
-    targets: { ...targets, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
+    source_grant_id: text4,
+    operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text4 },
+    targets: { ...grantTargetsSchema, description: "Omit to preserve the source targets. Supplied targets may only narrow them." },
     until_revoked: { const: true, description: "The delegated access lasts until it, its source, or the delegation permission is revoked." },
-    expires_at: { ...text3, description: "When the delegated access ends. Use instead of until_revoked." },
+    expires_at: { ...text4, description: "When the delegated access ends. Use instead of until_revoked." },
     delegation_only: { type: "boolean", description: "When true, the recipient may only delegate this access onward and can never exercise it itself." }
   }
 };
-var capabilityGrantSchema = grantSchema;
+var capabilityGrantSchema2 = capabilityGrantSchema;
 function delegateAccessToActor(deps, context, actorId, expectedActorRevision, input) {
   const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
   const actor = deps.actors.getActor(actorId);
@@ -69651,11 +69687,11 @@ function capabilityGrantOperations(deps) {
     description: "Issue one Actor its own grant containing only the requested subset of one of your session's grants. Requires explicit delegation permission for that Actor. Source and delegation permission remain live dependencies; revoking either removes delegated access. Account purpose constraints are preserved. For an unpublished Actor, omit expected_resource_revision or supply its reported revision 'none'; otherwise supply its exact current_definition_revision_id. Choose the lifetime explicitly: until_revoked, or expires_at; it may not outlive the source or delegation permission. Add the returned grant ID to the recipient's Actor definition before publishing it; never copy another Actor's grant IDs.",
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "reference" },
     target: { resource_kinds: ["actor"], expected_revision: "optional" },
-    result: resultSchema({ grant: grantSchema, delegation: {
+    result: resultSchema({ grant: capabilityGrantSchema, delegation: {
       type: "object",
       additionalProperties: false,
       required: ["source_grant_id", "authority_grant_id"],
-      properties: { source_grant_id: text3, authority_grant_id: text3 }
+      properties: { source_grant_id: text4, authority_grant_id: text4 }
     } }),
     input: { version: "1", schema: delegationRequestSchema },
     handler: (context, input) => {
@@ -69679,14 +69715,9 @@ function capabilityGrantOperations(deps) {
     effects: { mode: "read", reversibility: "none", external: false, secret_access: "reference" },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     result: resultSchema({
-      active_grants: { type: "array", items: grantSchema },
-      delegable_grants: { type: "array", items: grantSchema },
-      unavailable_grants: { type: "array", items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["grant_id", "code"],
-        properties: { grant_id: text3, code: text3 }
-      } }
+      active_grants: { type: "array", items: capabilityGrantSchema },
+      delegable_grants: { type: "array", items: capabilityGrantSchema },
+      unavailable_grants: { type: "array", items: unavailableGrantSchema }
     }),
     input: { version: "1", schema: { type: "object", additionalProperties: false } },
     handler: (context) => ({ state: "completed", result: deps.grants.inspectSessionGrantIds({
@@ -69702,12 +69733,12 @@ function capabilityGrantOperations(deps) {
     description: "Revoke a grant you delegated to this Actor. Dependent grants immediately lose authority as well; history remains available.",
     effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "reference" },
     target: { resource_kinds: ["actor"], expected_revision: "not_applicable" },
-    result: resultSchema({ grant: grantSchema }),
+    result: resultSchema({ grant: capabilityGrantSchema }),
     input: { version: "1", schema: {
       type: "object",
       additionalProperties: false,
       required: ["grant_id"],
-      properties: { grant_id: text3 }
+      properties: { grant_id: text4 }
     } },
     handler: (context, input) => {
       const grant = deps.grants.getGrant(input.grant_id);
@@ -70088,27 +70119,27 @@ var ToolCallFactsError = class extends Error {
 };
 function normalizeToolCallPolicyFacts(facts) {
   return {
-    actor_definition_revision_id: text4(facts.actor_definition_revision_id, "actor_definition_revision_id"),
-    tool_call_id: facts.tool_call_id == null ? null : text4(facts.tool_call_id, "tool_call_id"),
-    engine: text4(facts.engine, "engine"),
-    manifest_version: text4(facts.manifest_version, "manifest_version"),
-    native_tools: sortedUnique(facts.native_tools.map((name) => text4(name, "native tool"))),
-    paths: sortedUnique(facts.paths.map((path3) => text4(path3, "path"))),
+    actor_definition_revision_id: text5(facts.actor_definition_revision_id, "actor_definition_revision_id"),
+    tool_call_id: facts.tool_call_id == null ? null : text5(facts.tool_call_id, "tool_call_id"),
+    engine: text5(facts.engine, "engine"),
+    manifest_version: text5(facts.manifest_version, "manifest_version"),
+    native_tools: sortedUnique(facts.native_tools.map((name) => text5(name, "native tool"))),
+    paths: sortedUnique(facts.paths.map((path3) => text5(path3, "path"))),
     unresolved_path_count: count(facts.unresolved_path_count, "unresolved_path_count"),
     outside_path_count: count(facts.outside_path_count ?? 0, "outside_path_count"),
-    executables: sortedUnique(facts.executables.map((name) => text4(name, "executable").toLowerCase())),
+    executables: sortedUnique(facts.executables.map((name) => text5(name, "executable").toLowerCase())),
     unclassified_segment_count: count(facts.unclassified_segment_count, "unclassified_segment_count"),
     destinations: [...new Map(facts.destinations.map((destination) => {
       const value = {
-        scheme: text4(destination.scheme, "destination scheme").toLowerCase(),
-        host: text4(destination.host, "destination host").toLowerCase()
+        scheme: text5(destination.scheme, "destination scheme").toLowerCase(),
+        host: text5(destination.host, "destination host").toLowerCase()
       };
       return [`${value.scheme}://${value.host}`, value];
     })).entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, value]) => value),
     invalid_url_count: count(facts.invalid_url_count, "invalid_url_count"),
     write_redirection: facts.write_redirection === true,
     sandbox_bypass: facts.sandbox_bypass === true,
-    argument_digest: text4(facts.argument_digest, "argument_digest")
+    argument_digest: text5(facts.argument_digest, "argument_digest")
   };
 }
 function toolNetworkDestination(url) {
@@ -70122,7 +70153,7 @@ function toolNetworkDestination(url) {
     return null;
   }
 }
-function text4(value, label) {
+function text5(value, label) {
   if (typeof value !== "string" || !value.trim())
     throw new ToolCallFactsError(`${label} is required`);
   return value.trim();
@@ -70933,6 +70964,56 @@ var ScopeGraphStore = class {
 
 // floe-bus/dist/scope-compositions.js
 import { createHash as createHash10, randomUUID as randomUUID13 } from "node:crypto";
+
+// floe-bus/dist/operation-schema-validator-ajv.js
+var import_ajv = __toESM(require_ajv(), 1);
+var AjvOperationSchemaValidator = class {
+  ajv = new import_ajv.Ajv({ allErrors: true, strict: true });
+  compiled = /* @__PURE__ */ new WeakMap();
+  validate(schema, value) {
+    const validator = this.compiled.get(schema) ?? this.compile(schema);
+    if (validator(value))
+      return { valid: true };
+    return {
+      valid: false,
+      issues: (validator.errors ?? []).map(toIssue)
+    };
+  }
+  /** The reason a schema cannot be used, or null when it compiles. */
+  compileError(schema) {
+    try {
+      this.compiled.get(schema) ?? this.compile(schema);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+  compile(schema) {
+    const validator = this.ajv.compile(schema);
+    this.compiled.set(schema, validator);
+    return validator;
+  }
+};
+function toIssue(error) {
+  return {
+    instance_path: error.instancePath,
+    schema_path: error.schemaPath,
+    keyword: error.keyword,
+    message: error.message ?? "does not match the operation schema",
+    params: error.params
+  };
+}
+
+// floe-bus/dist/sqlite-columns.js
+function addColumnIfMissing4(db, table, column, definition2) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
+  }
+}
+
+// floe-bus/dist/scope-compositions.js
+var portSchemaValidator = new AjvOperationSchemaValidator();
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 var ScopeCompositionInvalidError = class extends Error {
   reason;
@@ -71010,7 +71091,8 @@ function normalizeCompositionContent(content) {
       bindings: node.bindings ?? [],
       capability_grant_ids: [...node.capability_grant_ids ?? []].sort(),
       ...node.activation ? { activation: node.activation } : {},
-      ...node.context_policy ? { context_policy: node.context_policy } : {}
+      ...node.context_policy ? { context_policy: node.context_policy } : {},
+      ...node.distinct_actor_from?.length ? { distinct_actor_from: [...node.distinct_actor_from].sort() } : {}
     })),
     ports: content.ports.map((port) => ({
       port_id: port.port_id,
@@ -71020,6 +71102,7 @@ function normalizeCompositionContent(content) {
       event_types: port.event_types ?? [],
       artefact_types: port.artefact_types ?? [],
       schema_ref: port.schema_ref ?? null,
+      ...port.schema ? { schema: port.schema } : {},
       min_count: port.min_count ?? 0,
       max_count: port.max_count === void 0 ? 1 : port.max_count
     })),
@@ -71078,6 +71161,17 @@ function validateScopeComposition(content, routingMode = "edge") {
     if (max !== null && (!Number.isInteger(max) || max < min)) {
       throw new ScopeCompositionInvalidError(`port '${port.port_id}' has invalid max_count`);
     }
+    if (port.schema !== void 0 && port.schema !== null) {
+      if (port.direction !== "output") {
+        throw new ScopeCompositionInvalidError(`port '${port.port_id}' is an input; only output Ports carry a schema`);
+      }
+      if (typeof port.schema !== "object" || Array.isArray(port.schema)) {
+        throw new ScopeCompositionInvalidError(`port '${port.port_id}' schema must be a JSON Schema object`);
+      }
+      const problem = portSchemaValidator.compileError(port.schema);
+      if (problem)
+        throw new ScopeCompositionInvalidError(`port '${port.port_id}' schema is not usable: ${problem}`);
+    }
   }
   for (const edge of content.edges) {
     const source = ports.get(edge.source_port_id);
@@ -71102,6 +71196,24 @@ function validateScopeComposition(content, routingMode = "edge") {
   for (const node of content.nodes) {
     requireUnique(node.capability_grant_ids ?? [], `CapabilityGrant id on node '${node.node_id}'`);
     validateNodePolicies(node, content.ports, routingMode);
+  }
+  assertDistinctActors(content.nodes);
+}
+function assertDistinctActors(nodes) {
+  const byId = new Map(nodes.map((node) => [node.node_id, node]));
+  for (const node of nodes) {
+    for (const otherId of node.distinct_actor_from ?? []) {
+      const other = byId.get(otherId);
+      if (!other) {
+        throw new ScopeCompositionInvalidError(`node '${node.node_id}' must differ from node '${otherId}', which does not exist`);
+      }
+      if (node.kind !== "actor" || other.kind !== "actor" || !node.resource_id || !other.resource_id) {
+        throw new ScopeCompositionInvalidError(`node '${node.node_id}' and node '${otherId}' must both be Actor nodes naming their Actor to be kept distinct`);
+      }
+      if (node.resource_id === other.resource_id) {
+        throw new ScopeCompositionInvalidError(`node '${node.node_id}' and node '${otherId}' must have different Actors, but both are '${node.resource_id}'`);
+      }
+    }
   }
 }
 function inspectScopeCompositionValidation(content, routingMode = "edge") {
@@ -71417,6 +71529,8 @@ function applyScopeCompositionSchema(db) {
   if (!placementColumns.some((column) => column.name === "capability_grant_ids_json")) {
     db.exec("ALTER TABLE scope_node_placements ADD COLUMN capability_grant_ids_json TEXT NOT NULL DEFAULT '[]'");
   }
+  addColumnIfMissing4(db, "scope_node_placements", "distinct_actor_from_json", "TEXT");
+  addColumnIfMissing4(db, "scope_ports", "schema_json", "TEXT");
   const retained = new ScopeCompositionStore(db);
   const ids = db.prepare(`SELECT revision_id FROM scope_composition_revisions`).all();
   for (const { revision_id: revisionId } of ids) {
@@ -71673,7 +71787,8 @@ var ScopeCompositionStore = class {
         bindings: parseJson(node.bindings_json, []),
         capability_grant_ids: parseJson(node.capability_grant_ids_json, []),
         ...Object.keys(activation).length > 0 ? { activation } : {},
-        ...Object.keys(contextPolicy).length > 0 ? { context_policy: contextPolicy } : {}
+        ...Object.keys(contextPolicy).length > 0 ? { context_policy: contextPolicy } : {},
+        ...node.distinct_actor_from_json ? { distinct_actor_from: parseJson(node.distinct_actor_from_json, []) } : {}
       };
     });
     const ports = this.db.prepare(`
@@ -71686,6 +71801,7 @@ var ScopeCompositionStore = class {
       event_types: parseJson(port.event_types_json, []),
       artefact_types: parseJson(port.artefact_types_json, []),
       schema_ref: port.schema_ref ?? null,
+      ...port.schema_json ? { schema: parseJson(port.schema_json, {}) } : {},
       min_count: Number(port.min_count),
       max_count: port.max_count === null ? null : Number(port.max_count)
     }));
@@ -71720,20 +71836,21 @@ var ScopeCompositionStore = class {
     const insertNode = this.db.prepare(`
       INSERT INTO scope_node_placements (
         revision_id, node_id, kind, label, resource_id, config_json,
-        bindings_json, capability_grant_ids_json, activation_json, context_policy_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bindings_json, capability_grant_ids_json, activation_json, context_policy_json,
+        distinct_actor_from_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const node of content.nodes) {
-      insertNode.run(revisionId, node.node_id, node.kind, node.label ?? null, node.resource_id ?? null, json(node.config), json(node.bindings ?? []), json(node.capability_grant_ids ?? []), json(node.activation), json(node.context_policy));
+      insertNode.run(revisionId, node.node_id, node.kind, node.label ?? null, node.resource_id ?? null, json(node.config), json(node.bindings ?? []), json(node.capability_grant_ids ?? []), json(node.activation), json(node.context_policy), node.distinct_actor_from?.length ? JSON.stringify(node.distinct_actor_from) : null);
     }
     const insertPort = this.db.prepare(`
       INSERT INTO scope_ports (
         revision_id, port_id, node_id, name, direction, event_types_json,
-        artefact_types_json, schema_ref, min_count, max_count
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        artefact_types_json, schema_ref, min_count, max_count, schema_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const port of content.ports) {
-      insertPort.run(revisionId, port.port_id, port.node_id, port.name, port.direction, json(port.event_types ?? []), json(port.artefact_types ?? []), port.schema_ref ?? null, port.min_count ?? 0, port.max_count === void 0 ? 1 : port.max_count);
+      insertPort.run(revisionId, port.port_id, port.node_id, port.name, port.direction, json(port.event_types ?? []), json(port.artefact_types ?? []), port.schema_ref ?? null, port.min_count ?? 0, port.max_count === void 0 ? 1 : port.max_count, port.schema ? JSON.stringify(port.schema) : null);
     }
     const insertEdge = this.db.prepare(`
       INSERT INTO scope_edges (
@@ -72042,31 +72159,31 @@ function applyScopeExecutionSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_node_execution_state_outbox_pending
       ON node_execution_state_outbox(push_sequence, changed_at, node_execution_id);
   `);
-  addColumnIfMissing4(db, "node_executions", "actor_definition_revision_id", "TEXT");
-  addColumnIfMissing4(db, "node_executions", "runtime_profile_revision_id", "TEXT");
-  addColumnIfMissing4(db, "node_executions", "actor_runtime_binding_id", "TEXT");
-  addColumnIfMissing4(db, "node_executions", "command_definition_revision_id", "TEXT");
-  addColumnIfMissing4(db, "node_executions", "command_worker_binding_id", "TEXT");
-  addColumnIfMissing4(db, "node_executions", "join_key", "TEXT");
-  addColumnIfMissing4(db, "scope_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing4(db, "node_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
-  addColumnIfMissing4(db, "execution_attempts", "actor_definition_revision_id", "TEXT");
-  addColumnIfMissing4(db, "execution_attempts", "runtime_profile_revision_id", "TEXT");
-  addColumnIfMissing4(db, "execution_attempts", "actor_runtime_binding_id", "TEXT");
-  addColumnIfMissing4(db, "execution_attempts", "command_definition_revision_id", "TEXT");
-  addColumnIfMissing4(db, "execution_attempts", "command_worker_binding_id", "TEXT");
-  addColumnIfMissing4(db, "node_execution_inputs", "input_identity", "TEXT");
-  addColumnIfMissing4(db, "node_execution_inputs", "state", "TEXT NOT NULL DEFAULT 'received'");
-  addColumnIfMissing4(db, "node_execution_inputs", "supersedes_input_id", "TEXT");
-  addColumnIfMissing4(db, "node_execution_inputs", "reason_json", "TEXT NOT NULL DEFAULT '{}'");
-  addColumnIfMissing4(db, "scope_execution_pauses", "status", "TEXT NOT NULL DEFAULT 'paused'");
-  addColumnIfMissing4(db, "scope_execution_pauses", "deadline_at", "TEXT");
-  addColumnIfMissing4(db, "scope_execution_pauses", "completed_at", "TEXT");
-  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "delivery_id", "TEXT");
-  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "attempt_id", "TEXT");
-  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "cancellation_state", "TEXT NOT NULL DEFAULT 'not_required'");
-  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "outcome_unknown", "INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing4(db, "scope_execution_pause_deliveries", "interruption_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing5(db, "node_executions", "actor_definition_revision_id", "TEXT");
+  addColumnIfMissing5(db, "node_executions", "runtime_profile_revision_id", "TEXT");
+  addColumnIfMissing5(db, "node_executions", "actor_runtime_binding_id", "TEXT");
+  addColumnIfMissing5(db, "node_executions", "command_definition_revision_id", "TEXT");
+  addColumnIfMissing5(db, "node_executions", "command_worker_binding_id", "TEXT");
+  addColumnIfMissing5(db, "node_executions", "join_key", "TEXT");
+  addColumnIfMissing5(db, "scope_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing5(db, "node_executions", "state_revision", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing5(db, "execution_attempts", "actor_definition_revision_id", "TEXT");
+  addColumnIfMissing5(db, "execution_attempts", "runtime_profile_revision_id", "TEXT");
+  addColumnIfMissing5(db, "execution_attempts", "actor_runtime_binding_id", "TEXT");
+  addColumnIfMissing5(db, "execution_attempts", "command_definition_revision_id", "TEXT");
+  addColumnIfMissing5(db, "execution_attempts", "command_worker_binding_id", "TEXT");
+  addColumnIfMissing5(db, "node_execution_inputs", "input_identity", "TEXT");
+  addColumnIfMissing5(db, "node_execution_inputs", "state", "TEXT NOT NULL DEFAULT 'received'");
+  addColumnIfMissing5(db, "node_execution_inputs", "supersedes_input_id", "TEXT");
+  addColumnIfMissing5(db, "node_execution_inputs", "reason_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfMissing5(db, "scope_execution_pauses", "status", "TEXT NOT NULL DEFAULT 'paused'");
+  addColumnIfMissing5(db, "scope_execution_pauses", "deadline_at", "TEXT");
+  addColumnIfMissing5(db, "scope_execution_pauses", "completed_at", "TEXT");
+  addColumnIfMissing5(db, "scope_execution_pause_deliveries", "delivery_id", "TEXT");
+  addColumnIfMissing5(db, "scope_execution_pause_deliveries", "attempt_id", "TEXT");
+  addColumnIfMissing5(db, "scope_execution_pause_deliveries", "cancellation_state", "TEXT NOT NULL DEFAULT 'not_required'");
+  addColumnIfMissing5(db, "scope_execution_pause_deliveries", "outcome_unknown", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing5(db, "scope_execution_pause_deliveries", "interruption_json", "TEXT NOT NULL DEFAULT '{}'");
   db.exec(`
     UPDATE node_execution_inputs
     SET input_identity = CASE
@@ -73444,7 +73561,7 @@ function expectationSatisfied(expectation, inputs) {
     return expectation.match_policy !== "member_key_and_version" || input.artefact_version_id === expectation.expected_artefact_version_id;
   });
 }
-function addColumnIfMissing4(db, table, column, definition2) {
+function addColumnIfMissing5(db, table, column, definition2) {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!columns.some((existing) => existing.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition2}`);
@@ -76430,8 +76547,8 @@ var BIND_PRINCIPAL_TO_ACTOR_OPERATION_ID = "actor.principal.bind";
 var REVOKE_PRINCIPAL_ACTOR_BINDING_OPERATION_ID = "actor.principal.binding.revoke";
 var ASSIGN_ACTOR_ROLE_OPERATION_ID = "actor.role.assign";
 var REVOKE_ACTOR_ROLE_ASSIGNMENT_OPERATION_ID = "actor.role.assignment.revoke";
-var text5 = { type: "string", minLength: 1 };
-var nullableText = { oneOf: [text5, { type: "null" }] };
+var text6 = { type: "string", minLength: 1 };
+var nullableText = { oneOf: [text6, { type: "null" }] };
 var principalBindingSchema = {
   type: "object",
   additionalProperties: false,
@@ -76449,13 +76566,13 @@ var principalBindingSchema = {
     "revocation_reason"
   ],
   properties: {
-    principal_actor_binding_id: text5,
-    workspace_id: text5,
-    principal_id: text5,
-    actor_id: text5,
+    principal_actor_binding_id: text6,
+    workspace_id: text6,
+    principal_id: text6,
+    actor_id: text6,
     status: { enum: ["active", "revoked"] },
-    bound_by_principal_id: text5,
-    bound_at: text5,
+    bound_by_principal_id: text6,
+    bound_at: text6,
     evidence_refs: {
       type: "array",
       minItems: 1,
@@ -76463,7 +76580,7 @@ var principalBindingSchema = {
         type: "object",
         additionalProperties: false,
         required: ["kind", "id", "revision"],
-        properties: { kind: text5, id: text5, revision: nullableText }
+        properties: { kind: text6, id: text6, revision: nullableText }
       }
     },
     revoked_by_principal_id: nullableText,
@@ -76477,19 +76594,19 @@ var roleBoundarySchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text5 }
+      properties: { kind: { const: "workspace" }, workspace_id: text6 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "scope_id"],
-      properties: { kind: { const: "scope" }, scope_id: text5 }
+      properties: { kind: { const: "scope" }, scope_id: text6 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "context_id"],
-      properties: { kind: { const: "context" }, context_id: text5 }
+      properties: { kind: { const: "context" }, context_id: text6 }
     }
   ]
 };
@@ -76499,13 +76616,13 @@ var managedRoleBoundarySchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "workspace_id"],
-      properties: { kind: { const: "workspace" }, workspace_id: text5 }
+      properties: { kind: { const: "workspace" }, workspace_id: text6 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "scope_id"],
-      properties: { kind: { const: "scope" }, scope_id: text5 }
+      properties: { kind: { const: "scope" }, scope_id: text6 }
     }
   ]
 };
@@ -76526,14 +76643,14 @@ var roleAssignmentSchema = {
     "revocation_reason"
   ],
   properties: {
-    actor_role_assignment_id: text5,
-    workspace_id: text5,
-    actor_id: text5,
-    role: text5,
+    actor_role_assignment_id: text6,
+    workspace_id: text6,
+    actor_id: text6,
+    role: text6,
     boundary: roleBoundarySchema,
     status: { enum: ["active", "revoked"] },
-    assigned_by_principal_id: text5,
-    assigned_at: text5,
+    assigned_by_principal_id: text6,
+    assigned_at: text6,
     revoked_by_principal_id: nullableText,
     revoked_at: nullableText,
     revocation_reason: nullableText
@@ -76544,13 +76661,13 @@ var evidenceSchema = {
   additionalProperties: false,
   required: ["actor_id", "role", "principal_binding_ref", "role_source_ref", "source_boundary"],
   properties: {
-    actor_id: text5,
-    role: text5,
+    actor_id: text6,
+    role: text6,
     principal_binding_ref: {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "revision"],
-      properties: { kind: { const: "principal_actor_binding" }, id: text5, revision: text5 }
+      properties: { kind: { const: "principal_actor_binding" }, id: text6, revision: text6 }
     },
     role_source_ref: {
       type: "object",
@@ -76558,8 +76675,8 @@ var evidenceSchema = {
       required: ["kind", "id", "revision"],
       properties: {
         kind: { enum: ["actor_role_assignment", "scope_composition_revision"] },
-        id: text5,
-        revision: text5
+        id: text6,
+        revision: text6
       }
     },
     source_boundary: {
@@ -76568,7 +76685,7 @@ var evidenceSchema = {
       required: ["kind", "id", "scope_composition_revision_id", "node_placement_id"],
       properties: {
         kind: { enum: ["workspace", "scope", "context", "node_placement", "node_execution"] },
-        id: text5,
+        id: text6,
         scope_composition_revision_id: nullableText,
         node_placement_id: nullableText
       }
@@ -76602,14 +76719,14 @@ var resolutionSchema = {
     "resolved_at"
   ],
   properties: {
-    workspace_id: text5,
-    principal_id: text5,
-    actor_ids: { type: "array", items: text5, uniqueItems: true },
-    roles: { type: "array", items: text5, uniqueItems: true },
+    workspace_id: text6,
+    principal_id: text6,
+    actor_ids: { type: "array", items: text6, uniqueItems: true },
+    roles: { type: "array", items: text6, uniqueItems: true },
     evidence: { type: "array", items: evidenceSchema },
     resolved_target: resolutionTargetSchema,
-    evidence_digest: text5,
-    resolved_at: text5
+    evidence_digest: text6,
+    resolved_at: text6
   }
 };
 function workspaceId(context) {
@@ -76688,7 +76805,7 @@ function actorRoleOperationDefinitions(store) {
         additionalProperties: false,
         required: ["actor_id", "principal_bindings", "role_assignments"],
         properties: {
-          actor_id: text5,
+          actor_id: text6,
           principal_bindings: { type: "array", items: principalBindingSchema },
           role_assignments: { type: "array", items: roleAssignmentSchema }
         }
@@ -76754,7 +76871,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["principal_id"],
-        properties: { principal_id: text5, principal_actor_binding_id: text5 }
+        properties: { principal_id: text6, principal_actor_binding_id: text6 }
       }
     },
     result: {
@@ -76809,7 +76926,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text5 }
+        properties: { reason: text6 }
       }
     },
     result: {
@@ -76858,7 +76975,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["role", "boundary"],
-        properties: { role: text5, boundary: managedRoleBoundarySchema, actor_role_assignment_id: text5 }
+        properties: { role: text6, boundary: managedRoleBoundarySchema, actor_role_assignment_id: text6 }
       }
     },
     result: {
@@ -76909,7 +77026,7 @@ function actorRoleOperationDefinitions(store) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text5 }
+        properties: { reason: text6 }
       }
     },
     result: {
@@ -77138,6 +77255,7 @@ function applyRuntimeProfileSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_actor_runtime_bindings_workspace
       ON actor_runtime_bindings(workspace_id, actor_id, created_at DESC);
   `);
+  addColumnIfMissing4(db, "actor_runtime_bindings", "model", "TEXT");
 }
 var RuntimeProfileStore = class {
   db;
@@ -77279,6 +77397,9 @@ var RuntimeProfileStore = class {
   bindActor(input) {
     nonEmpty3("actor_id", input.actor_id);
     nonEmpty3("created_by_principal_id", input.created_by_principal_id);
+    const model = input.model == null ? null : input.model.trim();
+    if (model === "")
+      throw new RuntimeProfileValidationError("an Actor's model must name a model, or be null to run the profile's model");
     const actor = this.db.prepare(`SELECT actor_id, workspace_id, status FROM actors WHERE actor_id = ?`).get(input.actor_id);
     if (!actor)
       throw new RuntimeProfileValidationError(`Actor '${input.actor_id}' does not exist`);
@@ -77316,10 +77437,10 @@ var RuntimeProfileStore = class {
       this.db.prepare(`
         INSERT INTO actor_runtime_bindings (
           actor_runtime_binding_id, actor_id, workspace_id, runtime_profile_id,
-          runtime_profile_revision_id, endpoint_id, status,
+          runtime_profile_revision_id, endpoint_id, model, status,
           unresolved_reasons_json, created_by_principal_id, created_at, superseded_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-      `).run(bindingId, actor.actor_id, actor.workspace_id, profile.runtime_profile_id, revision.runtime_profile_revision_id, input.endpoint_id ?? null, input.status, JSON.stringify(reasons), input.created_by_principal_id, at);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      `).run(bindingId, actor.actor_id, actor.workspace_id, profile.runtime_profile_id, revision.runtime_profile_revision_id, input.endpoint_id ?? null, model, input.status, JSON.stringify(reasons), input.created_by_principal_id, at);
     });
     const binding = this.requireActorBinding(bindingId);
     this.bindingChanged?.(binding, current);
@@ -77457,6 +77578,7 @@ function rowToBinding(row) {
     runtime_profile_id: String(row.runtime_profile_id),
     runtime_profile_revision_id: String(row.runtime_profile_revision_id),
     endpoint_id: row.endpoint_id == null ? null : String(row.endpoint_id),
+    model: row.model == null ? null : String(row.model),
     status: String(row.status),
     unresolved_reasons: JSON.parse(String(row.unresolved_reasons_json)),
     created_by_principal_id: String(row.created_by_principal_id),
@@ -78843,16 +78965,16 @@ function normalizeInvocationProvenance(value) {
   };
 }
 function requireTimestamp(value, label) {
-  const text15 = requireText4(value, label);
-  if (!Number.isFinite(Date.parse(text15)))
+  const text17 = requireText4(value, label);
+  if (!Number.isFinite(Date.parse(text17)))
     throw new ConnectorValidationError(`${label} must be an ISO timestamp`);
-  return text15;
+  return text17;
 }
 function requireDigest(value, label) {
-  const text15 = requireText4(value, label, 64).toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(text15))
+  const text17 = requireText4(value, label, 64).toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(text17))
     throw new ConnectorValidationError(`${label} must be a SHA-256 digest`);
-  return text15;
+  return text17;
 }
 function normalizeJson(value, label = "JSON value") {
   if (value === null || typeof value === "string" || typeof value === "boolean")
@@ -80510,6 +80632,10 @@ function applyPolicySchema(db) {
         ON policy_evaluations(boundary_kind, boundary_id, evaluated_at DESC, evaluation_id DESC);
     `);
   }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_policy_evaluations_target
+      ON policy_evaluations(workspace_id, json_extract(facts_json, '$.target.kind'), json_extract(facts_json, '$.target.id'));
+  `);
   const bindingColumns = new Set(db.prepare("PRAGMA table_info(policy_bindings)").all().map((column) => column.name));
   if (!bindingColumns.has("subject_revision_id")) {
     db.exec("ALTER TABLE policy_bindings ADD COLUMN subject_revision_id TEXT");
@@ -80895,6 +81021,17 @@ var PolicyStore = class {
       SELECT * FROM policy_evaluations WHERE workspace_id = ?
       ORDER BY evaluated_at DESC, evaluation_id DESC LIMIT ?
     `).all(workspaceId4, bounded).map(mapEvaluation);
+  }
+  /** The tool call decisions made inside one runtime turn, oldest first. */
+  listToolEvaluationsForTurn(input) {
+    return this.db.prepare(`
+      SELECT * FROM policy_evaluations
+      WHERE workspace_id = ?
+        AND json_extract(facts_json, '$.target.kind') = 'runtime_delivery'
+        AND json_extract(facts_json, '$.target.id') = ?
+        AND json_extract(facts_json, '$.tool') IS NOT NULL
+      ORDER BY evaluated_at, evaluation_id LIMIT 500
+    `).all(input.workspace_id, input.delivery_id).map(mapEvaluation);
   }
   listApplicableBindings(facts) {
     if (facts.authority_boundary.kind !== "workspace" || facts.workspace_id === null)
@@ -81337,14 +81474,14 @@ var RETIRE_POLICY_OPERATION_ID = "policy.retire";
 var REACTIVATE_POLICY_OPERATION_ID = "policy.reactivate";
 var LIST_POLICY_EVALUATIONS_OPERATION_ID = "policy.evaluation.list";
 var INSPECT_POLICY_EVALUATION_OPERATION_ID = "policy.evaluation.inspect";
-var text6 = { type: "string", minLength: 1 };
-var nullableText3 = { oneOf: [text6, { type: "null" }] };
+var text7 = { type: "string", minLength: 1 };
+var nullableText3 = { oneOf: [text7, { type: "null" }] };
 var emptyInput4 = { type: "object", additionalProperties: false };
 var resourceRefSchema3 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text6, id: text6, revision: nullableText3 }
+  properties: { kind: text7, id: text7, revision: nullableText3 }
 };
 var effectsSchema = {
   type: "object",
@@ -81412,10 +81549,10 @@ var budgetLimitSchema = {
   additionalProperties: false,
   required: ["metric", "maximum", "window"],
   properties: {
-    metric: text6,
+    metric: text7,
     maximum: { type: "number", minimum: 0 },
     window: { enum: ["operation", "scope_execution", "day", "month", "all_time"] },
-    timezone: text6
+    timezone: text7
   }
 };
 var policyEffectSchema = {
@@ -81424,13 +81561,13 @@ var policyEffectSchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "reason"],
-      properties: { kind: { const: "deny" }, reason: text6 }
+      properties: { kind: { const: "deny" }, reason: text7 }
     },
     {
       type: "object",
       additionalProperties: false,
       required: ["kind", "reason", "approvers"],
-      properties: { kind: { const: "require_approval" }, reason: text6, approvers: approversSchema }
+      properties: { kind: { const: "require_approval" }, reason: text7, approvers: approversSchema }
     },
     {
       type: "object",
@@ -81445,8 +81582,8 @@ var POLICY_CONTENT_SCHEMA = {
   additionalProperties: false,
   required: ["label", "description", "rules"],
   properties: {
-    label: text6,
-    description: text6,
+    label: text7,
+    description: text7,
     rules: {
       type: "array",
       items: {
@@ -81454,7 +81591,7 @@ var POLICY_CONTENT_SCHEMA = {
         additionalProperties: false,
         required: ["rule_id", "priority", "match", "effect"],
         properties: {
-          rule_id: text6,
+          rule_id: text7,
           priority: { type: "integer" },
           match: policyMatchSchema,
           effect: policyEffectSchema
@@ -81468,13 +81605,13 @@ var policySchema = {
   additionalProperties: false,
   required: ["policy_id", "workspace_id", "category", "status", "current_revision_id", "created_at", "updated_at", "retired_at"],
   properties: {
-    policy_id: text6,
-    workspace_id: text6,
+    policy_id: text7,
+    workspace_id: text7,
     category: { enum: ["operation", "approval", "budget", "trust", "data", "emergency_stop"] },
     status: { enum: ["active", "retired"] },
     current_revision_id: nullableText3,
-    created_at: text6,
-    updated_at: text6,
+    created_at: text7,
+    updated_at: text7,
     retired_at: nullableText3
   }
 };
@@ -81496,16 +81633,16 @@ var policyRevisionSchema = {
     "withdrawn_at"
   ],
   properties: {
-    policy_revision_id: text6,
-    policy_id: text6,
-    workspace_id: text6,
+    policy_revision_id: text7,
+    policy_id: text7,
+    workspace_id: text7,
     category: policySchema.properties && policySchema.properties.category,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText3,
-    semantic_digest: text6,
+    semantic_digest: text7,
     content: POLICY_CONTENT_SCHEMA,
-    created_by_principal_id: text6,
-    created_at: text6,
+    created_by_principal_id: text7,
+    created_at: text7,
     published_at: nullableText3,
     withdrawn_at: nullableText3
   }
@@ -81516,7 +81653,7 @@ var subjectSchema = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id"],
-      properties: { kind: { const: kind }, id: text6 }
+      properties: { kind: { const: kind }, id: text7 }
     })),
     {
       type: "object",
@@ -81524,8 +81661,8 @@ var subjectSchema = {
       required: ["kind", "id", "composition_revision_id"],
       properties: {
         kind: { const: "node_placement" },
-        id: text6,
-        composition_revision_id: text6
+        id: text7,
+        composition_revision_id: text7
       }
     }
   ]
@@ -81546,13 +81683,13 @@ var policyBindingSchema = {
     "revocation_reason"
   ],
   properties: {
-    policy_binding_id: text6,
-    workspace_id: text6,
-    policy_revision_id: text6,
+    policy_binding_id: text7,
+    workspace_id: text7,
+    policy_revision_id: text7,
     subject: subjectSchema,
     status: { enum: ["active", "revoked"] },
-    bound_by_principal_id: text6,
-    bound_at: text6,
+    bound_by_principal_id: text7,
+    bound_at: text7,
     revoked_by_principal_id: nullableText3,
     revoked_at: nullableText3,
     revocation_reason: nullableText3
@@ -81575,21 +81712,21 @@ var policyEvaluationSchema = {
     "evaluated_at"
   ],
   properties: {
-    evaluation_id: text6,
-    workspace_id: text6,
+    evaluation_id: text7,
+    workspace_id: text7,
     facts: { oneOf: [{ type: "object" }, { type: "null" }] },
-    facts_digest: text6,
-    evaluated_policy_revision_ids: { type: "array", items: text6 },
+    facts_digest: text7,
+    evaluated_policy_revision_ids: { type: "array", items: text7 },
     matched_rules: { type: "array" },
     decision: { enum: ["allow", "deny", "require_approval"] },
-    denial_reasons: { type: "array", items: text6 },
+    denial_reasons: { type: "array", items: text7 },
     approval_requirements: { type: "array" },
     budget_limits: { type: "array" },
-    evaluated_at: text6
+    evaluated_at: text7
   }
 };
 function stringList(allowEmpty = false) {
-  return { type: "array", minItems: allowEmpty ? 0 : 1, uniqueItems: true, items: text6 };
+  return { type: "array", minItems: allowEmpty ? 0 : 1, uniqueItems: true, items: text7 };
 }
 function auditRef5(context) {
   return { kind: "operation_invocation", id: context.invocation_id, revision: null };
@@ -81784,7 +81921,7 @@ function createPolicyDefinition(store) {
         additionalProperties: false,
         required: ["category", "content"],
         properties: {
-          policy_id: text6,
+          policy_id: text7,
           category: policySchema.properties.category,
           content: POLICY_CONTENT_SCHEMA
         }
@@ -81917,7 +82054,7 @@ function rollbackDefinition(store) {
     required_grants: [ROLLBACK_POLICY_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["target_revision_id"], properties: { target_revision_id: text6 } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["target_revision_id"], properties: { target_revision_id: text7 } } },
     result: { version: "1", schema: policySchema },
     handler: (context, input) => {
       try {
@@ -81946,7 +82083,7 @@ function bindDefinition(store) {
     required_grants: [BIND_POLICY_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy_revision"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["subject"], properties: { policy_binding_id: text6, subject: subjectSchema } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["subject"], properties: { policy_binding_id: text7, subject: subjectSchema } } },
     result: { version: "1", schema: policyBindingSchema },
     handler: (context, input) => {
       try {
@@ -81980,7 +82117,7 @@ function revokeBindingDefinition(store) {
     required_grants: [REVOKE_POLICY_BINDING_OPERATION_ID],
     interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
     target: { resource_kinds: ["policy_binding"], expected_revision: "required" },
-    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: text6 } } },
+    input: { version: "1", schema: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: text7 } } },
     result: { version: "1", schema: policyBindingSchema },
     handler: (context, input) => {
       try {
@@ -83086,10 +83223,10 @@ function safeJsonObject(value, field) {
   return value;
 }
 function validTime(value, field) {
-  const text15 = requiredText4(value, field);
-  if (!Number.isFinite(Date.parse(text15)))
+  const text17 = requiredText4(value, field);
+  if (!Number.isFinite(Date.parse(text17)))
     throw new AuditValidationError(`${field} must be a timestamp`);
-  return text15;
+  return text17;
 }
 function nullableText5(value) {
   return value == null ? null : requiredText4(value, "audit field");
@@ -83098,10 +83235,10 @@ function uniqueText2(values) {
   return [...new Set(values.map((value) => requiredText4(value, "audit reference")))].sort();
 }
 function requiredDigest(value, field) {
-  const text15 = requiredText4(value, field);
-  if (!/^[a-f0-9]{64}$/.test(text15))
+  const text17 = requiredText4(value, field);
+  if (!/^[a-f0-9]{64}$/.test(text17))
     throw new AuditValidationError(`${field} must be a SHA-256 digest`);
-  return text15;
+  return text17;
 }
 function requiredText4(value, field) {
   if (typeof value !== "string" || !value.trim())
@@ -83129,8 +83266,8 @@ var LIST_BUDGET_RESERVATIONS_OPERATION_ID = "budget.reservation.list";
 var INSPECT_BUDGET_RESERVATION_OPERATION_ID = "budget.reservation.inspect";
 var LIST_RESOURCE_USAGE_OPERATION_ID = "budget.usage.list";
 var RECONCILE_BUDGET_NO_EFFECT_OPERATION_ID = "budget.reservation.reconcile_no_effect";
-var text7 = { type: "string", minLength: 1 };
-var nullableText6 = { oneOf: [text7, { type: "null" }] };
+var text8 = { type: "string", minLength: 1 };
+var nullableText6 = { oneOf: [text8, { type: "null" }] };
 var usageMapSchema = {
   type: "object",
   additionalProperties: { type: "number", minimum: 0 }
@@ -83141,7 +83278,7 @@ var sourceSchema = {
   required: ["kind", "id"],
   properties: {
     kind: { enum: ["operation_invocation", "execution_attempt", "connector_action", "extension_activation"] },
-    id: text7
+    id: text8
   }
 };
 var usageFactsSchema = {
@@ -83160,9 +83297,9 @@ var usageFactsSchema = {
     "extension_installation_id"
   ],
   properties: {
-    workspace_id: text7,
-    principal_id: text7,
-    operation_id: text7,
+    workspace_id: text8,
+    principal_id: text8,
+    operation_id: text8,
     scope_id: nullableText6,
     scope_execution_id: nullableText6,
     actor_id: nullableText6,
@@ -83191,21 +83328,21 @@ var reservationItemSchema = {
     "estimated_amount"
   ],
   properties: {
-    reservation_item_id: text7,
-    reservation_id: text7,
-    policy_revision_id: text7,
-    policy_binding_id: text7,
-    rule_id: text7,
+    reservation_item_id: text8,
+    reservation_id: text8,
+    policy_revision_id: text8,
+    policy_binding_id: text8,
+    rule_id: text8,
     subject: {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id"],
       properties: {
         kind: { enum: ["workspace", "scope", "actor", "node_placement", "connector_binding", "extension_installation"] },
-        id: text7
+        id: text8
       }
     },
-    metric: text7,
+    metric: text8,
     maximum: { type: "number", minimum: 0 },
     window: { enum: ["operation", "scope_execution", "day", "month", "all_time"] },
     timezone: nullableText6,
@@ -83234,17 +83371,17 @@ var reservationSchema = {
     "items"
   ],
   properties: {
-    reservation_id: text7,
-    workspace_id: text7,
+    reservation_id: text8,
+    workspace_id: text8,
     source: sourceSchema,
-    policy_evaluation_id: text7,
+    policy_evaluation_id: text8,
     facts: usageFactsSchema,
     estimates: usageMapSchema,
     state: { enum: ["reserved", "committed", "released", "outcome_unknown", "exceeded"] },
-    idempotency_digest: text7,
+    idempotency_digest: text8,
     actual_usage_digest: nullableText6,
-    created_at: text7,
-    updated_at: text7,
+    created_at: text8,
+    updated_at: text8,
     completed_at: nullableText6,
     items: { type: "array", items: reservationItemSchema }
   }
@@ -83270,11 +83407,11 @@ var usageSchema = {
     "observed_at"
   ],
   properties: {
-    usage_entry_id: text7,
-    workspace_id: text7,
+    usage_entry_id: text8,
+    workspace_id: text8,
     source: sourceSchema,
-    principal_id: text7,
-    operation_id: text7,
+    principal_id: text8,
+    operation_id: text8,
     scope_id: nullableText6,
     scope_execution_id: nullableText6,
     actor_id: nullableText6,
@@ -83282,9 +83419,9 @@ var usageSchema = {
     node_placement_id: nullableText6,
     connector_binding_id: nullableText6,
     extension_installation_id: nullableText6,
-    metric: text7,
+    metric: text8,
     amount: { type: "number", minimum: 0 },
-    observed_at: text7
+    observed_at: text8
   }
 };
 function readEffects2() {
@@ -83384,7 +83521,7 @@ function budgetOperationDefinitions(store) {
           type: "object",
           additionalProperties: false,
           properties: {
-            metric: text7,
+            metric: text8,
             limit: { type: "integer", minimum: 1, maximum: 500 }
           }
         }
@@ -83472,8 +83609,8 @@ function resolveBudgetOperationResource(store, boundary, target) {
 // floe-bus/dist/audit-operations.js
 var LIST_AUDIT_RECORDS_OPERATION_ID = "audit.list";
 var INSPECT_AUDIT_RECORD_OPERATION_ID = "audit.inspect";
-var text8 = { type: "string", minLength: 1 };
-var nullableText7 = { oneOf: [text8, { type: "null" }] };
+var text9 = { type: "string", minLength: 1 };
+var nullableText7 = { oneOf: [text9, { type: "null" }] };
 var auditRecordSchema = {
   type: "object",
   additionalProperties: true,
@@ -83484,13 +83621,13 @@ var auditRecordSchema = {
       additionalProperties: true,
       required: ["audit_id", "invocation_id", "principal_id", "operation_id", "request_digest", "started_at"],
       properties: {
-        audit_id: text8,
+        audit_id: text9,
         workspace_id: nullableText7,
-        invocation_id: text8,
-        principal_id: text8,
-        operation_id: text8,
-        request_digest: text8,
-        started_at: text8
+        invocation_id: text9,
+        principal_id: text9,
+        operation_id: text9,
+        request_digest: text9,
+        started_at: text9
       }
     },
     outcome: { oneOf: [{ type: "object" }, { type: "null" }] }
@@ -83528,8 +83665,8 @@ function auditOperationDefinitions(store) {
           type: "object",
           additionalProperties: false,
           properties: {
-            principal_id: text8,
-            operation_id: text8,
+            principal_id: text9,
+            operation_id: text9,
             state: { enum: ["accepted", "completed", "refused", "outcome_unknown"] },
             limit: { type: "integer", minimum: 1, maximum: 500 }
           }
@@ -86762,36 +86899,6 @@ function inSavepoint7(bus, label, work) {
   }
 }
 
-// floe-bus/dist/operation-schema-validator-ajv.js
-var import_ajv = __toESM(require_ajv(), 1);
-var AjvOperationSchemaValidator = class {
-  ajv = new import_ajv.Ajv({ allErrors: true, strict: true });
-  compiled = /* @__PURE__ */ new WeakMap();
-  validate(schema, value) {
-    const validator = this.compiled.get(schema) ?? this.compile(schema);
-    if (validator(value))
-      return { valid: true };
-    return {
-      valid: false,
-      issues: (validator.errors ?? []).map(toIssue)
-    };
-  }
-  compile(schema) {
-    const validator = this.ajv.compile(schema);
-    this.compiled.set(schema, validator);
-    return validator;
-  }
-};
-function toIssue(error) {
-  return {
-    instance_path: error.instancePath,
-    schema_path: error.schemaPath,
-    keyword: error.keyword,
-    message: error.message ?? "does not match the operation schema",
-    params: error.params
-  };
-}
-
 // floe-bus/dist/operation-invocation-ledger-sqlite.js
 function applyOperationInvocationLedgerSchema(db) {
   const existingColumns = db.prepare("PRAGMA table_info(operation_invocation_ledger)").all();
@@ -87450,11 +87557,11 @@ var IdentityWorkspaceAuthorityStore = class {
     }
   }
 };
-function requireNarrower(root, operationIds, targets3, expiresAt) {
+function requireNarrower(root, operationIds, targets2, expiresAt) {
   const wider = operationIds.find((id) => !root.operation_ids.includes(id));
   if (wider)
     throw new AuthorityWideningError(`You cannot add '${wider}': your current authority does not hold it.`);
-  if (root.targets.length > 0 && (targets3.length === 0 || targets3.some((target) => !root.targets.some((allowed) => targetContains(allowed, target))))) {
+  if (root.targets.length > 0 && (targets2.length === 0 || targets2.some((target) => !root.targets.some((allowed) => targetContains(allowed, target))))) {
     throw new AuthorityWideningError("Targets must stay inside your current authority.");
   }
   if (expiryMs(expiresAt) > expiryMs(root.expires_at)) {
@@ -87693,13 +87800,13 @@ function isoNow5() {
 }
 
 // floe-bus/dist/identity-workspace-authority-operations.js
-var text9 = { type: "string", minLength: 1 };
-var nullableText8 = { oneOf: [text9, { type: "null" }] };
-var targets2 = { type: "array", items: {
+var text10 = { type: "string", minLength: 1 };
+var nullableText8 = { oneOf: [text10, { type: "null" }] };
+var targets = { type: "array", items: {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id"],
-  properties: { kind: text9, id: nullableText8 }
+  properties: { kind: text10, id: nullableText8 }
 } };
 var authoritySchema = {
   type: "object",
@@ -87721,20 +87828,20 @@ var authoritySchema = {
     "targets"
   ],
   properties: {
-    authority_id: text9,
-    identity_id: text9,
-    principal_id: text9,
-    workspace_id: text9,
-    root_grant_id: text9,
+    authority_id: text10,
+    identity_id: text10,
+    principal_id: text10,
+    workspace_id: text10,
+    root_grant_id: text10,
     status: { enum: ["active", "revoked"] },
-    issued_by: text9,
-    issued_at: text9,
+    issued_by: text10,
+    issued_at: text10,
     expires_at: { ...nullableText8, description: "Null means until revoked." },
     revoked_at: nullableText8,
     revocation_reason: nullableText8,
     replaced_by_authority_id: nullableText8,
-    operation_ids: { type: "array", items: text9 },
-    targets: targets2
+    operation_ids: { type: "array", items: text10 },
+    targets
   }
 };
 var resultSchema2 = (properties) => ({ version: "1", schema: {
@@ -87781,16 +87888,16 @@ function identityWorkspaceAuthorityOperations(deps) {
     description: "Replace your Workspace authority with a narrower one: fewer operations, narrower targets, or a shorter lifetime. The old authority is revoked in the same step, which ends your current sessions and every Actor grant delegated from it; delegate again from the new authority. Choose the lifetime explicitly: until_revoked, or expires_at. Widening is refused here.",
     effects: { mode: "write", reversibility: "irreversible", external: false, secret_access: "none" },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
-    result: resultSchema2({ authority: authoritySchema, replaced_authority_id: text9 }),
+    result: resultSchema2({ authority: authoritySchema, replaced_authority_id: text10 }),
     input: { version: "1", schema: {
       type: "object",
       additionalProperties: false,
       required: ["operation_ids"],
       properties: {
-        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text9 },
-        targets: { ...targets2, description: "Omit to keep your current targets. Supplied targets may only narrow them." },
+        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text10 },
+        targets: { ...targets, description: "Omit to keep your current targets. Supplied targets may only narrow them." },
         until_revoked: { const: true },
-        expires_at: text9
+        expires_at: text10
       }
     } },
     handler: (context, input) => {
@@ -87854,17 +87961,17 @@ function identityWorkspaceAuthorityOperations(deps) {
     effects: { mode: "write", reversibility: "reversible", external: false, secret_access: "none" },
     target: { resource_kinds: [], expected_revision: "not_applicable" },
     result: resultSchema2({
-      actor_id: text9,
-      actor_definition_revision_id: text9,
-      moved_grant_ids: { type: "array", items: text9 },
-      issued_grant_ids: { type: "array", items: text9 },
-      dropped_operation_ids: { type: "array", items: text9, description: "Operations the old access had that you do not hold." }
+      actor_id: text10,
+      actor_definition_revision_id: text10,
+      moved_grant_ids: { type: "array", items: text10 },
+      issued_grant_ids: { type: "array", items: text10 },
+      dropped_operation_ids: { type: "array", items: text10, description: "Operations the old access had that you do not hold." }
     }),
     input: { version: "1", schema: {
       type: "object",
       additionalProperties: false,
       required: ["actor_id"],
-      properties: { actor_id: text9 }
+      properties: { actor_id: text10 }
     } },
     handler: (context, input) => {
       const current = own(context.authority.principal_id, requireWorkspaceAuthorityId(context.authority));
@@ -88218,14 +88325,14 @@ var LAYOUT_REFUSALS = {
   ScopeProjectionLayoutRendererInvalidError: "scope_projection_layout_renderer_invalid"
 };
 var SCOPE_PROJECTION_LAYOUT_INVALID_CODES = Object.values(LAYOUT_REFUSALS);
-var text10 = { type: "string", minLength: 1 };
+var text11 = { type: "string", minLength: 1 };
 var renderer = {
-  ...text10,
+  ...text11,
   description: "The surface that owns this layout, for example star-map. Lowercase letters, digits, - and _, starting with a letter. Each surface keeps its own."
 };
 var layoutSchema = { type: "object", required: ["schema", "scope_id", "viewport", "items"], properties: {
-  schema: { ...text10, description: "floe.scope-projection.layout.<renderer>.v1" },
-  scope_id: text10,
+  schema: { ...text11, description: "floe.scope-projection.layout.<renderer>.v1" },
+  scope_id: text11,
   viewport: { type: "object" },
   items: { type: "object" }
 } };
@@ -88241,7 +88348,7 @@ function scopeProjectionLayoutOperations(deps) {
     type: "object",
     additionalProperties: false,
     required: ["scope_id", "renderer", ...Object.keys(extra)],
-    properties: { scope_id: text10, renderer, ...extra }
+    properties: { scope_id: text11, renderer, ...extra }
   } });
   const refused = (code, message) => ({ state: "refused", refusal: refusal(code, message, false, null) });
   const place = (workspaceId4, scopeId, rendererId) => {
@@ -88684,13 +88791,13 @@ var BrowserConnections = class {
 var PAIRING_PATHS = /* @__PURE__ */ new Set(["/v1/browser/connections", "/v1/browser/connections/claim", "/v1/browser/session"]);
 
 // floe-bus/dist/browser-pass-operations.js
-var text11 = { type: "string", minLength: 1 };
-var nullableText9 = { oneOf: [text11, { type: "null" }] };
+var text12 = { type: "string", minLength: 1 };
+var nullableText9 = { oneOf: [text12, { type: "null" }] };
 var connectionSchema = {
   type: "object",
   additionalProperties: false,
   required: ["connection_id", "code", "origin", "expires_at"],
-  properties: { connection_id: text11, code: text11, origin: text11, expires_at: text11 }
+  properties: { connection_id: text12, code: text12, origin: text12, expires_at: text12 }
 };
 var passSchema = {
   type: "object",
@@ -88709,14 +88816,14 @@ var passSchema = {
     "revocation_reason"
   ],
   properties: {
-    pass_id: text11,
-    workspace_id: text11,
-    exact_origin: text11,
+    pass_id: text12,
+    workspace_id: text12,
+    exact_origin: text12,
     status: { enum: ["active", "revoked"] },
-    operation_ids: { type: "array", items: text11 },
-    issued_at: text11,
+    operation_ids: { type: "array", items: text12 },
+    issued_at: text12,
     authority_expires_at: { ...nullableText9, description: "Null means until revoked." },
-    credential_expires_at: { ...text11, description: "The browser must be used before this, or pair again." },
+    credential_expires_at: { ...text12, description: "The browser must be used before this, or pair again." },
     last_used_at: nullableText9,
     revoked_at: nullableText9,
     revocation_reason: nullableText9
@@ -88784,11 +88891,11 @@ function browserPassOperations(deps) {
       additionalProperties: false,
       required: ["connection_id", "workspace_id", "operation_ids"],
       properties: {
-        connection_id: text11,
-        workspace_id: { ...text11, description: "Must be the Workspace this session is for." },
-        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text11 },
+        connection_id: text12,
+        workspace_id: { ...text12, description: "Must be the Workspace this session is for." },
+        operation_ids: { type: "array", minItems: 1, uniqueItems: true, items: text12 },
         until_revoked: { const: true },
-        expires_at: text11
+        expires_at: text12
       }
     } },
     handler: (context, input) => {
@@ -88861,7 +88968,7 @@ function browserPassOperations(deps) {
       type: "object",
       additionalProperties: false,
       required: ["pass_id"],
-      properties: { pass_id: text11 }
+      properties: { pass_id: text12 }
     } },
     handler: (context, input) => {
       const workspaceId4 = requireWorkspaceAuthorityId(context.authority);
@@ -90023,10 +90130,10 @@ function requireIdentifier2(value, label) {
   return value;
 }
 function requireTimestamp3(value, label) {
-  const text15 = requireIdentifier2(value, label);
-  if (!Number.isFinite(Date.parse(text15)))
+  const text17 = requireIdentifier2(value, label);
+  if (!Number.isFinite(Date.parse(text17)))
     throw new Error(`Local operator ${label} must be an ISO timestamp.`);
-  return text15;
+  return text17;
 }
 
 // floe-bus/dist/delivery-operation-authority.js
@@ -90920,6 +91027,7 @@ var actorRuntimeBindingSchema = {
     "runtime_profile_id",
     "runtime_profile_revision_id",
     "endpoint_id",
+    "model",
     "status",
     "unresolved_reasons",
     "created_by_principal_id",
@@ -90933,6 +91041,7 @@ var actorRuntimeBindingSchema = {
     runtime_profile_id: nonEmptyString3,
     runtime_profile_revision_id: nonEmptyString3,
     endpoint_id: nullableString3,
+    model: nullableString3,
     status: { enum: ["resolved", "unresolved", "disabled"] },
     unresolved_reasons: stringArray,
     created_by_principal_id: nonEmptyString3,
@@ -91047,6 +91156,10 @@ var bindingInputProperties = {
   endpoint_id: {
     ...nullableString3,
     description: "Where the Actor receives work. Omit it: the Actor's own ID is its address, and routing resolves the Actor's name there."
+  },
+  model: {
+    oneOf: [{ type: "string", minLength: 1 }, { type: "null" }],
+    description: "This Actor's own model, overriding the profile's model; an id from the engine's model list. null runs the profile's model. On replace, omit it to keep the current override. It takes effect from the Actor's next stop, never mid-stop."
   },
   status: { enum: ["resolved", "unresolved", "disabled"] },
   unresolved_reasons: stringArray
@@ -91581,6 +91694,7 @@ function bindUnboundActor(store, context, actorId, expectedActorRevision, input)
     actor_id: actor.actor_id,
     runtime_profile_revision_id: input.runtime_profile_revision_id,
     endpoint_id: input.endpoint_id ?? actor.actor_id,
+    model: input.model ?? null,
     status: input.status,
     unresolved_reasons: input.unresolved_reasons ?? [],
     expected_current_binding_id: null,
@@ -91626,6 +91740,7 @@ function replaceActorRuntimeBindingOperation(store) {
         actor_id: previous.actor_id,
         runtime_profile_revision_id: input.runtime_profile_revision_id,
         endpoint_id: input.endpoint_id ?? previous.endpoint_id ?? previous.actor_id,
+        model: input.model === void 0 ? previous.model : input.model,
         status: input.status,
         unresolved_reasons: input.unresolved_reasons ?? [],
         expected_current_binding_id: previous.actor_runtime_binding_id,
@@ -91677,6 +91792,10 @@ var setupInputSchema = {
       minLength: 1,
       description: "The exact published Runtime Profile revision the Actor runs on. To run it the way you run, use the one from your own binding (actor.runtime-binding.inspect on yourself)."
     },
+    model: {
+      oneOf: [{ type: "string", minLength: 1 }, { type: "null" }],
+      description: "Optional: this Actor's own model, overriding the profile's model; an id from the engine's model list. Omit it to run the profile's model."
+    },
     grants: {
       type: "array",
       items: delegationRequestSchema,
@@ -91693,7 +91812,7 @@ var setupResultSchema = {
     revision: actorDefinitionRevisionSchema,
     binding: actorRuntimeBindingSchema,
     tool_access: newActorToolAccessSchema,
-    delegated_grants: { type: "array", items: capabilityGrantSchema }
+    delegated_grants: { type: "array", items: capabilityGrantSchema2 }
   }
 };
 var STEP_NAMES = {
@@ -91730,6 +91849,7 @@ function setUp(deps, context, input) {
   const actorId = created.actor.actor_id;
   const binding = step("bind_runtime", runtimeOperationRefusal, () => bindUnboundActor(deps.runtimes, context, actorId, NO_ACTOR_DEFINITION_REVISION, {
     runtime_profile_revision_id: input.runtime_profile_revision_id,
+    model: input.model ?? null,
     status: "resolved"
   }));
   const delegated = (input.grants ?? []).map((request) => step("delegate_access", actorOperationRefusal, () => delegateAccessToActor(deps, context, actorId, NO_ACTOR_DEFINITION_REVISION, request)).grant);
@@ -91813,22 +91933,22 @@ var RECORD_CONNECTOR_HEALTH_OPERATION_ID = "connector.health.record";
 var INGEST_CONNECTOR_OBSERVATION_OPERATION_ID = "connector.ingress.ingest";
 var REQUEST_CONNECTOR_ACTION_OPERATION_ID = "connector.action.request";
 var RECONCILE_CONNECTOR_ACTION_OPERATION_ID = "connector.action.reconcile";
-var text12 = { type: "string", minLength: 1 };
-var nullableText10 = { oneOf: [text12, { type: "null" }] };
+var text13 = { type: "string", minLength: 1 };
+var nullableText10 = { oneOf: [text13, { type: "null" }] };
 var sha2564 = { type: "string", pattern: "^[a-fA-F0-9]{64}$" };
-var stringArray2 = { type: "array", items: text12, uniqueItems: true };
+var stringArray2 = { type: "array", items: text13, uniqueItems: true };
 var emptyInput7 = { type: "object", additionalProperties: false };
 var ownerSchema2 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id"],
-  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text12 }
+  properties: { kind: { enum: ["workspace", "host", "deployment"] }, id: text13 }
 };
 var resourceRefSchema4 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text12, id: text12, revision: nullableText10 }
+  properties: { kind: text13, id: text13, revision: nullableText10 }
 };
 var refsSchema = { type: "array", items: resourceRefSchema4 };
 var invocationProvenanceSchema = {
@@ -91863,7 +91983,7 @@ var credentialSlotSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "title", "purpose", "required"],
-  properties: { slot_id: text12, title: text12, purpose: text12, required: { type: "boolean" } }
+  properties: { slot_id: text13, title: text13, purpose: text13, required: { type: "boolean" } }
 };
 var sourceInterfaceSchema = {
   type: "object",
@@ -91883,11 +92003,11 @@ var sourceInterfaceSchema = {
     "checkpoint_schema_ref"
   ],
   properties: {
-    interface_id: text12,
-    title: text12,
-    source_kind: text12,
-    event_type: text12,
-    payload_schema_ref: text12,
+    interface_id: text13,
+    title: text13,
+    source_kind: text13,
+    event_type: text13,
+    payload_schema_ref: text13,
     observation_mode: { enum: ["push", "connector_poll"] },
     polling_contract_ref: nullableText10,
     identity_scope: { enum: ["occurrence", "resource_revision"] },
@@ -91920,11 +92040,11 @@ var actionInterfaceSchema = {
     "required_capability_ids"
   ],
   properties: {
-    interface_id: text12,
-    title: text12,
-    action_kind: text12,
-    input_schema_ref: text12,
-    result_schema_ref: text12,
+    interface_id: text13,
+    title: text13,
+    action_kind: text13,
+    input_schema_ref: text13,
+    result_schema_ref: text13,
     effect: { enum: ["none", "reversible", "irreversible"] },
     idempotency: { enum: ["required", "provider_guaranteed"] },
     retry: { enum: ["safe", "after_reconcile", "never"] },
@@ -91955,10 +92075,10 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
     "rate_limit_policy_ref"
   ],
   properties: {
-    label: text12,
-    description: text12,
+    label: text13,
+    description: text13,
     implementation_ref: resourceRefSchema4,
-    configuration_schema_ref: text12,
+    configuration_schema_ref: text13,
     configuration_ui_schema_ref: nullableText10,
     credential_slots: { type: "array", items: credentialSlotSchema },
     source_interfaces: { type: "array", items: sourceInterfaceSchema },
@@ -91967,7 +92087,7 @@ var CONNECTOR_DEFINITION_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["check_capability_id", "evidence_schema_ref"],
-      properties: { check_capability_id: text12, evidence_schema_ref: nullableText10 }
+      properties: { check_capability_id: text13, evidence_schema_ref: nullableText10 }
     },
     rate_limit_policy_ref: nullableText10
   }
@@ -91976,7 +92096,7 @@ var secretBindingSchema = {
   type: "object",
   additionalProperties: false,
   required: ["slot_id", "secret_ref_id"],
-  properties: { slot_id: text12, secret_ref_id: text12 }
+  properties: { slot_id: text13, secret_ref_id: text13 }
 };
 var CONNECTOR_BINDING_CONTENT_SCHEMA = {
   type: "object",
@@ -91994,7 +92114,7 @@ var CONNECTOR_BINDING_CONTENT_SCHEMA = {
       type: "object",
       additionalProperties: false,
       required: ["kind", "id", "display_name"],
-      properties: { kind: text12, id: text12, display_name: nullableText10 }
+      properties: { kind: text13, id: text13, display_name: nullableText10 }
     },
     configuration: jsonSchema,
     enabled_source_interface_ids: stringArray2,
@@ -92016,12 +92136,12 @@ var definitionRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_definition_id: text12,
+    connector_definition_id: text13,
     owner: ownerSchema2,
     status: { enum: ["active", "retired"] },
-    current_revision_id: text12,
-    created_at: text12,
-    updated_at: text12,
+    current_revision_id: text13,
+    created_at: text13,
+    updated_at: text13,
     retired_at: nullableText10
   }
 };
@@ -92040,15 +92160,15 @@ var definitionRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_definition_revision_id: text12,
-    connector_definition_id: text12,
+    connector_definition_revision_id: text13,
+    connector_definition_id: text13,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText10,
     semantic_digest: sha2564,
     content: CONNECTOR_DEFINITION_CONTENT_SCHEMA,
-    created_by_principal_id: text12,
-    created_at: text12,
-    published_at: text12
+    created_by_principal_id: text13,
+    created_at: text13,
+    published_at: text13
   }
 };
 var bindingRecordSchema = {
@@ -92068,14 +92188,14 @@ var bindingRecordSchema = {
     "retired_at"
   ],
   properties: {
-    connector_binding_id: text12,
-    connector_definition_id: text12,
+    connector_binding_id: text13,
+    connector_definition_id: text13,
     owner: ownerSchema2,
     status: { enum: ["disabled", "enabled", "retired"] },
     state_version: { type: "integer", minimum: 1 },
-    current_revision_id: text12,
-    created_at: text12,
-    updated_at: text12,
+    current_revision_id: text13,
+    created_at: text13,
+    updated_at: text13,
     enabled_at: nullableText10,
     disabled_at: nullableText10,
     retired_at: nullableText10
@@ -92097,16 +92217,16 @@ var bindingRevisionSchema = {
     "published_at"
   ],
   properties: {
-    connector_binding_revision_id: text12,
-    connector_binding_id: text12,
-    connector_definition_revision_id: text12,
+    connector_binding_revision_id: text13,
+    connector_binding_id: text13,
+    connector_definition_revision_id: text13,
     revision_number: { type: "integer", minimum: 1 },
     based_on_revision_id: nullableText10,
     semantic_digest: sha2564,
     content: CONNECTOR_BINDING_CONTENT_SCHEMA,
-    created_by_principal_id: text12,
-    created_at: text12,
-    published_at: text12
+    created_by_principal_id: text13,
+    created_at: text13,
+    published_at: text13
   }
 };
 var healthSchema2 = {
@@ -92125,16 +92245,16 @@ var healthSchema2 = {
     "recorded_at"
   ],
   properties: {
-    connector_health_observation_id: text12,
-    connector_binding_id: text12,
-    connector_binding_revision_id: text12,
+    connector_health_observation_id: text13,
+    connector_binding_id: text13,
+    connector_binding_revision_id: text13,
     owner: ownerSchema2,
     status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
     code: nullableText10,
-    message: text12,
+    message: text13,
     evidence_refs: refsSchema,
-    observed_at: text12,
-    recorded_at: text12
+    observed_at: text13,
+    recorded_at: text13
   }
 };
 var ingressVerificationSchema = {
@@ -92171,22 +92291,22 @@ var ingressReceiptSchema = {
     "physical_observation_count"
   ],
   properties: {
-    connector_ingress_receipt_id: text12,
-    connector_binding_id: text12,
-    connector_binding_revision_id: text12,
+    connector_ingress_receipt_id: text13,
+    connector_binding_id: text13,
+    connector_binding_revision_id: text13,
     owner: ownerSchema2,
-    source_interface_id: text12,
+    source_interface_id: text13,
     deduplication_key: sha2564,
-    idempotency_key: text12,
-    external_identity: text12,
+    idempotency_key: text13,
+    external_identity: text13,
     external_revision: nullableText10,
     payload_digest: sha2564,
     status: { enum: ["accepted", "materialized", "quarantined"] },
     normalized_event_id: nullableText10,
     artefact_version_ids: stringArray2,
     checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-    first_observed_at: text12,
-    last_observed_at: text12,
+    first_observed_at: text13,
+    last_observed_at: text13,
     physical_observation_count: { type: "integer", minimum: 1 }
   }
 };
@@ -92208,18 +92328,18 @@ var ingressObservationSchema = {
     "recorded_at"
   ],
   properties: {
-    connector_ingress_observation_id: text12,
-    connector_ingress_receipt_id: text12,
-    connector_binding_revision_id: text12,
+    connector_ingress_observation_id: text13,
+    connector_ingress_receipt_id: text13,
+    connector_binding_revision_id: text13,
     classification: { enum: ["accepted", "quarantined", "duplicate", "quarantined_conflict"] },
-    idempotency_key: text12,
-    external_identity: text12,
+    idempotency_key: text13,
+    external_identity: text13,
     external_revision: nullableText10,
     payload_digest: sha2564,
     verification: ingressVerificationSchema,
     evidence_refs: refsSchema,
-    observed_at: text12,
-    recorded_at: text12
+    observed_at: text13,
+    recorded_at: text13
   }
 };
 var externalEffectSchema = {
@@ -92246,23 +92366,23 @@ var externalEffectSchema = {
     "completed_at"
   ],
   properties: {
-    external_effect_receipt_id: text12,
-    connector_binding_id: text12,
-    connector_binding_revision_id: text12,
+    external_effect_receipt_id: text13,
+    connector_binding_id: text13,
+    connector_binding_revision_id: text13,
     owner: ownerSchema2,
-    action_interface_id: text12,
-    idempotency_key: text12,
+    action_interface_id: text13,
+    idempotency_key: text13,
     input_digest: sha2564,
     input_refs: refsSchema,
     secret_ref_ids: stringArray2,
     capability_grant_ids: stringArray2,
     approval_receipt_ids: stringArray2,
-    requested_by_principal_id: text12,
+    requested_by_principal_id: text13,
     invocation_provenance: invocationProvenanceSchema,
     status: { enum: ["requested", "running", "succeeded", "failed", "outcome_unknown"] },
     attempt_count: { type: "integer", minimum: 0 },
-    requested_at: text12,
-    updated_at: text12,
+    requested_at: text13,
+    updated_at: text13,
     completed_at: nullableText10
   }
 };
@@ -92283,8 +92403,8 @@ var actionAttemptSchema = {
     "completed_at"
   ],
   properties: {
-    external_action_attempt_id: text12,
-    external_effect_receipt_id: text12,
+    external_action_attempt_id: text13,
+    external_effect_receipt_id: text13,
     attempt_number: { type: "integer", minimum: 1 },
     status: { enum: ["started", "succeeded", "failed", "outcome_unknown"] },
     request_evidence_ref: resourceRefSchema4,
@@ -92292,7 +92412,7 @@ var actionAttemptSchema = {
     observed_result_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
     error_code: nullableText10,
     error_message: nullableText10,
-    started_at: text12,
+    started_at: text13,
     completed_at: nullableText10
   }
 };
@@ -92597,7 +92717,7 @@ function bindConnectorOperation(store) {
         type: "object",
         additionalProperties: false,
         required: ["content"],
-        properties: { connector_binding_id: text12, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
+        properties: { connector_binding_id: text13, content: CONNECTOR_BINDING_CONTENT_SCHEMA }
       }
     },
     result: { version: "1", schema: bindingAndRevisionSchema },
@@ -92639,7 +92759,7 @@ function configureConnectorBindingOperation(store) {
         additionalProperties: false,
         required: ["content"],
         properties: {
-          connector_definition_revision_id: text12,
+          connector_definition_revision_id: text13,
           content: CONNECTOR_BINDING_CONTENT_SCHEMA
         }
       }
@@ -92781,9 +92901,9 @@ function recordConnectorHealthOperation(store) {
         properties: {
           status: { enum: ["unknown", "healthy", "degraded", "unhealthy"] },
           code: nullableText10,
-          message: text12,
+          message: text13,
           evidence_refs: refsSchema,
-          observed_at: text12
+          observed_at: text13
         }
       }
     },
@@ -92842,14 +92962,14 @@ function ingestConnectorObservationOperation(store) {
           "observed_at"
         ],
         properties: {
-          source_interface_id: text12,
-          external_identity: text12,
+          source_interface_id: text13,
+          external_identity: text13,
           external_revision: nullableText10,
           payload_digest: sha2564,
           verification: ingressVerificationSchema,
           evidence_refs: refsSchema,
           checkpoint_ref: { oneOf: [resourceRefSchema4, { type: "null" }] },
-          observed_at: text12
+          observed_at: text13
         }
       }
     },
@@ -92918,7 +93038,7 @@ function requestConnectorActionOperation(store, approvals) {
         additionalProperties: false,
         required: ["action_interface_id", "input_digest"],
         properties: {
-          action_interface_id: text12,
+          action_interface_id: text13,
           input_digest: sha2564,
           input_refs: refsSchema,
           approval_receipt_ids: stringArray2
@@ -92994,12 +93114,12 @@ function reconcileConnectorActionOperation(store) {
       "reconciled_at"
     ],
     properties: {
-      external_action_reconciliation_id: text12,
-      external_effect_receipt_id: text12,
+      external_action_reconciliation_id: text13,
+      external_effect_receipt_id: text13,
       outcome: { enum: ["succeeded", "failed", "outcome_unknown"] },
       evidence_ref: resourceRefSchema4,
-      reconciled_by_principal_id: text12,
-      reconciled_at: text12
+      reconciled_by_principal_id: text13,
+      reconciled_at: text13
     }
   };
   return {
@@ -93086,8 +93206,8 @@ var DECIDE_APPROVAL_OPERATION_ID = "approval.decide";
 var CANCEL_APPROVAL_OPERATION_ID = "approval.cancel";
 var CONFIGURE_APPROVAL_RESPONSE_OPERATION_ID = "approval.response.configure";
 var REVOKE_APPROVAL_RECEIPT_OPERATION_ID = "approval.receipt.revoke";
-var text13 = { type: "string", minLength: 1 };
-var nullableText11 = { oneOf: [text13, { type: "null" }] };
+var text14 = { type: "string", minLength: 1 };
+var nullableText11 = { oneOf: [text14, { type: "null" }] };
 var timestamp = {
   type: "string",
   pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
@@ -93097,14 +93217,14 @@ var resourceRefSchema5 = {
   type: "object",
   additionalProperties: false,
   required: ["kind", "id", "revision"],
-  properties: { kind: text13, id: text13, revision: nullableText11 }
+  properties: { kind: text14, id: text14, revision: nullableText11 }
 };
 var approvalEffectSchema = {
   type: "object",
   additionalProperties: false,
   required: ["summary", "external", "reversibility", "resource_refs"],
   properties: {
-    summary: text13,
+    summary: text14,
     external: { type: "boolean" },
     reversibility: { enum: ["none", "reversible", "irreversible"] },
     resource_refs: { type: "array", items: resourceRefSchema5 }
@@ -93122,19 +93242,19 @@ var approvalDecisionBindingSchema = {
     "outcome_port_ids"
   ],
   properties: {
-    scope_execution_id: text13,
-    composition_revision_id: text13,
-    node_execution_id: text13,
-    node_placement_id: text13,
+    scope_execution_id: text14,
+    composition_revision_id: text14,
+    node_execution_id: text14,
+    node_placement_id: text14,
     node_execution_state_revision: { type: "integer", minimum: 1 },
     outcome_port_ids: {
       type: "object",
       additionalProperties: false,
       required: ["approved", "rejected", "changes_requested"],
       properties: {
-        approved: text13,
-        rejected: text13,
-        changes_requested: text13
+        approved: text14,
+        rejected: text14,
+        changes_requested: text14
       }
     }
   }
@@ -93147,8 +93267,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles"],
       properties: {
         mode: { const: "any" },
-        principal_ids: { type: "array", items: text13, uniqueItems: true },
-        roles: { type: "array", items: text13, uniqueItems: true }
+        principal_ids: { type: "array", items: text14, uniqueItems: true },
+        roles: { type: "array", items: text14, uniqueItems: true }
       }
     },
     {
@@ -93157,7 +93277,7 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids"],
       properties: {
         mode: { const: "all_named" },
-        principal_ids: { type: "array", items: text13, minItems: 1, uniqueItems: true }
+        principal_ids: { type: "array", items: text14, minItems: 1, uniqueItems: true }
       }
     },
     {
@@ -93166,8 +93286,8 @@ var approvalApproverSelectorSchema = {
       required: ["mode", "principal_ids", "roles", "quorum"],
       properties: {
         mode: { const: "quorum" },
-        principal_ids: { type: "array", items: text13, uniqueItems: true },
-        roles: { type: "array", items: text13, uniqueItems: true },
+        principal_ids: { type: "array", items: text14, uniqueItems: true },
+        roles: { type: "array", items: text14, uniqueItems: true },
         quorum: { type: "integer", minimum: 1 }
       }
     }
@@ -93186,9 +93306,9 @@ var approvalDecisionPolicySchema = {
           required: ["kind", "policy_evaluation_id", "policy_revision_id", "rule_id", "facts_digest"],
           properties: {
             kind: { const: "policy_evaluation" },
-            policy_evaluation_id: text13,
-            policy_revision_id: text13,
-            rule_id: text13,
+            policy_evaluation_id: text14,
+            policy_revision_id: text14,
+            rule_id: text14,
             facts_digest: sha2565
           }
         },
@@ -93197,7 +93317,7 @@ var approvalDecisionPolicySchema = {
           type: "object",
           additionalProperties: false,
           required: ["kind", "principal_id"],
-          properties: { kind: { const: "local_operator" }, principal_id: text13 }
+          properties: { kind: { const: "local_operator" }, principal_id: text14 }
         }
       ]
     },
@@ -93209,9 +93329,9 @@ var approvalDecisionPolicyReferenceSchema = {
   additionalProperties: false,
   required: ["policy_evaluation_id", "policy_revision_id", "rule_id"],
   properties: {
-    policy_evaluation_id: text13,
-    policy_revision_id: text13,
-    rule_id: text13
+    policy_evaluation_id: text14,
+    policy_revision_id: text14,
+    rule_id: text14
   }
 };
 var approvalIndividualDecisionSchema = {
@@ -93234,25 +93354,25 @@ var approvalIndividualDecisionSchema = {
     "resolution_after"
   ],
   properties: {
-    approval_decision_id: text13,
-    approval_request_id: text13,
-    workspace_id: text13,
-    principal_id: text13,
+    approval_decision_id: text14,
+    approval_request_id: text14,
+    workspace_id: text14,
+    principal_id: text14,
     decision: { enum: ["approved", "rejected", "changes_requested"] },
-    reason: text13,
-    decision_event_id: text13,
-    authority_grant_ids: { type: "array", items: text13, uniqueItems: true },
+    reason: text14,
+    decision_event_id: text14,
+    authority_grant_ids: { type: "array", items: text14, uniqueItems: true },
     role_evidence: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
         required: ["role", "authority_ref"],
-        properties: { role: text13, authority_ref: text13 }
+        properties: { role: text14, authority_ref: text14 }
       }
     },
     supersedes_decision_id: nullableText11,
-    idempotency_key: text13,
+    idempotency_key: text14,
     decided_at: timestamp,
     decision_set_digest: sha2565,
     resolution_after: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
@@ -93278,11 +93398,11 @@ var APPROVAL_ACTION_SCHEMA = {
     "expected_effect"
   ],
   properties: {
-    operation_id: text13,
-    authorized_principal_id: text13,
+    operation_id: text14,
+    authorized_principal_id: text14,
     target: { oneOf: [resourceRefSchema5, { type: "null" }] },
     input_digest: sha2565,
-    artefact_version_ids: { type: "array", items: text13, uniqueItems: true },
+    artefact_version_ids: { type: "array", items: text14, uniqueItems: true },
     composition_revision_id: nullableText11,
     node_placement_id: nullableText11,
     scope_execution_id: nullableText11,
@@ -93290,7 +93410,7 @@ var APPROVAL_ACTION_SCHEMA = {
     connector_binding_revision_id: nullableText11,
     extension_package_version_id: nullableText11,
     approval_policy_ref: { oneOf: [resourceRefSchema5, { type: "null" }] },
-    capability_grant_ids: { type: "array", items: text13, uniqueItems: true },
+    capability_grant_ids: { type: "array", items: text14, uniqueItems: true },
     expected_effect: approvalEffectSchema
   }
 };
@@ -93327,8 +93447,8 @@ var approvalRequestSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_request_id: text13,
-    workspace_id: text13,
+    approval_request_id: text14,
+    workspace_id: text14,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
     context_id: nullableText11,
@@ -93346,16 +93466,16 @@ var approvalRequestSchema = {
         approvals_received: { type: "integer", minimum: 0 },
         approvals_required: { type: "integer", minimum: 1 },
         active_decision_count: { type: "integer", minimum: 0 },
-        remaining_named_principal_ids: { type: "array", items: text13, uniqueItems: true },
+        remaining_named_principal_ids: { type: "array", items: text14, uniqueItems: true },
         resolution: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] }
       }
     },
-    requested_by_principal_id: text13,
-    reason: text13,
+    requested_by_principal_id: text14,
+    reason: text14,
     requested_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
-    idempotency_key: text13,
+    idempotency_key: text14,
     status: { enum: ["pending", "approved", "rejected", "cancelled", "invalidated"] },
     decision: { oneOf: [{ enum: ["approved", "rejected", "changes_requested"] }, { type: "null" }] },
     state_revision: { type: "integer", minimum: 1 },
@@ -93390,16 +93510,16 @@ var approvalReceiptSchema = {
   ],
   properties: {
     resource_ref: resourceRefSchema5,
-    approval_receipt_id: text13,
-    approval_request_id: text13,
-    workspace_id: text13,
+    approval_receipt_id: text14,
+    approval_request_id: text14,
+    workspace_id: text14,
     action: APPROVAL_ACTION_SCHEMA,
     action_digest: sha2565,
     decision_set_digest: sha2565,
     context_id: nullableText11,
-    requested_by_principal_id: text13,
-    approved_by_principal_id: text13,
-    decision_event_id: text13,
+    requested_by_principal_id: text14,
+    approved_by_principal_id: text14,
+    decision_event_id: text14,
     issued_at: timestamp,
     expires_at: timestamp,
     maximum_uses: { type: "integer", minimum: 1 },
@@ -93581,10 +93701,10 @@ function requestApprovalOperation(backend) {
         required: ["action", "reason", "expires_at"],
         properties: {
           action: APPROVAL_ACTION_SCHEMA,
-          context_id: { oneOf: [text13, { type: "null" }] },
+          context_id: { oneOf: [text14, { type: "null" }] },
           decision_binding: { oneOf: [approvalDecisionBindingSchema, { type: "null" }] },
           decision_policy_ref: approvalDecisionPolicyReferenceSchema,
-          reason: text13,
+          reason: text14,
           expires_at: timestamp,
           maximum_uses: { type: "integer", minimum: 1 }
         }
@@ -93651,9 +93771,9 @@ function decideApprovalOperation(backend) {
         required: ["decision", "reason"],
         properties: {
           decision: { enum: ["approved", "rejected", "changes_requested"] },
-          reason: text13,
+          reason: text14,
           receipt_expires_at: timestamp,
-          supersedes_decision_id: text13
+          supersedes_decision_id: text14
         }
       }
     },
@@ -93739,7 +93859,7 @@ function cancelApprovalOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text13 }
+        properties: { reason: text14 }
       }
     },
     result: {
@@ -93786,7 +93906,7 @@ function revokeApprovalReceiptOperation(backend) {
         type: "object",
         additionalProperties: false,
         required: ["reason"],
-        properties: { reason: text13 }
+        properties: { reason: text14 }
       }
     },
     result: {
@@ -97576,12 +97696,12 @@ function contentDigest(contentRef) {
   return record.algorithm === "sha256" && typeof record.value === "string" && /^[a-f0-9]{64}$/i.test(record.value) ? record.value.toLowerCase() : null;
 }
 function containsSensitivePortableText(bytes, sourceWorkspaceLocator) {
-  const text15 = bytes.toString("utf8");
-  if (text15.includes(sourceWorkspaceLocator))
+  const text17 = bytes.toString("utf8");
+  if (text17.includes(sourceWorkspaceLocator))
     return true;
   return SECRET_VALUE_PATTERNS.some((pattern) => {
     pattern.lastIndex = 0;
-    return pattern.test(text15);
+    return pattern.test(text17);
   });
 }
 function sanitizePortableRecord(row, sourcePaths) {
@@ -97983,18 +98103,18 @@ var RESTORE_WORKSPACE_BUNDLE_OPERATION_ID = "workspace.package.restore";
 var INSPECT_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.inspect_restore";
 var RECONCILE_WORKSPACE_RESTORE_OPERATION_ID = "workspace.package.reconcile_restore";
 var RELEASE_WORKSPACE_RESTORE_HOLD_OPERATION_ID = "workspace.package.release_restore_hold";
-var text14 = { type: "string", minLength: 1 };
-var nullableText12 = { oneOf: [text14, { type: "null" }] };
+var text15 = { type: "string", minLength: 1 };
+var nullableText12 = { oneOf: [text15, { type: "null" }] };
 var empty = { type: "object", additionalProperties: false };
 var dependencySchema = {
   type: "object",
   additionalProperties: false,
   required: ["dependency_id", "kind", "resource_id", "reason"],
   properties: {
-    dependency_id: text14,
+    dependency_id: text15,
     kind: { enum: ["content", "secret_ref", "endpoint_attachment", "actor_runtime", "command_runtime", "connector_runtime", "extension_runtime"] },
-    resource_id: text14,
-    reason: text14
+    resource_id: text15,
+    reason: text15
   }
 };
 var bundleSummarySchema = {
@@ -98012,9 +98132,9 @@ var bundleSummarySchema = {
     "unresolved_dependencies"
   ],
   properties: {
-    bundle_id: text14,
-    bundle_digest: text14,
-    workspace_id: text14,
+    bundle_id: text15,
+    bundle_digest: text15,
+    workspace_id: text15,
     format_version: { type: "integer", minimum: 1 },
     source_database_schema_version: { type: "integer", minimum: 1 },
     record_count: { type: "integer", minimum: 0 },
@@ -98040,12 +98160,12 @@ var restoreHoldSchema = {
         "released_by_principal_id"
       ],
       properties: {
-        workspace_id: text14,
-        bundle_id: text14,
-        bundle_digest: text14,
+        workspace_id: text15,
+        bundle_id: text15,
+        bundle_digest: text15,
         state: { enum: ["held", "released"] },
-        reason: text14,
-        restored_at: text14,
+        reason: text15,
+        restored_at: text15,
         released_at: nullableText12,
         released_by_principal_id: nullableText12
       }
@@ -98153,7 +98273,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id"],
-        properties: { bundle_id: text14 }
+        properties: { bundle_id: text15 }
       }
     },
     result: {
@@ -98162,7 +98282,7 @@ function locateDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_id", "bundle_directory"],
-        properties: { bundle_id: text14, bundle_directory: text14 }
+        properties: { bundle_id: text15, bundle_directory: text15 }
       }
     },
     handler: async (_context, input) => {
@@ -98195,7 +98315,7 @@ function preflightDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory"],
-        properties: { bundle_directory: text14 }
+        properties: { bundle_directory: text15 }
       }
     },
     result: {
@@ -98242,7 +98362,7 @@ function restoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["bundle_directory", "workspace_locator"],
-        properties: { bundle_directory: text14, workspace_locator: text14 }
+        properties: { bundle_directory: text15, workspace_locator: text15 }
       }
     },
     result: {
@@ -98261,9 +98381,9 @@ function restoreDefinition(service) {
           "backup_created"
         ],
         properties: {
-          workspace_id: text14,
-          bundle_id: text14,
-          bundle_digest: text14,
+          workspace_id: text15,
+          bundle_id: text15,
+          bundle_digest: text15,
           state: { const: "held" },
           inserted_record_count: { type: "integer", minimum: 0 },
           retained_record_count: { type: "integer", minimum: 0 },
@@ -98355,10 +98475,10 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "expected_bundle_digest", "dependency_id", "source_path"],
         properties: {
-          workspace_id: text14,
-          expected_bundle_digest: text14,
-          dependency_id: text14,
-          source_path: text14
+          workspace_id: text15,
+          expected_bundle_digest: text15,
+          dependency_id: text15,
+          source_path: text15
         }
       }
     },
@@ -98369,11 +98489,11 @@ function supplyContentDefinition(service) {
         additionalProperties: false,
         required: ["workspace_id", "bundle_digest", "dependency_id", "artefact_version_id", "digest", "size_bytes"],
         properties: {
-          workspace_id: text14,
-          bundle_digest: text14,
-          dependency_id: text14,
-          artefact_version_id: text14,
-          digest: text14,
+          workspace_id: text15,
+          bundle_digest: text15,
+          dependency_id: text15,
+          artefact_version_id: text15,
+          digest: text15,
           size_bytes: { type: "integer", minimum: 0 }
         }
       }
@@ -98411,7 +98531,7 @@ function reconcileRestoreDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text14 }
+        properties: { expected_bundle_digest: text15 }
       }
     },
     result: {
@@ -98475,7 +98595,7 @@ function releaseHoldDefinition(service) {
         type: "object",
         additionalProperties: false,
         required: ["expected_bundle_digest"],
-        properties: { expected_bundle_digest: text14 }
+        properties: { expected_bundle_digest: text15 }
       }
     },
     result: {
@@ -98920,6 +99040,7 @@ var WorkspaceConfigurationImportStore = class {
       actor_id: actorId,
       runtime_profile_revision_id: profileRevision.runtime_profile_revision_id,
       endpoint_id: endpointId,
+      model: currentBinding?.model ?? null,
       status: status.status,
       unresolved_reasons: status.reasons,
       expected_current_binding_id: currentBinding?.actor_runtime_binding_id ?? null,
@@ -99478,11 +99599,11 @@ function safeRelativePath(value, label) {
   return path3;
 }
 function digestText(value, label) {
-  const text15 = requiredText5(value, label).toLowerCase();
-  if (!/^sha256:[a-f0-9]{64}$/.test(text15)) {
+  const text17 = requiredText5(value, label).toLowerCase();
+  if (!/^sha256:[a-f0-9]{64}$/.test(text17)) {
     throw new WorkspaceConfigurationInventoryValidationError(`${label} must be a SHA-256 digest`);
   }
-  return text15;
+  return text17;
 }
 function requiredText5(value, label) {
   if (typeof value !== "string" || !value.trim()) {
@@ -99748,7 +99869,11 @@ var nodeSchema = {
     },
     capability_grant_ids: stringArray3,
     activation: activationPolicySchema,
-    context_policy: contextPolicySchema
+    context_policy: contextPolicySchema,
+    distinct_actor_from: {
+      ...stringArray3,
+      description: "Separation of duties: node ids of other Actor nodes whose Actor must differ from this node's Actor, for example a judge that must not be a builder. A route that breaks it is refused at publish and at start."
+    }
   }
 };
 var portSchema = {
@@ -99762,7 +99887,11 @@ var portSchema = {
     direction: { enum: ["input", "output"] },
     event_types: stringArray3,
     artefact_types: stringArray3,
-    schema_ref: nullableString6,
+    schema_ref: { ...nullableString6, description: "A name for this Port's contract. It is not enforced on its own; put the enforced shape in schema." },
+    schema: {
+      oneOf: [{ ...recordSchema }, { type: "null" }],
+      description: `Output Ports only. A JSON Schema every publication's content must satisfy; a publication that does not match is refused, naming the fields. A turn's reply handed on as output arrives as {"text": "..."}.`
+    },
     min_count: { type: "integer", minimum: 0 },
     max_count: { oneOf: [{ type: "integer", minimum: 0 }, { type: "null" }] }
   }
@@ -103173,6 +103302,131 @@ function cancelRuntimeDeliveryOperation(backend) {
   };
 }
 
+// floe-bus/dist/runtime-turn-inspection.js
+var INSPECT_RUNTIME_DELIVERY_OPERATION_ID = "runtime.delivery.inspect";
+var text16 = (value) => typeof value === "string" && value !== "" ? value : null;
+function turnModels(telemetry) {
+  const models = [];
+  let model = null;
+  for (const record of telemetry) {
+    if (record.kind !== "usage")
+      continue;
+    const usage = record.payload.usage;
+    const calls = Array.isArray(usage?.modelCalls) ? usage.modelCalls : [];
+    for (const name of [...calls.map((call) => text16(call?.model)), text16(usage?.model)]) {
+      if (name && !models.includes(name))
+        models.push(name);
+    }
+    model = text16(usage?.model) ?? model;
+  }
+  return { model, models };
+}
+function turnTools(telemetry) {
+  const tools = [];
+  const byCall = /* @__PURE__ */ new Map();
+  for (const record of telemetry) {
+    if (record.kind !== "tool_activity")
+      continue;
+    const status = record.payload.status;
+    if (status !== "started" && status !== "completed" && status !== "failed")
+      continue;
+    const toolCallId = text16(record.payload.tool_call_id);
+    let tool = toolCallId ? byCall.get(toolCallId) : void 0;
+    if (!tool) {
+      tool = { tool_call_id: toolCallId, name: null, status, started_at: null, ended_at: null };
+      tools.push(tool);
+      if (toolCallId)
+        byCall.set(toolCallId, tool);
+    }
+    tool.name = text16(record.payload.name) ?? tool.name;
+    tool.status = status;
+    const at = text16(record.payload.at) ?? record.created_at;
+    if (status === "started")
+      tool.started_at = at;
+    else
+      tool.ended_at = at;
+  }
+  return tools;
+}
+function inspectRuntimeTurn(facts) {
+  return {
+    ...facts.delivery,
+    ...turnModels(facts.telemetry),
+    tools: turnTools(facts.telemetry),
+    tool_decisions: facts.evaluations.map((evaluation) => ({
+      policy_evaluation_id: evaluation.evaluation_id,
+      native_tools: evaluation.facts?.tool?.native_tools ?? [],
+      operation_id: evaluation.facts?.operation_id ?? "",
+      decision: evaluation.decision,
+      evaluated_at: evaluation.evaluated_at
+    }))
+  };
+}
+var nullableText13 = { type: ["string", "null"] };
+function inspectRuntimeDeliveryOperation(backend) {
+  return {
+    operation_id: INSPECT_RUNTIME_DELIVERY_OPERATION_ID,
+    operation_version: "1",
+    authority_boundary_kinds: ["workspace"],
+    category: "runtime",
+    title: "Inspect response",
+    description: "Read one runtime response (turn): the model(s) it actually ran on, from the engine's usage records, each tool it ran with its state, and Floe's decision on each engine tool call. Never shows tool arguments, results or prose.",
+    effects: { mode: "read", reversibility: "none", external: false, secret_access: "none" },
+    required_grants: [INSPECT_RUNTIME_DELIVERY_OPERATION_ID],
+    interaction_constraints: { allowed_modes: ["interactive", "unattended"] },
+    target: { resource_kinds: ["runtime_delivery"], expected_revision: "not_applicable" },
+    input: { version: "1", schema: { type: "object", additionalProperties: false } },
+    result: { version: "1", schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["delivery_id", "state", "endpoint_id", "context_id", "trigger_event_id", "model", "models", "tools", "tool_decisions"],
+      properties: {
+        delivery_id: { type: "string" },
+        state: { type: "string" },
+        endpoint_id: { type: "string" },
+        context_id: nullableText13,
+        trigger_event_id: { type: "string" },
+        model: nullableText13,
+        models: { type: "array", items: { type: "string" } },
+        tools: { type: "array", items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["tool_call_id", "name", "status", "started_at", "ended_at"],
+          properties: {
+            tool_call_id: nullableText13,
+            name: nullableText13,
+            status: { type: "string" },
+            started_at: nullableText13,
+            ended_at: nullableText13
+          }
+        } },
+        tool_decisions: { type: "array", items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["policy_evaluation_id", "native_tools", "operation_id", "decision", "evaluated_at"],
+          properties: {
+            policy_evaluation_id: { type: "string" },
+            native_tools: { type: "array", items: { type: "string" } },
+            operation_id: { type: "string" },
+            decision: { type: "string" },
+            evaluated_at: { type: "string" }
+          }
+        } }
+      }
+    } },
+    availability: () => ({ available: true }),
+    handler: (context) => {
+      const workspaceId4 = context.target.state.workspace_id;
+      return {
+        state: "completed",
+        result: backend.inspect(workspaceId4, context.target.ref.id),
+        changed_refs: [],
+        audit_ref: { kind: "operation_invocation", id: context.invocation_id, revision: null }
+      };
+    }
+  };
+}
+
 // floe-bus/dist/store.js
 var TERMINAL_ATTACHMENT_STATUSES = /* @__PURE__ */ new Set(["attached", "workspace_inaccessible", "config_invalid"]);
 function classifyAttachmentStatus(status, error_code, validation) {
@@ -103654,6 +103908,9 @@ var BusStore = class {
     operationRegistry = registerContextOperations(operationRegistry, this.contextOperationBackend);
     operationRegistry.register(cancelRuntimeDeliveryOperation({
       cancel: (input) => this.cancelRuntimeDelivery(input, (type, payload = {}) => this.broadcastFn?.(type, payload))
+    }));
+    operationRegistry.register(inspectRuntimeDeliveryOperation({
+      inspect: (workspaceId4, deliveryId) => this.inspectRuntimeTurn(workspaceId4, deliveryId)
     }));
     operationRegistry = registerRuntimeProfileOperations(operationRegistry, this.runtimeProfileStore);
     operationRegistry.register(setupActorOperation({
@@ -104799,6 +105056,13 @@ var BusStore = class {
     if (revision.routing_mode !== "edge") {
       throw new ScopeExecutionInvalidError(`revision '${revision.revision_id}' uses legacy routing and cannot start through the Edge execution API`);
     }
+    try {
+      assertDistinctActors(revision.nodes);
+    } catch (error) {
+      if (error instanceof ScopeCompositionInvalidError)
+        throw new ScopeExecutionInvalidError(error.reason);
+      throw error;
+    }
     const ingressNode = revision.nodes.find((node) => node.node_id === input.ingress_node_id);
     if (!ingressNode || ingressNode.kind !== "event") {
       throw new ScopeExecutionInvalidError(`ingress node '${input.ingress_node_id}' is not an Event placement in the published revision`);
@@ -105002,6 +105266,13 @@ var BusStore = class {
     const eventType = input.event_type ?? port.event_types?.find((value) => value !== "*") ?? "scope.output";
     if (port.event_types?.length && !port.event_types.includes("*") && !port.event_types.includes(eventType)) {
       throw new ScopeExecutionInvalidError(`Event type '${eventType}' is not accepted by output Port '${port.port_id}'`);
+    }
+    if (port.schema) {
+      const validation = portSchemaValidator.validate(port.schema, input.content);
+      if (!validation.valid) {
+        const fields = validation.issues.map((issue) => `${issue.instance_path || "(content)"} ${issue.message}`).join("; ");
+        throw new ScopeExecutionInvalidError(`output does not match Port '${port.name || port.port_id}' schema: ${fields}`);
+      }
     }
     const artefactVersionIds = this.requireArtefactVersionsForPort(execution.workspace_id, port, input.artefact_version_ids ?? []);
     const event = this.insertEvent({
@@ -105434,8 +105705,14 @@ var BusStore = class {
   /**
    * Retains an ApprovalRequest only after an optional Scope continuation is
    * proven to name the exact waiting NodeExecution and its pinned output Ports.
+   * Every request is pushed, so a person's surface learns it waits without asking.
    */
   createApprovalRequest(input) {
+    const request = this.createApprovalRequestRecord(input);
+    this.broadcastFn?.("approval_requested", { request });
+    return request;
+  }
+  createApprovalRequestRecord(input) {
     return this.transaction(() => {
       const context = input.context_id === null ? null : this.contextStore.getContext(input.context_id);
       if (input.context_id !== null && (!context || context.workspace_id !== input.workspace_id || context.lifecycle_state !== "active")) {
@@ -108220,7 +108497,8 @@ var BusStore = class {
         scope_execution_id: delivery.scope_execution_id
       },
       operation_id: operationId,
-      target: null,
+      // The tool call acts inside this one turn, as its approval action says.
+      target: { kind: TOOL_APPROVAL_TARGET_KIND, id: delivery.delivery_id },
       effects: toolOperationEffects(operationId),
       scope_id: scoped?.scope_execution.scope_id ?? null,
       actor_id: contract.actor.actor_id,
@@ -108472,6 +108750,33 @@ var BusStore = class {
       ORDER BY created_at DESC, telemetry_id DESC
       LIMIT ?
     `).all(filters.workspace_id, ...deliveryIds, ...excludedKinds, limit).reverse();
+  }
+  /** One turn's model(s) and tool calls, read from its telemetry and tool decisions. */
+  inspectRuntimeTurn(workspaceId4, deliveryId) {
+    const row = this.db.prepare(`
+      SELECT d.delivery_id, d.workspace_id, d.endpoint_id, d.state, d.trigger_event_id, e.context_id
+      FROM delivery_bundles d LEFT JOIN events e ON e.event_id = d.trigger_event_id
+      WHERE d.delivery_id = ?
+    `).get(deliveryId);
+    if (!row || row.workspace_id !== workspaceId4)
+      throw new Error("Runtime response is unavailable in this Workspace.");
+    const telemetry = this.db.prepare(`
+      SELECT kind, payload_json, created_at FROM runtime_telemetry
+      WHERE workspace_id = ? AND delivery_id = ? AND kind IN ('usage', 'tool_activity')
+      ORDER BY created_at, telemetry_id
+    `).all(workspaceId4, deliveryId).map((record) => ({ kind: record.kind, payload: parseJson4(record.payload_json) ?? {}, created_at: record.created_at }));
+    const evaluations = this.policyStore.listToolEvaluationsForTurn({ workspace_id: workspaceId4, delivery_id: deliveryId });
+    return inspectRuntimeTurn({
+      delivery: {
+        delivery_id: String(row.delivery_id),
+        state: String(row.state),
+        endpoint_id: String(row.endpoint_id),
+        context_id: row.context_id ?? null,
+        trigger_event_id: String(row.trigger_event_id)
+      },
+      telemetry,
+      evaluations
+    });
   }
   getEvent(eventId) {
     const row = this.db.prepare("SELECT * FROM events WHERE event_id = ?").get(eventId);
@@ -109066,8 +109371,8 @@ var BusStore = class {
     }
     return ids;
   }
-  associateArtefactVersions(artefactVersionIds, targets3) {
-    for (const target of targets3) {
+  associateArtefactVersions(artefactVersionIds, targets2) {
+    for (const target of targets2) {
       for (const versionId of artefactVersionIds) {
         this.artefactStore.associateVersion({
           artefact_version_id: versionId,
@@ -110271,8 +110576,9 @@ var BusStore = class {
     const placement = revision.nodes.find((candidate) => candidate.node_id === current.node_id);
     const required = revision.ports.filter((port) => port.node_id === current.node_id && port.direction === "output" && (port.min_count ?? 0) > 0);
     let missing = this.missingRequiredOutputPorts(revision, current);
+    let replyRefusal = null;
     if (missing.length === 1 && required.length === 1 && placement?.kind === "actor" && placement.resource_id) {
-      this.handOnTurnReply(current, placement.resource_id, missing[0], attemptId);
+      replyRefusal = this.handOnTurnReply(current, placement.resource_id, missing[0], attemptId);
       missing = this.missingRequiredOutputPorts(revision, current);
     }
     const settled = this.scopeExecutionStore.getNodeExecution(current.node_execution_id);
@@ -110287,7 +110593,7 @@ var BusStore = class {
     if (placement?.kind !== "actor" || !placement.resource_id || reminded) {
       this.scopeExecutionStore.setNodeExecutionStatus(current.node_execution_id, "failed", {
         code: "required_output_not_handed_on",
-        message: `required output not handed on: ${names}`,
+        message: `required output not handed on: ${names}${replyRefusal ? ` (${replyRefusal})` : ""}`,
         required_port_ids: missing.map((port) => port.port_id),
         safe_to_retry_automatically: false
       });
@@ -110305,6 +110611,7 @@ var BusStore = class {
       content: {
         text: [
           `Reminder from Floe: your turn ended without handing on this step's required output: ${missing.map((port) => `${port.name || port.port_id} (port_id ${port.port_id})`).join(", ")}.`,
+          ...replyRefusal ? [`Your reply could not be handed on as that output: ${replyRefusal}.`] : [],
           `Hand it on now with the ${PUBLISH_SCOPE_OUTPUT_OPERATION_ID} operation for node execution ${current.node_execution_id}, once per port, with lifecycle_outcome "completed"${needsFiles ? " and the exact ArtefactVersion references the port accepts" : ""}.`,
           'This is the only reminder. If the output is still missing when this turn ends, the step fails with "required output not handed on".'
         ].join("\n"),
@@ -110346,23 +110653,25 @@ var BusStore = class {
   }
   /**
    * Hands on a turn's reply through the step's only required output, exactly
-   * as an explicit publication would. An explicit publication already made
-   * wins; a Port that needs a schema or saved files cannot be satisfied by text.
+   * as an explicit publication would, as `{text}`. An explicit publication
+   * already made wins; a Port that needs saved files cannot be satisfied by
+   * text, nor can a named contract without an enforceable schema. Returns why
+   * the reply was refused as output, if it was.
    */
   handOnTurnReply(node, actorId, port, attemptId) {
-    if (port.schema_ref || (port.artefact_types?.length ?? 0) > 0)
-      return;
+    if (port.schema_ref && !port.schema || (port.artefact_types?.length ?? 0) > 0)
+      return null;
     const resultRow = this.db.prepare("SELECT * FROM events WHERE idempotency_key = ?").get(`runtime-turn-result:attempt:${attemptId}`);
     if (!resultRow)
-      return;
+      return null;
     const result = this.rowToEvent(resultRow);
-    const text15 = typeof result.content?.text === "string" ? result.content.text.trim() : "";
-    if (result.metadata?.outcome !== "completed" || !text15)
-      return;
+    const text17 = typeof result.content?.text === "string" ? result.content.text.trim() : "";
+    if (result.metadata?.outcome !== "completed" || !text17)
+      return null;
     const execution = this.scopeExecutionStore.getExecution(node.execution_id);
     const idempotencyKey = `turn-reply-output:${attemptId}`;
     if (this.replayedScopeNodeOutput(idempotencyKey))
-      return;
+      return null;
     let recorded;
     try {
       recorded = this.writeScopeNodeOutput({
@@ -110370,17 +110679,18 @@ var BusStore = class {
         node_execution_id: node.node_execution_id,
         port_id: port.port_id,
         publisher_endpoint_id: actorId,
-        content: { text: text15 },
+        content: { text: text17 },
         idempotency_key: idempotencyKey,
         lifecycle_outcome: "completed",
         output_source: "turn_reply"
       });
     } catch (error) {
       if (error instanceof ScopeExecutionInvalidError)
-        return;
+        return error.reason;
       throw error;
     }
     this.announceAfterCommit(() => this.announceScopeNodeOutput(recorded, this.broadcastFn), recorded.event.event_id);
+    return null;
   }
   /**
    * Settling runs inside the caller's transaction, which has no broadcast of
@@ -115461,12 +115771,12 @@ __export2(nip04_exports, {
   decrypt: () => decrypt2,
   encrypt: () => encrypt2
 });
-function encrypt2(secretKey, pubkey, text15) {
+function encrypt2(secretKey, pubkey, text17) {
   const privkey = secretKey instanceof Uint8Array ? secretKey : hexToBytes(secretKey);
   const key = secp256k1.getSharedSecret(privkey, hexToBytes("02" + pubkey));
   const normalizedKey = getNormalizedX(key);
   let iv = Uint8Array.from(randomBytes8(16));
-  let plaintext = utf8Encoder2.encode(text15);
+  let plaintext = utf8Encoder2.encode(text17);
   let ciphertext = cbc(normalizedKey, iv).encrypt(plaintext);
   let ctb64 = base64.encode(new Uint8Array(ciphertext));
   let ivb64 = base64.encode(new Uint8Array(iv.buffer));
@@ -119504,7 +119814,8 @@ async function createBusServer(configPath, config, options = {}) {
       text: external_exports.string().min(1)
     })).optional(),
     activation: external_exports.record(external_exports.unknown()).optional(),
-    context_policy: external_exports.record(external_exports.unknown()).optional()
+    context_policy: external_exports.record(external_exports.unknown()).optional(),
+    distinct_actor_from: external_exports.array(external_exports.string().min(1)).optional()
   });
   const ScopePortSchema = external_exports.object({
     port_id: external_exports.string().min(1),
@@ -119514,6 +119825,7 @@ async function createBusServer(configPath, config, options = {}) {
     event_types: external_exports.array(external_exports.string().min(1)).optional(),
     artefact_types: external_exports.array(external_exports.string().min(1)).optional(),
     schema_ref: external_exports.string().min(1).nullable().optional(),
+    schema: external_exports.record(external_exports.unknown()).nullable().optional(),
     min_count: external_exports.number().int().min(0).optional(),
     max_count: external_exports.number().int().min(0).nullable().optional()
   });

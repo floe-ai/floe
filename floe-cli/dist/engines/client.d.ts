@@ -16,8 +16,8 @@ import { ChannelClient } from "../local-channel/client.js";
 export type { RunningTurn, VersionSwitchOutcome } from "../local-channel/client.js";
 import { type ChannelConnectOptions } from "../local-channel/connect.js";
 import { ChannelUnavailableError, type Channel } from "../local-channel/connection.js";
-import { type EngineState, type SignInEvent, type SignInMode } from "./protocol.js";
-export type { EngineAction, EnginePhase, EngineState, EnginesSnapshot, SignInEvent, SignInMode, SignInStatus } from "./protocol.js";
+import { type EngineModels, type EngineState, type SignInEvent, type SignInMode } from "./protocol.js";
+export type { EngineAction, EngineModel, EngineModels, EnginePhase, EngineState, EnginesSnapshot, SignInEvent, SignInMode, SignInStatus } from "./protocol.js";
 export { ChannelUnavailableError as EnginesUnavailableError };
 /** A refusal from engine control, with a stable `code` (see the protocol reference). */
 export declare class EnginesError extends Error {
@@ -41,6 +41,8 @@ export declare class EnginesClient extends ChannelClient {
     onSignIn(listener: (event: SignInEvent) => void): () => void;
     /** Check an engine again now. The result also arrives through onState. */
     refresh(engine: string): Promise<EngineState>;
+    /** The engine's own list of models for the signed-in account, to choose an Actor's model from. */
+    models(engine: string): Promise<EngineModels>;
     /** Start the vendor's own sign-in. Progress arrives through onSignIn. */
     signIn(engine: string, options?: {
         mode?: SignInMode;

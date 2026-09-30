@@ -5611,6 +5611,14 @@ var EngineControl = class {
         return this.state();
       case "refresh":
         return this.require(stringArg(args, "engine")).check();
+      case "models": {
+        const engine = stringArg(args, "engine");
+        const account = this.require(engine);
+        if (!account.models)
+          throw new ChannelError("models_unsupported", `The ${engine} engine cannot list its models.`);
+        const models = await vendor(() => account.models());
+        return { engine, models };
+      }
       case "sign_in": {
         const engine = stringArg(args, "engine");
         const account = this.require(engine);
@@ -7438,6 +7446,7 @@ var CopilotEngineAccountAdapter = class extends EventEmitter3 {
 import { defineTool } from "@github/copilot-sdk";
 var COMPLETE_FINISH_REASONS = /* @__PURE__ */ new Set(["stop", "end_turn", "completed", "success"]);
 var DEFAULT_QUIESCE_TIMEOUT_MS = 1e4;
+var DEFAULT_PROGRESS_TIMEOUT_MS = 12e4;
 var PROCESS_EXECUTION_TOOLS = /* @__PURE__ */ new Set(["bash", "powershell"]);
 var TOKEN_USAGE_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
 function sdkError(code, message, status = 502, cause) {
@@ -7535,6 +7544,7 @@ var CopilotRuntime = class extends Runtime {
     model,
     timeoutMs = 45 * 60 * 1e3,
     quiesceTimeoutMs = DEFAULT_QUIESCE_TIMEOUT_MS,
+    progressTimeoutMs = DEFAULT_PROGRESS_TIMEOUT_MS,
     client,
     clientFactory,
     clientOptions = {},
@@ -7560,9 +7570,13 @@ var CopilotRuntime = class extends Runtime {
     if (!Number.isFinite(toolPolicyTimeoutMs) || toolPolicyTimeoutMs <= 0) {
       throw new TypeError("Copilot toolPolicyTimeoutMs must be a positive finite number.");
     }
+    if (!Number.isFinite(progressTimeoutMs) || progressTimeoutMs <= 0) {
+      throw new TypeError("Copilot progressTimeoutMs must be a positive finite number.");
+    }
     this.model = model;
     this.timeoutMs = timeoutMs;
     this.quiesceTimeoutMs = quiesceTimeoutMs;
+    this.progressTimeoutMs = progressTimeoutMs;
     this.client = client;
     this.clientFactory = clientFactory || ((options) => new CopilotClient2(options));
     this.clientOptions = isolatedClientOptions(clientOptions);
@@ -7804,9 +7818,67 @@ var CopilotRuntime = class extends Runtime {
   #publishStream(sessionId, task, kind, delta, raw) {
     this.publish(sessionId, "stream", { runtime: "copilot", sessionId, turnId: task.turnId, kind, delta, raw });
   }
+  #clearTaskTimers(task) {
+    clearTimeout(task.timer);
+    clearTimeout(task.progressTimer);
+  }
+  #armProgressTimer(sessionId, task, phase = task.progressPhase) {
+    clearTimeout(task.progressTimer);
+    task.progressPhase = phase;
+    if (task.finished || task.activities.size > 0) return;
+    task.progressTimer = setTimeout(
+      () => this.#failStalledTask(sessionId, task),
+      task.progressTimeoutMs
+    );
+  }
+  async #failStalledTask(sessionId, task) {
+    if (task.finished) return;
+    const phase = task.progressPhase === "sending" ? "before the SDK acknowledged the prompt" : "after the SDK acknowledged the prompt";
+    const lastEvent = task.lastEventType || "none";
+    task.stallFault = sdkError(
+      "copilot_turn_stalled",
+      `Copilot turn made no progress for ${task.progressTimeoutMs}ms ${phase}. Last SDK event: ${lastEvent}.`,
+      504
+    );
+    const session = this.sessionObjects.get(sessionId);
+    this.sessionObjects.delete(sessionId);
+    this.sessionContexts.delete(sessionId);
+    this.sessions.delete(sessionId);
+    try {
+      task.abortRequested = true;
+      await session?.abort();
+    } catch (error) {
+      this.emit("diagnostic", `Copilot could not interrupt stalled session ${sessionId}: ${error.message}`);
+    }
+    await Promise.race([
+      task.settled,
+      new Promise((resolve6) => setTimeout(resolve6, this.quiesceTimeoutMs))
+    ]);
+    if (!task.finished) {
+      task.finished = true;
+      this.#clearTaskTimers(task);
+      this.turns.delete(sessionId);
+      task.unsubscribe?.();
+      this.publish(sessionId, "turn", {
+        runtime: "copilot",
+        sessionId,
+        turnId: task.turnId,
+        phase: "failed",
+        stopReason: task.stallFault.code
+      });
+      task.reject(task.stallFault);
+      task.settle();
+    }
+    try {
+      await session?.disconnect();
+    } catch (error) {
+      this.emit("diagnostic", `Copilot could not retire stalled session ${sessionId}: ${error.message}`);
+    }
+  }
   #handleEvent(sessionId, task, event) {
     const data = event?.data || {};
     task.lastActivity = Date.now();
+    task.lastEventType = event?.type || "unknown";
     if (event.type === "assistant.turn_start" && data.turnId) task.turnId = data.turnId;
     if (event.type === "assistant.message_delta") {
       const delta = data.deltaContent || "";
@@ -7867,6 +7939,7 @@ var CopilotRuntime = class extends Runtime {
     } else if (event.type === "model.call_failure") {
       task.modelCallFailure = data;
     }
+    if (!task.finished) this.#armProgressTimer(sessionId, task, "event");
   }
   #attach(sessionId, session, task) {
     return session.on((event) => this.#handleEvent(sessionId, task, event));
@@ -7874,14 +7947,15 @@ var CopilotRuntime = class extends Runtime {
   #finishTask(sessionId, task) {
     if (task.finished) return;
     task.finished = true;
-    clearTimeout(task.timer);
+    this.#clearTaskTimers(task);
     this.turns.delete(sessionId);
     this.sessions.markStopped(sessionId);
     task.unsubscribe?.();
     if (task.usage) task.usage = aggregateUsage(task.modelCalls, task.toolCallIds.size);
     const finish = task.finishReason;
     let error = null;
-    if (task.aborted) error = sdkError("interrupted", "Turn was cancelled.", 409);
+    if (task.stallFault) error = task.stallFault;
+    else if (task.aborted) error = sdkError("interrupted", "Turn was cancelled.", 409);
     else if (task.sessionError) error = sdkError("session_error", task.sessionError.message || "Copilot session failed.", 502);
     else if (task.modelCallFailure) error = sdkError("model_call_failure", task.modelCallFailure.message || "Copilot model call failed.", 502);
     else if (finish && !COMPLETE_FINISH_REASONS.has(finish)) error = sdkError("report_incomplete", `The Copilot response was not complete (finish reason: ${finish}).`, 502);
@@ -7906,6 +7980,10 @@ var CopilotRuntime = class extends Runtime {
   }, settings = {}, continuation = {}) {
     await this.start();
     const model = Object.hasOwn(settings, "model") ? settings.model : this.model;
+    const progressTimeoutMs = Object.hasOwn(settings, "progressTimeoutMs") ? settings.progressTimeoutMs : this.progressTimeoutMs;
+    if (!Number.isFinite(progressTimeoutMs) || progressTimeoutMs <= 0) {
+      throw new TypeError("Copilot progressTimeoutMs must be a positive finite number.");
+    }
     await this.#assertKnownModel(model);
     const sendOptions = promptOptions(input);
     const key = sessionKey({ role, cwd, model, settings, permissions: null, scope: continuation.scope });
@@ -7946,7 +8024,12 @@ var CopilotRuntime = class extends Runtime {
       unverifiedProcessTools: /* @__PURE__ */ new Set(),
       finished: false,
       timer: null,
-      lastActivity: Date.now()
+      progressTimer: null,
+      progressTimeoutMs,
+      progressPhase: "sending",
+      lastActivity: Date.now(),
+      lastEventType: null,
+      stallFault: null
     };
     task.timer = setTimeout(async () => {
       try {
@@ -7955,7 +8038,9 @@ var CopilotRuntime = class extends Runtime {
       } catch (error) {
         if (!task.finished) {
           task.finished = true;
+          this.#clearTaskTimers(task);
           this.turns.delete(sessionId);
+          task.unsubscribe?.();
           rejectResult(error);
           settle();
         }
@@ -7966,11 +8051,13 @@ var CopilotRuntime = class extends Runtime {
     this.publish(sessionId, "turn", { runtime: "copilot", sessionId, turnId: task.turnId, phase: "started" });
     try {
       await onStart(sessionId, { model: model || null, runtimeInstance: this, session: { action: reused ? "reused" : "fresh", reason } });
-      await session.send(sendOptions);
+      this.#armProgressTimer(sessionId, task, "sending");
+      await Promise.race([session.send(sendOptions), completion]);
+      if (!task.finished) this.#armProgressTimer(sessionId, task, "queued");
     } catch (error) {
       if (!task.finished) {
         task.finished = true;
-        clearTimeout(task.timer);
+        this.#clearTaskTimers(task);
         this.turns.delete(sessionId);
         task.unsubscribe?.();
         const fault3 = typeof error?.code === "string" ? error : sdkError("model_call_failure", `Copilot model call failed: ${error.message}`, 502, error);
@@ -10477,11 +10564,45 @@ function createCopilotAccount(home, options = {}) {
     console.log(`[floe-bridge] copilot sign-in cli: ${cliPath}`);
   else
     console.warn("[floe-bridge] copilot sign-in cli: not found; @github/copilot for this platform is not installed");
-  return new CopilotEngineAccountAdapter({
+  const account = new CopilotEngineAccountAdapter({
     environment: { ...process.env, COPILOT_HOME: folder },
     clientOptions: { baseDirectory: folder },
     ...cliPath ? { cliPath } : {}
   });
+  account.models = async () => {
+    const signedIn = account.currentState().account;
+    if (!signedIn) {
+      throw Object.assign(new Error("Copilot is not signed in, so it cannot list its models. Sign in first."), { code: "copilot_models_unavailable" });
+    }
+    return listCopilotModels(folder, signedIn);
+  };
+  return account;
+}
+async function listCopilotModels(home, signedIn) {
+  const runtime = createCopilotRuntime(home, { expectedAccount: signedIn });
+  try {
+    return (await runtime.models()).map(copilotModel);
+  } finally {
+    await runtime.close().catch(() => {
+    });
+  }
+}
+function copilotModel(model) {
+  const id2 = String(model.modelId ?? model.id);
+  const capabilities = model.capabilities ?? {};
+  const policy = model.policy ?? {};
+  const billing = model.billing ?? {};
+  const efforts = model.supportedReasoningEfforts;
+  return {
+    id: id2,
+    name: typeof model.name === "string" && model.name ? model.name : id2,
+    enabled: policy.state === "enabled" ? true : policy.state === "disabled" ? false : null,
+    ...typeof billing.multiplier === "number" ? { cost_multiplier: billing.multiplier } : {},
+    ...typeof capabilities.limits?.max_context_window_tokens === "number" ? { context_window_tokens: capabilities.limits.max_context_window_tokens } : {},
+    ...typeof capabilities.supports?.vision === "boolean" ? { vision: capabilities.supports.vision } : {},
+    ...Array.isArray(efforts) ? { reasoning_efforts: efforts.filter((e) => typeof e === "string") } : {},
+    ...typeof model.defaultReasoningEffort === "string" ? { default_reasoning_effort: model.defaultReasoningEffort } : {}
+  };
 }
 
 // floe-bridge/dist/adapters/engine-tool-gate.js
@@ -10983,6 +11104,7 @@ var FloeRuntimeAdapter = class {
       turn.visible_output = typeof result2.text === "string" ? result2.text : "";
       if (model)
         session.model = model;
+      await turn.live_tool_activity;
       await this.appendTelemetry(context, turn, "sdk_tool_evidence", {
         sdk_session_id: result2.sessionId,
         offered_tool_names: availableTools,
@@ -11258,6 +11380,7 @@ var FloeRuntimeAdapter = class {
           ended_at: new Date(event.endedAt ?? Date.now()).toISOString()
         });
       }
+      this.pushToolActivity(session, turn, event);
     });
     runtime.on("diagnostic", (text) => {
       console.log("[bridge] floe-runtime diagnostic", { endpoint_id: session.endpointId, text });
@@ -11295,6 +11418,7 @@ var FloeRuntimeAdapter = class {
       processing_contract_id: bundle.processing_contract?.processing_contract_id ?? null,
       visible_output: "",
       tool_activity: [],
+      live_tool_activity: Promise.resolve(),
       emitted_events: [],
       dependency_requested: false,
       finalized: false,
@@ -11308,6 +11432,30 @@ var FloeRuntimeAdapter = class {
       settled,
       settle
     };
+  }
+  /**
+   * Pushes one tool call's start or end as it happens, so a surface sees a
+   * turn's steps live. Only the tool's name and state: arguments and results
+   * are not public content.
+   */
+  pushToolActivity(session, turn, event) {
+    const context = session.context;
+    if (!context)
+      return;
+    const payload = {
+      scope_execution_id: turn.scope_execution_id,
+      tool_call_id: event.id,
+      name: event.title || event.kind,
+      status: event.status === "started" ? "started" : event.status === "failed" ? "failed" : "completed",
+      at: new Date((event.status === "started" ? event.startedAt : event.endedAt) ?? Date.now()).toISOString()
+    };
+    turn.live_tool_activity = turn.live_tool_activity.then(() => this.appendTelemetry(context, turn, "tool_activity", payload)).catch((error) => {
+      console.log("[bridge] tool activity push failed", {
+        delivery_id: turn.delivery_id,
+        tool_call_id: event.id,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    });
   }
   /** Build the neutral write-back anchor the substrate tools require. */
   turnAnchor(turn) {
@@ -11545,7 +11693,9 @@ function selectPinnedRuntime(contract) {
   assertContractPins(contract);
   const configuration = contract.runtime.profile.content.configuration;
   const provider = optionalString(configuration.provider, "configuration.provider");
-  const model = optionalString(configuration.model, "configuration.model");
+  const profileModel = optionalString(configuration.model, "configuration.model");
+  const actorModel = optionalString(contract.runtime.binding.model, "binding.model");
+  const model = actorModel ?? profileModel;
   const authProfile = optionalString(configuration.auth_profile ?? configuration.auth_profile_id, "configuration.auth_profile");
   const thinkingLevel = optionalThinkingLevel(configuration.thinking_level);
   const actorInstructions = contract.actor.definition.content.instructions.trim();
@@ -11554,7 +11704,7 @@ function selectPinnedRuntime(contract) {
     adapter_id: requiredString(contract.runtime.profile.content.adapter_id, "adapter_id"),
     config: Object.freeze({
       ...provider ? { provider } : {},
-      ...model ? { model, model_source: "runtime_profile_revision" } : {},
+      ...model ? { model, model_source: actorModel ? "actor_runtime_binding" : "runtime_profile_revision" } : {},
       ...authProfile ? {
         auth_profile: authProfile,
         auth_profile_source: "runtime_profile_revision"
