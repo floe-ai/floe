@@ -141,7 +141,7 @@ function asRecord(value) {
 
 // floe-cli/dist/index.js
 try {
-  const { runCli } = await import("./cli-AESRCPER.js");
+  const { runCli } = await import("./cli-Z3B45KN3.js");
   await runCli(process.argv);
 } catch (error) {
   printCliFailure(reportCliFailure(error, {

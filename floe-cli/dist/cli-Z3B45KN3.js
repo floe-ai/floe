@@ -1,7 +1,7 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
   connectIdentity
-} from "./chunk-CV7G6OJS.js";
+} from "./chunk-EZLSCMAL.js";
 import {
   SERVICE_NAMES,
   clearRecords,
@@ -13,12 +13,13 @@ import {
   probeAgent,
   readRecords,
   recordsPath,
+  restartAll,
   runningBusVersion,
   serviceLogPath,
   startAll,
-  stopService,
+  stopAll,
   waitForBusHealth
-} from "./chunk-WZ6YKNSS.js";
+} from "./chunk-QBBB4WBA.js";
 import {
   CliOperationClient,
   directInstallRequiredMessage,
@@ -4039,13 +4040,12 @@ program2.command("start").description("Start local Floe services").action(async 
 });
 program2.command("stop").description("Stop local Floe services").action(async () => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAllServices(configPath, config);
+  stopAll(configPath, config);
   console.log("Stopped Floe services.");
 });
 program2.command("restart").description("Restart local Floe services").action(async () => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAllServices(configPath, config);
-  await startAll(configPath, config);
+  await restartAll(configPath, config);
   console.log("Restarted Floe services.");
 });
 program2.command("logs").argument("[service]", "bus, bridge or identity").description("Print service logs").action((service2) => {
@@ -4104,14 +4104,14 @@ service.command("status").description("Show whether Floe is installed to auto-st
 });
 program2.command("uninstall").description("Remove auto-start and stop services; preserve ~/.floe data").action(async () => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAllServices(configPath, config);
+  stopAll(configPath, config);
   const removal = uninstallService();
   console.log(removal.message);
   console.log("Removed Floe service entries. Local data is preserved.");
 });
 program2.command("reset").description("Factory reset: wipe all Floe state (workspaces, contexts, boards, agents) while preserving your identity, provider credentials and service config").option("--yes", "skip confirmation prompt").option("--include-identity", "also remove your identity from this machine (only its recovery phrase can bring it back)").action(async (options) => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAllServices(configPath, config);
+  stopAll(configPath, config);
   const includeIdentity = options.includeIdentity === true;
   const plan = buildResetPlan(configPath, config, { includeIdentity });
   console.log("\nFloe Factory Reset");
@@ -4408,10 +4408,6 @@ async function printStatus(configPath, config) {
   const state = agent.state;
   console.log(`identity agent: answering${agent.version ? ` (Floe ${agent.version})` : ""}`);
   console.log(`identity: ${state.kind === "none" || !state.kind ? "none yet" : `${state.display_name} ${state.npub} (${state.kind})`}`);
-}
-function stopAllServices(configPath, config) {
-  for (const service2 of [...SERVICE_NAMES].reverse())
-    stopService(configPath, config, service2);
 }
 async function registerCurrentWorkspace(configPath, config, locator) {
   const registered = await registerFolder(locator, defaultRegistrationDependencies(configPath, config.bus.http_base_url));

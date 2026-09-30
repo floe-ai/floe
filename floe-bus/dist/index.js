@@ -68242,11 +68242,13 @@ var ActorDefinitionStore = class {
   db;
   now;
   validateHead;
+  statusChanged;
   lifecyclePushReady = null;
-  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead) {
+  constructor(db, now3 = () => (/* @__PURE__ */ new Date()).toISOString(), validateHead, statusChanged) {
     this.db = db;
     this.now = now3;
     this.validateHead = validateHead;
+    this.statusChanged = statusChanged;
     applyActorDefinitionSchema(db);
   }
   createActor(input) {
@@ -68388,7 +68390,10 @@ var ActorDefinitionStore = class {
     });
     if (input.status === "retired")
       this.notifyLifecyclePushReady();
-    return this.requireActor(actor.actor_id);
+    const changed = this.requireActor(actor.actor_id);
+    if (actor.status !== changed.status)
+      this.statusChanged?.(changed);
+    return changed;
   }
   getActor(actorId) {
     const row = this.db.prepare(`SELECT * FROM actors WHERE actor_id = ?`).get(actorId);
@@ -89696,6 +89701,14 @@ function isoNow6() {
 }
 
 // floe-bus/dist/transport-push-stream.js
+var SAFE_FAILURE_MESSAGE_LENGTH = 300;
+function safeFailure(failure) {
+  if (typeof failure.message !== "string")
+    return failure;
+  const firstLine = failure.message.split(/\r?\n/, 1)[0].trim();
+  const message = firstLine.length > SAFE_FAILURE_MESSAGE_LENGTH ? firstLine.slice(0, SAFE_FAILURE_MESSAGE_LENGTH - 1) + "\u2026" : firstLine;
+  return { ...failure, message };
+}
 var TransportPushStreamStore = class {
   db;
   constructor(db) {
@@ -89756,7 +89769,7 @@ var TransportPushStreamStore = class {
           to_status: row.to_status,
           attempt_id: row.attempt_id,
           delivery_id: row.delivery_id,
-          failure: row.failure_json ? JSON.parse(row.failure_json) : null,
+          failure: row.failure_json ? safeFailure(JSON.parse(row.failure_json)) : null,
           changed_at: row.changed_at
         }), row.changed_at);
         const sequence = Number(result.lastInsertRowid);
@@ -103494,7 +103507,7 @@ var BusStore = class {
       if (inspection.unavailable_grants.length > 0) {
         throw new ActorDefinitionValidationError(inspection.unavailable_grants.map((failure) => `CapabilityGrant '${failure.grant_id}': ${failure.code}`).join("; "));
       }
-    });
+    }, (actor) => this.reflectActorStatusOnEndpoints(actor.actor_id, (type, payload) => this.broadcastFn?.(type, payload)));
     this.commandDefinitionStore = new CommandDefinitionStore(this.db);
     this.commandWorkerBindingStore = new CommandWorkerBindingStore(this.db);
     this.commandProcessingContracts = new CommandProcessingContractStore(this.db);
@@ -103713,6 +103726,7 @@ var BusStore = class {
       accept_authority_only_revision: (actorId, revisionId) => this.workspaceConfigurationImportStore.acceptAuthorityOnlyRevision(actorId, revisionId)
     });
     this.actorAccessMigration = this.transaction(() => this.actorAccessAdoption.migrate());
+    this.listEndpointsOfRetiredActorsAsRetired();
   }
   actorAccessAdoption;
   /** Actors whose Floe-issued access moved onto the only person in their Workspace at this start. */
@@ -106856,9 +106870,51 @@ var BusStore = class {
     if (!binding)
       return fallback;
     const actor = this.actorDefinitionStore.getActor(binding.actor_id);
+    if (actor?.status === "retired")
+      return "retired";
     if (binding.status !== "resolved" || actor?.status !== "active")
       return "runtime_unconfigured";
     return fallback === "runtime_unconfigured" ? "idle" : fallback;
+  }
+  /** The Actors an Endpoint serves: its current runtime binding, or the Actor sharing its id. */
+  endpointActorIds(workspaceId4, endpointId) {
+    const binding = this.runtimeProfileStore.getCurrentActorBindingForEndpoint(workspaceId4, endpointId);
+    return binding ? [binding.actor_id] : [endpointId];
+  }
+  endpointServesRetiredActor(endpointId) {
+    const endpoint = this.getEndpoint(endpointId);
+    if (!endpoint?.workspace_id)
+      return false;
+    return this.endpointActorIds(String(endpoint.workspace_id), endpointId).some((actorId) => this.actorDefinitionStore.getActor(actorId)?.status === "retired");
+  }
+  /**
+   * A retired Actor is listed as retired, never as available; reactivating it
+   * restores its Endpoint's real readiness.
+   */
+  reflectActorStatusOnEndpoints(actorId, broadcast) {
+    const actor = this.actorDefinitionStore.getActor(actorId);
+    if (!actor)
+      return;
+    const binding = this.runtimeProfileStore.getCurrentActorBinding(actorId);
+    const endpointIds = new Set([binding?.endpoint_id, actorId].filter((id) => !!id));
+    for (const endpointId of endpointIds) {
+      const endpoint = this.getEndpoint(endpointId);
+      if (!endpoint || endpoint.workspace_id !== actor.workspace_id)
+        continue;
+      if (actor.status === "retired") {
+        if (endpoint.status !== "retired")
+          this.updateEndpointStatus(endpointId, "retired", broadcast);
+      } else if (endpoint.status === "retired") {
+        this.updateEndpointStatus(endpointId, this.runtimeConfigurationStatus(actor.workspace_id, endpointId, "idle"), broadcast);
+      }
+    }
+  }
+  /** Endpoints left listed as available after their Actor retired are corrected when the Bus opens. */
+  listEndpointsOfRetiredActorsAsRetired() {
+    const retired = this.db.prepare("SELECT actor_id FROM actors WHERE status = 'retired'").all();
+    for (const { actor_id } of retired)
+      this.reflectActorStatusOnEndpoints(actor_id, () => {
+      });
   }
   listEndpoints(workspaceId4) {
     const rows = workspaceId4 ? this.db.prepare("SELECT * FROM endpoints WHERE workspace_id = ? ORDER BY name").all(workspaceId4) : this.db.prepare("SELECT * FROM endpoints ORDER BY workspace_id, name").all();
@@ -106969,6 +107025,9 @@ var BusStore = class {
     return { ok: true, endpoint_id: endpointId, status: "retired" };
   }
   updateEndpointStatus(endpointId, status, broadcast) {
+    if (["idle", "waiting", "queued", "runtime_unconfigured"].includes(status) && this.endpointServesRetiredActor(endpointId)) {
+      status = "retired";
+    }
     this.db.prepare("UPDATE endpoints SET status = ?, updated_at = ? WHERE endpoint_id = ?").run(status, now(), endpointId);
     const endpoint = this.getEndpoint(endpointId);
     broadcast("status_changed", { endpoint });
@@ -108227,13 +108286,18 @@ var BusStore = class {
       const attempts = Number(delivery.attempt_count ?? 1);
       const queueState = attempts >= 3 ? "dead_lettered" : "queued";
       const bundleState = attempts >= 3 ? "dead_lettered" : "failed";
-      this.db.prepare("UPDATE delivery_bundles SET state = ?, lease_expires_at = NULL, last_error = ? WHERE delivery_id = ?").run(bundleState, input.error ?? null, input.delivery_id);
-      this.db.prepare(`
-        UPDATE event_queue
-        SET state = ?, delivery_id = CASE WHEN ? = 'queued' THEN NULL ELSE delivery_id END,
-            lease_expires_at = NULL, last_error = ?
-        WHERE delivery_id = ?
-      `).run(queueState, queueState, input.error ?? null, input.delivery_id);
+      this.transaction(() => {
+        this.db.prepare("UPDATE delivery_bundles SET state = ?, lease_expires_at = NULL, last_error = ? WHERE delivery_id = ?").run(bundleState, input.error ?? null, input.delivery_id);
+        this.db.prepare(`
+          UPDATE event_queue
+          SET state = ?, delivery_id = CASE WHEN ? = 'queued' THEN NULL ELSE delivery_id END,
+              lease_expires_at = NULL, last_error = ?
+          WHERE delivery_id = ?
+        `).run(queueState, queueState, input.error ?? null, input.delivery_id);
+        if (bundleState === "dead_lettered") {
+          this.finishCanonicalAttempt(delivery, "failed", input.error ?? "delivery failed before its turn started");
+        }
+      });
       broadcast(bundleState === "dead_lettered" ? "delivery_dead_lettered" : "delivery_failed", {
         bridge_id: input.bridge_id,
         delivery_id: input.delivery_id,
@@ -110085,10 +110149,13 @@ var BusStore = class {
   }
   finishCanonicalAttempt(delivery, status, reason) {
     const attemptId = delivery.execution_attempt_id ?? this.scopeExecutionStore.getAttemptForBundle(String(delivery.delivery_id))?.attempt_id ?? null;
-    if (!attemptId)
+    const attempt = attemptId ? this.scopeExecutionStore.getAttempt(String(attemptId)) : null;
+    if (!attempt) {
+      if (status === "failed" || status === "outcome_unknown")
+        this.failStepWithoutAttempt(delivery, reason);
       return;
-    const attempt = this.scopeExecutionStore.getAttempt(String(attemptId));
-    if (!attempt || !["pending", "running"].includes(attempt.status))
+    }
+    if (!["pending", "running"].includes(attempt.status))
       return;
     this.scopeExecutionStore.finishAttempt({
       attempt_id: attempt.attempt_id,
@@ -110117,6 +110184,18 @@ var BusStore = class {
       return;
     }
     this.settleCanonicalNodeAfterAttempt(node);
+    this.reconcileScopeExecutionStatus(node.execution_id);
+  }
+  failStepWithoutAttempt(delivery, reason) {
+    const nodeExecutionId = this.rowToDelivery(delivery).node_execution_id;
+    const node = nodeExecutionId ? this.scopeExecutionStore.getNodeExecution(nodeExecutionId) : null;
+    if (!node || ["completed", "failed", "cancelled", "superseded", "paused"].includes(node.status))
+      return;
+    this.scopeExecutionStore.setNodeExecutionStatus(node.node_execution_id, "failed", {
+      code: "runtime_failed_before_turn",
+      message: reason,
+      safe_to_retry_automatically: false
+    });
     this.reconcileScopeExecutionStatus(node.execution_id);
   }
   settleCanonicalNodeAfterAttempt(node) {

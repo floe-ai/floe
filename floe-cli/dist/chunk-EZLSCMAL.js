@@ -2,7 +2,7 @@ import { createRequire as __floeCreateRequire } from 'node:module'; const requir
 import {
   ChannelClient,
   connectChannel
-} from "./chunk-WZ6YKNSS.js";
+} from "./chunk-QBBB4WBA.js";
 import {
   IDENTITY_CHANNEL
 } from "./chunk-AKI56RAB.js";

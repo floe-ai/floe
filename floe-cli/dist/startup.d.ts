@@ -4,6 +4,12 @@ export declare class ForeignBusError extends Error {
     readonly code: "E_FOREIGN_BUS";
     constructor(url: string, detail: string);
 }
+type BusHealth = {
+    ok: boolean;
+    instance_id: string | null;
+    version: string | null;
+};
+export declare function fetchBusHealth(baseUrl: string): Promise<BusHealth | null>;
 export declare function isHealthy(baseUrl: string): Promise<boolean>;
 /** The version the bus serving at `baseUrl` reports; null if unreachable or it reports none. */
 export declare function runningBusVersion(baseUrl: string): Promise<string | null>;
@@ -13,6 +19,24 @@ export declare function runningBusVersion(baseUrl: string): Promise<string | nul
  * restarting someone else's Floe. Returns the message to show, or null.
  */
 export declare function describeVersionMismatch(url: string, ownVersion: string | null, busVersion: string | null): string | null;
+/** Numeric dotted-version comparison; pre-release tags are ignored. */
+export declare function compareVersions(a: string, b: string): number;
+/**
+ * Classify what, if anything, is answering on the Bus URL.
+ * - "absent": nothing healthy is there; we may start our own bus.
+ * - "mine": the process we recorded is running and its /health instance id
+ *    matches the record — proven to be our bus.
+ * - "foreign": something healthy is answering, but we cannot prove it is the
+ *    process we started (different install, or a stale predecessor). Refuse.
+ */
+export declare function classifyRunningBus(configPath: string, config: LocalConfig): Promise<{
+    state: "absent";
+} | {
+    state: "mine";
+} | {
+    state: "foreign";
+    detail: string;
+}>;
 /**
  * Wait for the Bus to become healthy, but stay honest about failure. A silent
  * "did not become healthy" with an empty log is exactly the false-signal this
@@ -59,6 +83,14 @@ export declare function ensureIdentityAgent(configPath: string, config: LocalCon
  * so a second start waits for the first and then finds its services running.
  */
 export declare function startAll(configPath: string, config: LocalConfig): Promise<void>;
+/** Stop in reverse start order: nothing is left running that depends on a stopped service. */
+export declare function stopAll(configPath: string, config: LocalConfig): void;
+/**
+ * Stop and start Floe as one start (start-lock.ts), so no other start runs in
+ * between. `beforeStop` runs while the lock is held, immediately before
+ * anything is stopped; returning false leaves everything running.
+ */
+export declare function restartAll(configPath: string, config: LocalConfig, beforeStop?: () => Promise<boolean>): Promise<boolean>;
 /**
  * Connect-first for the Bridge: if its engine control answers for this Floe
  * home, use it. Otherwise start it with a fresh service credential, obtained
@@ -67,3 +99,4 @@ export declare function startAll(configPath: string, config: LocalConfig): Promi
  * died on its first line must not be reported as started.
  */
 export declare function ensureBridge(configPath: string, config: LocalConfig): Promise<void>;
+export {};

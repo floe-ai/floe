@@ -532,6 +532,19 @@ ${readLogTail(record.log_file)}`);
 function startAll(configPath, config) {
   return withStartLock(floeHome(configPath, config), () => startAllHeld(configPath, config));
 }
+function stopAll(configPath, config) {
+  for (const service of [...SERVICE_NAMES].reverse())
+    stopService(configPath, config, service);
+}
+function restartAll(configPath, config, beforeStop = async () => true) {
+  return withStartLock(floeHome(configPath, config), async () => {
+    if (!await beforeStop())
+      return false;
+    stopAll(configPath, config);
+    await startAllHeld(configPath, config);
+    return true;
+  });
+}
 async function startAllHeld(configPath, config) {
   const busUrl = config.bus.http_base_url;
   const before = await classifyRunningBus(configPath, config);
@@ -567,7 +580,7 @@ async function connectChannel(spec, options) {
   const { configPath, config } = ensureConfig(options.configPath);
   const home = floeHome(configPath, config);
   try {
-    return await openChannel(spec, home, options.surface);
+    return withConfig(await openChannel(spec, home, options.surface), options.configPath);
   } catch (error) {
     if (!(error instanceof ChannelUnavailableError) || error.reason !== "not_running" || options.start === false)
       throw error;
@@ -576,13 +589,90 @@ async function connectChannel(spec, options) {
   if (plan === "blocked") {
     throw new ChannelUnavailableError("not_running", `${spec.label} is not running, and this machine does not let a surface start Floe (services.start_on_demand is false). Start Floe with \`floe start\`.`);
   }
-  return openChannel(spec, home, options.surface);
+  return withConfig(await openChannel(spec, home, options.surface), options.configPath);
+}
+function withConfig(channel, configPath) {
+  if (configPath)
+    channel.configPath = configPath;
+  return channel;
 }
 function versionNote(spec, servingVersion) {
   const own = thisInstallation().version;
   if (!own || servingVersion === own)
     return null;
   return `Connected to ${spec.label} from ${servingVersion ? `Floe ${servingVersion}` : "an older Floe"}, but this surface ships Floe ${own}. It was already running, so it is left as is and keeps serving until Floe restarts.`;
+}
+
+// floe-cli/dist/version-switch.js
+var defaultVersionSwitchDependencies = {
+  ownVersion: () => thisInstallation().version,
+  servingVersion: async (config) => {
+    const health = await fetchBusHealth(config.bus.http_base_url);
+    return { running: health !== null, version: health?.version ?? null };
+  },
+  isThisFloe: async (configPath, config) => (await classifyRunningBus(configPath, config)).state === "mine",
+  runningTurns: listRunningTurns,
+  restart: restartAll
+};
+async function switchToThisVersion(options = {}, deps = defaultVersionSwitchDependencies) {
+  const { configPath, config } = ensureConfig(options.configPath);
+  const own = deps.ownVersion();
+  if (!own) {
+    return { kind: "refused", reason: "unknown_version", message: "This copy of Floe does not know its own version, so it cannot tell whether it is newer." };
+  }
+  const serving = await deps.servingVersion(config);
+  if (!serving.running) {
+    return { kind: "refused", reason: "not_running", message: "Floe is not running, so there is nothing to switch. Starting Floe runs this version." };
+  }
+  if (serving.version) {
+    const order = compareVersions(own, serving.version);
+    if (order === 0)
+      return { kind: "already_serving", version: own };
+    if (order < 0) {
+      return {
+        kind: "refused",
+        reason: "would_downgrade",
+        message: `Floe ${serving.version} is running, which is newer than this copy (Floe ${own}). Switching would go back a version, so it was not done.`
+      };
+    }
+  }
+  if (!await deps.isThisFloe(configPath, config)) {
+    return {
+      kind: "refused",
+      reason: "not_this_floe",
+      message: `The Floe answering at ${config.bus.http_base_url} was not started from this Floe home, so it is left alone.`
+    };
+  }
+  let running = [];
+  const restarted = await deps.restart(configPath, config, async () => {
+    running = await deps.runningTurns(config);
+    return running.length === 0 || options.interrupt_running_work === true;
+  });
+  if (!restarted) {
+    return {
+      kind: "work_running",
+      running,
+      message: `${running.length === 1 ? "A turn is" : `${running.length} turns are`} in progress, so Floe was not switched. Try again when the work is done, or switch anyway and interrupt it.`
+    };
+  }
+  const after = await deps.servingVersion(config);
+  return { kind: "switched", from: serving.version, to: after.version ?? own, interrupted: running };
+}
+function runningTurns(options = {}) {
+  return listRunningTurns(ensureConfig(options.configPath).config);
+}
+async function listRunningTurns(config) {
+  const base = config.bus.http_base_url.replace(/\/$/, "");
+  const token = await fetchHostControlToken(base);
+  const response = await fetch(`${base}/v1/endpoints`, { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok)
+    throw new Error(`Floe could not list the work in progress (HTTP ${response.status}), so it was not switched.`);
+  const body = await response.json();
+  return (body.endpoints ?? []).filter((endpoint) => endpoint.status === "active").map((endpoint) => ({
+    workspace_id: String(endpoint.workspace_id),
+    endpoint_id: String(endpoint.endpoint_id),
+    name: typeof endpoint.name === "string" ? endpoint.name : null
+  }));
 }
 
 // floe-cli/dist/local-channel/client.js
@@ -611,6 +701,20 @@ var ChannelClient = class {
    */
   get versionNote() {
     return versionNote(this.spec, this.channel.agentVersion);
+  }
+  /**
+   * Ask Floe to run this surface's copy, which must be newer than the one
+   * serving. It uses the same path as `floe restart`, and it never interrupts a
+   * turn in progress unless `interrupt_running_work` is set: otherwise it
+   * returns `work_running` naming the turns. After `switched`, this connection
+   * has closed; connect again to reach the new version.
+   */
+  switchToThisVersion(options = {}) {
+    return switchToThisVersion({ ...options, configPath: this.channel.configPath });
+  }
+  /** The Actors mid-turn right now, in every workspace: what a switch would interrupt. */
+  runningTurns() {
+    return runningTurns({ configPath: this.channel.configPath });
   }
   onClose(listener) {
     this.closeListeners.add(listener);
@@ -663,7 +767,6 @@ export {
   readRecords,
   serviceLogPath,
   isPidRunning,
-  stopService,
   clearRecords,
   ChannelUnavailableError,
   probeAgent,
@@ -675,6 +778,8 @@ export {
   ensureSubstrateForClient,
   floeHome,
   startAll,
+  stopAll,
+  restartAll,
   connectChannel,
   ChannelClient
 };
