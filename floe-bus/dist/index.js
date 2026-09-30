@@ -104912,19 +104912,44 @@ var BusStore = class {
    * fan-out, then creates downstream Deliveries from stored Edges.
    */
   publishScopeNodeOutput(input, broadcast) {
-    const duplicate = this.scopeExecutionStore.getPublicationByIdempotencyKey(input.idempotency_key);
-    if (duplicate) {
-      const nodeExecution2 = this.scopeExecutionStore.getNodeExecution(duplicate.node_execution_id);
-      const execution2 = this.scopeExecutionStore.getExecution(nodeExecution2.execution_id);
-      const eventRow = this.db.prepare(`SELECT * FROM events WHERE event_id = ?`).get(duplicate.event_id);
-      return {
-        execution: execution2,
-        node_execution: nodeExecution2,
-        event: this.rowToEvent(eventRow),
-        publication: duplicate,
-        delivery_ids: this.db.prepare(`SELECT delivery_id FROM scope_edge_traversals WHERE publication_id = ? ORDER BY created_at ASC`).all(duplicate.publication_id).map((row) => row.delivery_id)
-      };
-    }
+    const duplicate = this.replayedScopeNodeOutput(input.idempotency_key);
+    if (duplicate)
+      return duplicate;
+    const recorded = this.transaction(() => this.writeScopeNodeOutput(input));
+    this.announceScopeNodeOutput(recorded, broadcast);
+    return recorded;
+  }
+  replayedScopeNodeOutput(idempotencyKey) {
+    const duplicate = this.scopeExecutionStore.getPublicationByIdempotencyKey(idempotencyKey);
+    if (!duplicate)
+      return null;
+    const nodeExecution = this.scopeExecutionStore.getNodeExecution(duplicate.node_execution_id);
+    const execution = this.scopeExecutionStore.getExecution(nodeExecution.execution_id);
+    const eventRow = this.db.prepare(`SELECT * FROM events WHERE event_id = ?`).get(duplicate.event_id);
+    return {
+      execution,
+      node_execution: nodeExecution,
+      event: this.rowToEvent(eventRow),
+      publication: duplicate,
+      delivery_ids: this.db.prepare(`SELECT delivery_id FROM scope_edge_traversals WHERE publication_id = ? ORDER BY created_at ASC`).all(duplicate.publication_id).map((row) => row.delivery_id)
+    };
+  }
+  announceScopeNodeOutput(recorded, broadcast) {
+    broadcast("scope_output_published", recorded);
+    this.broadcastEventSubmission(recorded.event, broadcast);
+  }
+  /** Output Ports of a node that require a publication and have none yet in this NodeExecution. */
+  missingRequiredOutputPorts(revision, nodeExecution) {
+    const published = new Set(this.db.prepare(`
+      SELECT port_id FROM scope_output_publications WHERE node_execution_id = ?
+    `).all(nodeExecution.node_execution_id).map((item) => String(item.port_id)));
+    return revision.ports.filter((port) => port.node_id === nodeExecution.node_id && port.direction === "output" && (port.min_count ?? 0) > 0 && !published.has(port.port_id));
+  }
+  /**
+   * Validates and records one output publication. Callers own the enclosing
+   * transaction and the announcement after it commits.
+   */
+  writeScopeNodeOutput(input) {
     const nodeExecution = this.scopeExecutionStore.getNodeExecution(input.node_execution_id);
     if (!nodeExecution)
       throw new ScopeExecutionInvalidError(`NodeExecution '${input.node_execution_id}' does not exist`);
@@ -104966,55 +104991,52 @@ var BusStore = class {
       throw new ScopeExecutionInvalidError(`Event type '${eventType}' is not accepted by output Port '${port.port_id}'`);
     }
     const artefactVersionIds = this.requireArtefactVersionsForPort(execution.workspace_id, port, input.artefact_version_ids ?? []);
-    const recorded = this.transaction(() => {
-      const event = this.insertEvent({
-        type: eventType,
-        workspace_id: execution.workspace_id,
-        source_endpoint_id: publisherEndpointId,
-        destination: { kind: "context", context_id: nodeExecution.context_id },
-        thread_id: nodeExecution.context_id,
-        correlation_id: execution.execution_id,
-        content: input.content,
-        artefact_version_ids: artefactVersionIds,
-        artefact_role: "output",
-        metadata: {
-          origin: "scope_output",
-          ...input.publisher_principal_id ? { source_principal_id: input.publisher_principal_id } : {},
-          scope_execution_id: execution.execution_id,
-          composition_revision_id: revision.revision_id,
-          node_execution_id: nodeExecution.node_execution_id,
-          node_id: node.node_id,
-          output_port_id: port.port_id,
-          artefact_version_ids: artefactVersionIds
-        },
-        idempotency_key: `scope-output-event:${input.idempotency_key}`
-      }, this.normalizeResponse({ expected: false }), nodeExecution.context_id);
-      const publication = this.scopeExecutionStore.createPublication({
+    const event = this.insertEvent({
+      type: eventType,
+      workspace_id: execution.workspace_id,
+      source_endpoint_id: publisherEndpointId,
+      destination: { kind: "context", context_id: nodeExecution.context_id },
+      thread_id: nodeExecution.context_id,
+      correlation_id: execution.execution_id,
+      content: input.content,
+      artefact_version_ids: artefactVersionIds,
+      artefact_role: "output",
+      metadata: {
+        origin: "scope_output",
+        ...input.publisher_principal_id ? { source_principal_id: input.publisher_principal_id } : {},
+        scope_execution_id: execution.execution_id,
+        composition_revision_id: revision.revision_id,
         node_execution_id: nodeExecution.node_execution_id,
-        port_id: port.port_id,
-        event_id: event.event_id,
-        idempotency_key: input.idempotency_key,
-        published_by_endpoint_id: publisherEndpointId,
-        artefact_versions: artefactVersionIds.map((artefact_version_id) => ({ artefact_version_id }))
-      });
-      this.associateArtefactVersions(artefactVersionIds, [
-        { kind: "scope_execution", id: execution.execution_id, role: "output" },
-        { kind: "node_execution", id: nodeExecution.node_execution_id, role: "output" }
-      ]);
-      const deliveryIds = this.routeScopePublication(revision, execution, nodeExecution, port, publication, event);
-      this.scopeExecutionStore.setNodeExecutionStatus(nodeExecution.node_execution_id, input.lifecycle_outcome === "completed" ? "completed" : input.lifecycle_outcome === "waiting" ? "waiting_external" : "failed", input.lifecycle_outcome === "failed" ? { output_event_id: event.event_id } : {});
-      this.reconcileScopeExecutionStatus(execution.execution_id);
-      return {
-        execution: this.scopeExecutionStore.getExecution(execution.execution_id),
-        node_execution: this.scopeExecutionStore.getNodeExecution(nodeExecution.node_execution_id),
-        event,
-        publication,
-        delivery_ids: deliveryIds
-      };
+        node_id: node.node_id,
+        output_port_id: port.port_id,
+        artefact_version_ids: artefactVersionIds,
+        ...input.output_source ? { output_source: input.output_source } : {}
+      },
+      idempotency_key: `scope-output-event:${input.idempotency_key}`
+    }, this.normalizeResponse({ expected: false }), nodeExecution.context_id);
+    const publication = this.scopeExecutionStore.createPublication({
+      node_execution_id: nodeExecution.node_execution_id,
+      port_id: port.port_id,
+      event_id: event.event_id,
+      idempotency_key: input.idempotency_key,
+      published_by_endpoint_id: publisherEndpointId,
+      artefact_versions: artefactVersionIds.map((artefact_version_id) => ({ artefact_version_id }))
     });
-    broadcast("scope_output_published", recorded);
-    this.broadcastEventSubmission(recorded.event, broadcast);
-    return recorded;
+    this.associateArtefactVersions(artefactVersionIds, [
+      { kind: "scope_execution", id: execution.execution_id, role: "output" },
+      { kind: "node_execution", id: nodeExecution.node_execution_id, role: "output" }
+    ]);
+    const deliveryIds = this.routeScopePublication(revision, execution, nodeExecution, port, publication, event);
+    const stillMissing = input.lifecycle_outcome === "completed" && node.kind === "actor" && this.missingRequiredOutputPorts(revision, nodeExecution).length > 0;
+    this.scopeExecutionStore.setNodeExecutionStatus(nodeExecution.node_execution_id, input.lifecycle_outcome === "completed" ? stillMissing ? "active" : "completed" : input.lifecycle_outcome === "waiting" ? "waiting_external" : "failed", input.lifecycle_outcome === "failed" ? { output_event_id: event.event_id } : {});
+    this.reconcileScopeExecutionStatus(execution.execution_id);
+    return {
+      execution: this.scopeExecutionStore.getExecution(execution.execution_id),
+      node_execution: this.scopeExecutionStore.getNodeExecution(nodeExecution.node_execution_id),
+      event,
+      publication,
+      delivery_ids: deliveryIds
+    };
   }
   getScopeExecution(executionId) {
     return this.scopeExecutionStore.getExecution(executionId);
@@ -109009,7 +109031,8 @@ var BusStore = class {
     if (new Set(ids).size !== ids.length) {
       throw new ScopeExecutionInvalidError(`Port '${port.port_id}' received a duplicate ArtefactVersion reference`);
     }
-    const minimum = port.min_count ?? 0;
+    const carriesFiles = (port.artefact_types?.length ?? 0) > 0;
+    const minimum = carriesFiles ? port.min_count ?? 0 : 0;
     const maximum = port.max_count === void 0 ? 1 : port.max_count;
     if (ids.length < minimum) {
       throw new ScopeExecutionInvalidError(`Port '${port.port_id}' requires at least ${minimum} ArtefactVersion reference${minimum === 1 ? "" : "s"}`);
@@ -110200,7 +110223,7 @@ var BusStore = class {
       this.reconcileScopeExecutionStatus(node.execution_id);
       return;
     }
-    this.settleCanonicalNodeAfterAttempt(node);
+    this.settleCanonicalNodeAfterAttempt(node, attempt.attempt_id);
     this.reconcileScopeExecutionStatus(node.execution_id);
   }
   failStepWithoutAttempt(delivery, reason) {
@@ -110215,7 +110238,13 @@ var BusStore = class {
     });
     this.reconcileScopeExecutionStatus(node.execution_id);
   }
-  settleCanonicalNodeAfterAttempt(node) {
+  /**
+   * A step's turn has ended. Every required output must be handed on: an
+   * Actor step with exactly one required output hands on its reply; otherwise
+   * the Actor gets exactly one visible reminder turn, and a step still missing
+   * output after it fails with the reason. A step never waits silently.
+   */
+  settleCanonicalNodeAfterAttempt(node, attemptId) {
     const current = this.scopeExecutionStore.getNodeExecution(node.node_execution_id);
     if (!current || ["completed", "failed", "cancelled", "waiting_external"].includes(current.status))
       return;
@@ -110226,19 +110255,133 @@ var BusStore = class {
       });
       return;
     }
-    const outputPorts = revision.ports.filter((port) => port.node_id === current.node_id && port.direction === "output");
-    const published = new Set(this.db.prepare(`
-      SELECT port_id FROM scope_output_publications WHERE node_execution_id = ?
-    `).all(current.node_execution_id).map((item) => String(item.port_id)));
-    const missingRequired = outputPorts.filter((port) => (port.min_count ?? 0) > 0 && !published.has(port.port_id)).map((port) => port.port_id);
-    if (missingRequired.length > 0) {
-      this.scopeExecutionStore.setNodeExecutionStatus(current.node_execution_id, "waiting_external", {
-        code: "required_output_not_published",
-        required_port_ids: missingRequired
+    const placement = revision.nodes.find((candidate) => candidate.node_id === current.node_id);
+    const required = revision.ports.filter((port) => port.node_id === current.node_id && port.direction === "output" && (port.min_count ?? 0) > 0);
+    let missing = this.missingRequiredOutputPorts(revision, current);
+    if (missing.length === 1 && required.length === 1 && placement?.kind === "actor" && placement.resource_id) {
+      this.handOnTurnReply(current, placement.resource_id, missing[0], attemptId);
+      missing = this.missingRequiredOutputPorts(revision, current);
+    }
+    const settled = this.scopeExecutionStore.getNodeExecution(current.node_execution_id);
+    if (missing.length === 0) {
+      if (settled.status !== "completed")
+        this.scopeExecutionStore.setNodeExecutionStatus(settled.node_execution_id, "completed");
+      return;
+    }
+    const names = missing.map((port) => port.name || port.port_id).join(", ");
+    const reminderKey = `scope-output-reminder:${current.node_execution_id}`;
+    const reminded = this.db.prepare("SELECT 1 AS found FROM events WHERE idempotency_key = ?").get(reminderKey);
+    if (placement?.kind !== "actor" || !placement.resource_id || reminded) {
+      this.scopeExecutionStore.setNodeExecutionStatus(current.node_execution_id, "failed", {
+        code: "required_output_not_handed_on",
+        message: `required output not handed on: ${names}`,
+        required_port_ids: missing.map((port) => port.port_id),
+        safe_to_retry_automatically: false
       });
       return;
     }
-    this.scopeExecutionStore.setNodeExecutionStatus(current.node_execution_id, "completed");
+    const execution = this.scopeExecutionStore.getExecution(current.execution_id);
+    const needsFiles = missing.some((port) => (port.artefact_types?.length ?? 0) > 0);
+    const reminder = this.insertEvent({
+      type: "message",
+      workspace_id: execution.workspace_id,
+      source_endpoint_id: null,
+      destination: { kind: "context", context_id: current.context_id },
+      thread_id: current.context_id,
+      correlation_id: execution.execution_id,
+      content: {
+        text: [
+          `Reminder from Floe: your turn ended without handing on this step's required output: ${missing.map((port) => `${port.name || port.port_id} (port_id ${port.port_id})`).join(", ")}.`,
+          `Hand it on now with the ${PUBLISH_SCOPE_OUTPUT_OPERATION_ID} operation for node execution ${current.node_execution_id}, once per port, with lifecycle_outcome "completed"${needsFiles ? " and the exact ArtefactVersion references the port accepts" : ""}.`,
+          'This is the only reminder. If the output is still missing when this turn ends, the step fails with "required output not handed on".'
+        ].join("\n"),
+        data: {
+          origin: "scope_output_reminder",
+          scope_execution_id: execution.execution_id,
+          node_execution_id: current.node_execution_id,
+          missing_port_ids: missing.map((port) => port.port_id)
+        }
+      },
+      metadata: {
+        origin: "scope_output_reminder",
+        scope_execution_id: execution.execution_id,
+        composition_revision_id: revision.revision_id,
+        node_execution_id: current.node_execution_id,
+        node_id: current.node_id,
+        missing_port_ids: missing.map((port) => port.port_id)
+      },
+      idempotency_key: reminderKey
+    }, this.normalizeResponse({ expected: false }), current.context_id);
+    this.queueEvent(reminder.event_id, execution.workspace_id, placement.resource_id, {
+      scope_execution_id: execution.execution_id,
+      composition_revision_id: revision.revision_id,
+      source_node_id: null,
+      source_port_id: null,
+      target_node_id: current.node_id,
+      target_port_id: null,
+      edge_id: null,
+      node_execution_id: current.node_execution_id,
+      output_publication_id: null
+    });
+    this.scopeExecutionStore.setNodeExecutionStatus(current.node_execution_id, "retrying", {
+      code: "required_output_reminder_sent",
+      message: `reminded to hand on: ${names}`,
+      required_port_ids: missing.map((port) => port.port_id),
+      reminder_event_id: reminder.event_id
+    });
+    this.announceAfterCommit(() => this.broadcastEventSubmission(reminder, this.broadcastFn), reminder.event_id);
+  }
+  /**
+   * Hands on a turn's reply through the step's only required output, exactly
+   * as an explicit publication would. An explicit publication already made
+   * wins; a Port that needs a schema or saved files cannot be satisfied by text.
+   */
+  handOnTurnReply(node, actorId, port, attemptId) {
+    if (port.schema_ref || (port.artefact_types?.length ?? 0) > 0)
+      return;
+    const resultRow = this.db.prepare("SELECT * FROM events WHERE idempotency_key = ?").get(`runtime-turn-result:attempt:${attemptId}`);
+    if (!resultRow)
+      return;
+    const result = this.rowToEvent(resultRow);
+    const text15 = typeof result.content?.text === "string" ? result.content.text.trim() : "";
+    if (result.metadata?.outcome !== "completed" || !text15)
+      return;
+    const execution = this.scopeExecutionStore.getExecution(node.execution_id);
+    const idempotencyKey = `turn-reply-output:${attemptId}`;
+    if (this.replayedScopeNodeOutput(idempotencyKey))
+      return;
+    let recorded;
+    try {
+      recorded = this.writeScopeNodeOutput({
+        workspace_id: execution.workspace_id,
+        node_execution_id: node.node_execution_id,
+        port_id: port.port_id,
+        publisher_endpoint_id: actorId,
+        content: { text: text15 },
+        idempotency_key: idempotencyKey,
+        lifecycle_outcome: "completed",
+        output_source: "turn_reply"
+      });
+    } catch (error) {
+      if (error instanceof ScopeExecutionInvalidError)
+        return;
+      throw error;
+    }
+    this.announceAfterCommit(() => this.announceScopeNodeOutput(recorded, this.broadcastFn), recorded.event.event_id);
+  }
+  /**
+   * Settling runs inside the caller's transaction, which has no broadcast of
+   * its own. Announce once it has committed, and only if the Event it recorded
+   * still exists, so a rolled-back settlement is never announced.
+   */
+  announceAfterCommit(announce, eventId) {
+    queueMicrotask(() => {
+      if (this.closed || !this.broadcastFn)
+        return;
+      if (!this.db.prepare("SELECT 1 AS found FROM events WHERE event_id = ?").get(eventId))
+        return;
+      announce();
+    });
   }
   reconcileScopeExecutionStatus(executionId) {
     const execution = this.scopeExecutionStore.getExecution(executionId);
