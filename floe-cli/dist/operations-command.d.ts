@@ -14,9 +14,15 @@ export type OperationsCommandDependencies = Readonly<{
     client: () => CliOperationClient;
     confirm?: (confirmation: OperationConfirmation) => Promise<boolean>;
     output?: (message: string) => void;
+    error_output?: (message: string) => void;
     read_file?: (path: string) => string;
 }>;
 export declare function registerOperationsCommand(program: Command, dependencies: OperationsCommandDependencies): void;
+/**
+ * The receipt is always printed in full; a refused or unsettled invocation
+ * also fails the command, so a script never mistakes it for success.
+ */
+export declare function invocationFailure(result: unknown): string | null;
 export declare function parseTarget(options: Pick<CommonOptions, "targetKind" | "targetId">): OperationTarget | null;
 export declare function parseJsonIntent(value: string, readFile?: ((path: string) => string) | undefined): unknown;
 export declare function formatOperationList(descriptors: readonly CliOperationDescriptor[]): string;

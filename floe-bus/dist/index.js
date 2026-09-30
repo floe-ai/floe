@@ -104061,6 +104061,9 @@ var BusStore = class {
       CREATE INDEX IF NOT EXISTS idx_delivery_bundles_endpoint
         ON delivery_bundles(endpoint_id, state, created_at);
 
+      CREATE INDEX IF NOT EXISTS idx_delivery_bundles_state
+        ON delivery_bundles(state);
+
       CREATE TABLE IF NOT EXISTS pending_responses (
         pending_id TEXT PRIMARY KEY,
         workspace_id TEXT NOT NULL,
@@ -108512,6 +108515,20 @@ var BusStore = class {
   }
   setEndpointWatermark(workspaceId4, endpointId, cursor) {
     return this.endpointWatermarkStore.set(workspaceId4, endpointId, cursor);
+  }
+  /**
+   * Turns executing right now, in every Workspace: a Delivery its processor has
+   * started (injected_to_runtime). Work that is reserved, claimed but not
+   * started, or waiting on another Actor's answer executes nothing and carries
+   * over a restart intact, so it is not listed.
+   */
+  listRunningTurns() {
+    return this.db.prepare(`
+      SELECT d.workspace_id, d.endpoint_id, e.name
+      FROM delivery_bundles d LEFT JOIN endpoints e ON e.endpoint_id = d.endpoint_id
+      WHERE d.state = 'injected_to_runtime'
+      ORDER BY d.workspace_id, d.endpoint_id, d.delivery_id
+    `).all().map((row) => ({ workspace_id: row.workspace_id, endpoint_id: row.endpoint_id, name: row.name ?? null }));
   }
   listDeliveries(filters) {
     const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
@@ -117760,6 +117777,7 @@ function denied() {
 var ThinkingLevelSchema = external_exports.enum(["off", "minimal", "low", "medium", "high", "xhigh"]);
 var MAX_WORKSPACE_MEDIA_BYTES = 20 * 1024 * 1024;
 var MAX_RUNTIME_CREDENTIAL_BYTES = 1024 * 1024;
+var RUNNING_TURNS_CHANGED = "running_turns_changed";
 var ConfirmedOperationInvocationSchema = external_exports.object({
   interaction_session_id: external_exports.string().min(1),
   invocation: OperationInvocationSchema.strict()
@@ -117953,6 +117971,15 @@ async function createBusServer(configPath, config, options = {}) {
   const requestAuthorities = /* @__PURE__ */ new WeakMap();
   const testBypassedRequests = /* @__PURE__ */ new WeakSet();
   const bridgeSockets = /* @__PURE__ */ new Map();
+  let announcedRunningTurns = JSON.stringify(store.listRunningTurns());
+  function announceRunningTurnsIfChanged() {
+    const running = store.listRunningTurns();
+    const signature = JSON.stringify(running);
+    if (signature === announcedRunningTurns)
+      return;
+    announcedRunningTurns = signature;
+    broadcast(RUNNING_TURNS_CHANGED, { running });
+  }
   function sendPushEntry(entry) {
     const message = serializePushEntry(entry);
     for (const [socket, authority] of socketAuthorities) {
@@ -117989,6 +118016,8 @@ async function createBusServer(configPath, config, options = {}) {
       payload
     });
     sendPushEntry(entry);
+    if (type !== RUNNING_TURNS_CHANGED)
+      announceRunningTurnsIfChanged();
     if (type === "workspace_attachment_requested" && typeof payload.workspace_id === "string") {
       for (const bridgeId of connectedBridgeIds(payload.workspace_id)) {
         broadcast("bridge_connected", { bridge_id: bridgeId, workspace_id: payload.workspace_id });
@@ -118649,6 +118678,11 @@ async function createBusServer(configPath, config, options = {}) {
     if (!requireLocalControl(request, reply))
       return reply;
     return { workspaces: store.listWorkspaces() };
+  });
+  app.get("/v1/local/running-turns", async (request, reply) => {
+    if (!requireLocalControl(request, reply))
+      return reply;
+    return { running: store.listRunningTurns() };
   });
   app.post("/v1/local/credential-ingress-sessions", async (request, reply) => {
     if (!requireLocalControl(request, reply))

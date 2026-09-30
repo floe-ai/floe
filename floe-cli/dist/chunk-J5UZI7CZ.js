@@ -19,11 +19,11 @@ import {
   readRunFile,
   runFilePath,
   thisInstallation
-} from "./chunk-AKI56RAB.js";
+} from "./chunk-NJBTFYD2.js";
 import {
   ensureConfig,
   resolveLocalPath
-} from "./chunk-WLSAFSRN.js";
+} from "./chunk-IO6DTE5U.js";
 
 // floe-cli/dist/process-manager.js
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
@@ -664,15 +664,11 @@ function runningTurns(options = {}) {
 async function listRunningTurns(config) {
   const base = config.bus.http_base_url.replace(/\/$/, "");
   const token = await fetchHostControlToken(base);
-  const response = await fetch(`${base}/v1/endpoints`, { headers: { authorization: `Bearer ${token}` } });
+  const response = await fetch(`${base}/v1/local/running-turns`, { headers: { authorization: `Bearer ${token}` } });
   if (!response.ok)
     throw new Error(`Floe could not list the work in progress (HTTP ${response.status}), so it was not switched.`);
   const body = await response.json();
-  return (body.endpoints ?? []).filter((endpoint) => endpoint.status === "active").map((endpoint) => ({
-    workspace_id: String(endpoint.workspace_id),
-    endpoint_id: String(endpoint.endpoint_id),
-    name: typeof endpoint.name === "string" ? endpoint.name : null
-  }));
+  return body.running ?? [];
 }
 
 // floe-cli/dist/local-channel/client.js

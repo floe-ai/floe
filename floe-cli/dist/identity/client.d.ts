@@ -13,6 +13,8 @@
  * protocol is documented in docs/reference/identity-agent-protocol.md.
  */
 import { ChannelClient } from "../local-channel/client.js";
+import type { SwitchReadiness } from "./agent.js";
+export type { SwitchReadiness };
 export type { RunningTurn, VersionSwitchOutcome } from "../local-channel/client.js";
 import { AgentUnavailableError, type AgentChannel } from "./connection.js";
 export type Protection = "passphrase" | "device";
@@ -110,6 +112,7 @@ export declare class IdentityClient extends ChannelClient {
     private readonly stateListeners;
     private readonly sessionListeners;
     private readonly early;
+    private readonly readinessListeners;
     /** @internal Use connectIdentity. */
     constructor(channel: AgentChannel);
     get state(): IdentityState;
@@ -215,6 +218,14 @@ export declare class IdentityClient extends ChannelClient {
         } | null;
         device_key_removed: boolean;
     }>;
+    /**
+     * Follow whether switching Floe to this version would interrupt work. The
+     * listener gets the current readiness, then each change, by push: wait for
+     * `ready: true` before `switchToThisVersion()`. `following: false` means the
+     * watch ended (for example Floe stopped); call again to resume. Returns a
+     * function that stops following.
+     */
+    followSwitchReadiness(listener: (readiness: SwitchReadiness) => void): Promise<() => Promise<void>>;
     protected onPush(message: Record<string, unknown>): void;
     private dispatchSession;
 }

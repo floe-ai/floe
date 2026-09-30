@@ -1,4 +1,7 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
+import {
+  CliRequestError
+} from "./chunk-IO6DTE5U.js";
 
 // floe-cli/dist/local-channel/protocol.js
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -471,7 +474,7 @@ var CliOperationClient = class {
     const descriptors = await this.discover({ boundary, query: operationId, target });
     const descriptor = descriptors.find((candidate) => candidate.operation_id === operationId);
     if (!descriptor)
-      throw new Error(`Semantic operation '${operationId}' is not available in this authority boundary.`);
+      throw new CliRequestError(`Semantic operation '${operationId}' is not available in this authority boundary.`, "Run 'floe operations list' to see the exact operation ids available here.");
     return descriptor;
   }
   async invokeSelected(input) {
@@ -562,7 +565,7 @@ async function runNativeAuthorityCommand(command, busHttpBase) {
           throw new Error();
         if (!parsed.ok) {
           const message = isRecord(parsed.error) && typeof parsed.error.message === "string" ? parsed.error.message : "Floe's native authority broker refused the request.";
-          reject(new Error(message));
+          reject(new CliRequestError(message, "Act on the reason above, then try again."));
           return;
         }
         resolveResult(parsed.result);
@@ -631,7 +634,7 @@ function selectLocalWorkspace(workspaces, explicitWorkspaceId, cwd = process.cwd
   if (explicitWorkspaceId) {
     const exact = workspaces.find((workspace) => workspace.workspace_id === explicitWorkspaceId);
     if (!exact)
-      throw new Error(`Workspace '${explicitWorkspaceId}' is not attached to this Floe host.`);
+      throw new CliRequestError(`Workspace '${explicitWorkspaceId}' is not attached to this Floe host.`);
     return exact;
   }
   const resolvedCwd = resolve2(cwd);
@@ -644,7 +647,7 @@ function selectLocalWorkspace(workspaces, explicitWorkspaceId, cwd = process.cwd
   }).sort((left, right) => resolve2(right.binding.locator).length - resolve2(left.binding.locator).length);
   if (matches.length > 0)
     return matches[0];
-  throw new Error("No attached Workspace contains the current directory. Use --workspace <workspace-id>.");
+  throw new CliRequestError("No attached Workspace contains the current directory. Use --workspace <workspace-id>.");
 }
 function parseLocalWorkspace(value) {
   if (!isRecord(value) || typeof value.workspace_id !== "string" || typeof value.name !== "string") {
@@ -690,7 +693,7 @@ function optionalIdempotencyKey(descriptor, provided) {
     return { idempotency_key: requireText(provided, "idempotency key") };
   }
   if (descriptor.effects.mode === "write") {
-    throw new Error(`Operation '${descriptor.operation_id}' writes, so it needs --idempotency-key <stable key> \u2014 a stable key lets a retry replay safely instead of applying twice.`);
+    throw new CliRequestError(`Operation '${descriptor.operation_id}' writes, so it needs --idempotency-key <stable key> \u2014 a stable key lets a retry replay safely instead of applying twice.`);
   }
   return {};
 }

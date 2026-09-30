@@ -2,10 +2,10 @@ import { createRequire as __floeCreateRequire } from 'node:module'; const requir
 import {
   ChannelClient,
   connectChannel
-} from "./chunk-QBBB4WBA.js";
+} from "./chunk-J5UZI7CZ.js";
 import {
   IDENTITY_CHANNEL
-} from "./chunk-AKI56RAB.js";
+} from "./chunk-NJBTFYD2.js";
 
 // floe-cli/dist/identity/client.js
 var IdentityError = class extends Error {
@@ -29,6 +29,7 @@ var IdentityClient = class extends ChannelClient {
   stateListeners = /* @__PURE__ */ new Set();
   sessionListeners = /* @__PURE__ */ new Map();
   early = /* @__PURE__ */ new Map();
+  readinessListeners = /* @__PURE__ */ new Set();
   /** @internal Use connectIdentity. */
   constructor(channel) {
     super(channel, IDENTITY_CHANNEL, (code, message, details) => new IdentityError(code, message, details));
@@ -108,7 +109,36 @@ var IdentityClient = class extends ChannelClient {
   deleteIdentity(input) {
     return this.request("delete_identity", input);
   }
+  /**
+   * Follow whether switching Floe to this version would interrupt work. The
+   * listener gets the current readiness, then each change, by push: wait for
+   * `ready: true` before `switchToThisVersion()`. `following: false` means the
+   * watch ended (for example Floe stopped); call again to resume. Returns a
+   * function that stops following.
+   */
+  async followSwitchReadiness(listener) {
+    this.readinessListeners.add(listener);
+    try {
+      await this.request("watch_switch_readiness", {});
+    } catch (error) {
+      this.readinessListeners.delete(listener);
+      throw error;
+    }
+    return async () => {
+      if (!this.readinessListeners.delete(listener) || this.readinessListeners.size > 0)
+        return;
+      await this.request("unwatch_switch_readiness", {});
+    };
+  }
   onPush(message) {
+    if (message.type === "switch_readiness") {
+      const readiness = message.readiness;
+      for (const listener of this.readinessListeners)
+        listener(readiness);
+      if (!readiness.following)
+        this.readinessListeners.clear();
+      return;
+    }
     if (message.type === "state") {
       this.current = message.state;
       for (const listener of this.stateListeners)

@@ -18,13 +18,13 @@ import {
   readChannelRunFile,
   thisInstallation,
   writeChannelRunFile
-} from "../chunk-AKI56RAB.js";
+} from "../chunk-NJBTFYD2.js";
 import {
   DEFAULT_IDENTITY_LOCK_AFTER_IDLE_MINUTES,
   ensureConfig,
   external_exports,
   resolveLocalPath
-} from "../chunk-WLSAFSRN.js";
+} from "../chunk-IO6DTE5U.js";
 
 // floe-cli/dist/identity/agent.js
 import { randomUUID } from "node:crypto";
@@ -10100,6 +10100,9 @@ var IdentityAgent = class {
   secretKey = null;
   connections = /* @__PURE__ */ new Set();
   sessions = /* @__PURE__ */ new Map();
+  readinessWatchers = /* @__PURE__ */ new Set();
+  runningWatch = null;
+  readiness = null;
   idleTimer = null;
   queue = Promise.resolve();
   bus;
@@ -10126,6 +10129,7 @@ var IdentityAgent = class {
   }
   detach(conn) {
     this.connections.delete(conn);
+    this.unwatchSwitchReadiness(conn);
     for (const session of [...this.sessions.values()]) {
       if (session.conn === conn)
         this.endSession(session, "surface_disconnected", false);
@@ -10177,6 +10181,11 @@ var IdentityAgent = class {
         return this.listSessions();
       case "revoke_session":
         return this.revokeSession(args);
+      case "watch_switch_readiness":
+        return this.watchSwitchReadiness(conn);
+      case "unwatch_switch_readiness":
+        this.unwatchSwitchReadiness(conn);
+        return { following: false };
       default:
         throw new AgentError("unknown_op", `The identity agent has no operation '${op}'.`);
     }
@@ -10696,6 +10705,47 @@ var IdentityAgent = class {
     for (const conn of this.connections)
       conn.send({ type: "state", state });
   }
+  // ── switch readiness ───────────────────────────────────────────────────────
+  /**
+   * Follow, for this connection, whether a version switch would interrupt
+   * work. The current readiness is pushed as soon as it is known, then again
+   * on every change. One Bus watch serves every following connection and is
+   * closed when the last one stops following.
+   */
+  watchSwitchReadiness(conn) {
+    const watch = this.deps.watchRunningTurns;
+    if (!watch)
+      throw new AgentError("switch_readiness_unavailable", "This identity agent cannot follow running work.");
+    this.readinessWatchers.add(conn);
+    if (this.runningWatch) {
+      if (this.readiness)
+        conn.send({ type: "switch_readiness", readiness: this.readiness });
+      return { following: true };
+    }
+    this.readiness = null;
+    this.runningWatch = watch({
+      running: (running) => this.pushReadiness({ following: true, ready: running.length === 0, running }),
+      ended: (reason) => {
+        this.runningWatch = null;
+        this.pushReadiness({ following: false, reason });
+        this.readinessWatchers.clear();
+        this.readiness = null;
+      }
+    });
+    return { following: true };
+  }
+  unwatchSwitchReadiness(conn) {
+    if (!this.readinessWatchers.delete(conn) || this.readinessWatchers.size > 0)
+      return;
+    this.runningWatch?.close();
+    this.runningWatch = null;
+    this.readiness = null;
+  }
+  pushReadiness(readiness) {
+    this.readiness = readiness;
+    for (const conn of this.readinessWatchers)
+      conn.send({ type: "switch_readiness", readiness });
+  }
   serial(fn) {
     const run = this.queue.then(fn, fn);
     this.queue = run.then(() => void 0, () => void 0);
@@ -10751,6 +10801,88 @@ function serveAgent(agent, options) {
   return serveChannel(IDENTITY_CHANNEL, agent, options);
 }
 
+// floe-cli/dist/identity/running-turns-watch.js
+function busRunningTurnsWatcher(options) {
+  const base = options.busUrl.replace(/\/$/, "");
+  const doFetch = options.fetch ?? fetch;
+  const open = options.socket ?? ((url) => {
+    const Ctor = globalThis.WebSocket;
+    if (!Ctor)
+      throw new Error("This Node.js has no WebSocket, so Floe cannot follow running work.");
+    return new Ctor(url);
+  });
+  return (listener) => {
+    let over = false;
+    let socket = null;
+    let pushedSinceSnapshot = false;
+    const end = (reason) => {
+      if (over)
+        return;
+      over = true;
+      try {
+        socket?.close();
+      } catch {
+      }
+      listener.ended(reason);
+    };
+    void (async () => {
+      let token;
+      try {
+        token = await options.hostToken();
+        socket = open(`${base.replace(/^http/, "ws")}/v1/events/stream`);
+      } catch (error) {
+        end(error instanceof Error ? error.message : String(error));
+        return;
+      }
+      if (over) {
+        socket.close();
+        return;
+      }
+      socket.addEventListener("open", () => {
+        socket.send(JSON.stringify({ type: "authenticate", bearer_token: token, start_at: "current" }));
+      });
+      socket.addEventListener("message", (event) => {
+        if (over)
+          return;
+        let message;
+        try {
+          message = JSON.parse(String(event.data));
+        } catch {
+          return;
+        }
+        if (message.type === "caught_up")
+          void snapshot(token);
+        if (message.type === "running_turns_changed") {
+          pushedSinceSnapshot = true;
+          listener.running(message.payload?.running ?? []);
+        }
+      });
+      socket.addEventListener("close", () => end("Floe's connection closed, so running work can no longer be followed."));
+      socket.addEventListener("error", () => end("Floe's connection failed, so running work can no longer be followed."));
+    })();
+    async function snapshot(token) {
+      pushedSinceSnapshot = false;
+      try {
+        const response = await doFetch(`${base}/v1/local/running-turns`, { headers: { authorization: ["Bearer", token].join(" ") } });
+        if (!response.ok)
+          throw new Error(`Floe could not list the work in progress (HTTP ${response.status}).`);
+        const body = await response.json();
+        if (!over && !pushedSinceSnapshot)
+          listener.running(body.running ?? []);
+      } catch (error) {
+        end(error instanceof Error ? error.message : String(error));
+      }
+    }
+    return { close: () => {
+      over = true;
+      try {
+        socket?.close();
+      } catch {
+      }
+    } };
+  };
+}
+
 // floe-cli/dist/identity/agent-main.js
 function log(line) {
   process.stdout.write(`${(/* @__PURE__ */ new Date()).toISOString()} identity-agent: ${line}
@@ -10774,6 +10906,7 @@ async function main(argv) {
     deviceKey: (create) => fetchIdentityDeviceKey(home, create),
     forgetDeviceKey: () => forgetIdentityDeviceKey(home),
     hostToken: () => fetchHostControlToken(busUrl),
+    watchRunningTurns: busRunningTurnsWatcher({ busUrl, hostToken: () => fetchHostControlToken(busUrl) }),
     log
   });
   let server;

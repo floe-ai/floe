@@ -24,14 +24,14 @@ declare const IdentityFileSchema: z.ZodObject<{
         salt: z.ZodString;
     }, "strict", z.ZodTypeAny, {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     }, {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     }>, z.ZodObject<{
@@ -59,16 +59,16 @@ declare const IdentityFileSchema: z.ZodObject<{
     }>;
 }, "strict", z.ZodTypeAny, {
     version: 2;
-    display_name: string;
-    protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
-    secret_kind: "phrase" | "nsec";
+    display_name: string;
     created_at: string;
+    protection: "passphrase" | "device";
+    secret_kind: "phrase" | "nsec";
     seal: {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     } | {
@@ -82,16 +82,16 @@ declare const IdentityFileSchema: z.ZodObject<{
     };
 }, {
     version: 2;
-    display_name: string;
-    protection: "passphrase" | "device";
     npub: string;
     pubkey_hex: string;
-    secret_kind: "phrase" | "nsec";
+    display_name: string;
     created_at: string;
+    protection: "passphrase" | "device";
+    secret_kind: "phrase" | "nsec";
     seal: {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     } | {
@@ -155,14 +155,14 @@ declare const LegacyConsoleFileSchema: z.ZodObject<{
         salt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     }, {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     }>;
@@ -196,8 +196,8 @@ declare const LegacyConsoleFileSchema: z.ZodObject<{
     };
     kdf: {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     };
@@ -216,8 +216,8 @@ declare const LegacyConsoleFileSchema: z.ZodObject<{
     };
     kdf: {
         name: "scrypt";
-        r: number;
         N: number;
+        r: number;
         p: number;
         salt: string;
     };

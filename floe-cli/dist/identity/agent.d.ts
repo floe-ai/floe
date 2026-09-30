@@ -1,5 +1,20 @@
 import { type Protection, type ScryptParams, type SecretKind } from "./identity-file.js";
 import { ChannelError } from "../local-channel/server.js";
+import type { RunningTurn } from "../version-switch.js";
+import type { WatchRunningTurns } from "./running-turns-watch.js";
+/**
+ * Whether Floe can switch versions without interrupting anything, pushed to
+ * each surface that asked to follow it. `following: false` means the watch
+ * ended (for example Floe stopped); the surface asks again to resume.
+ */
+export type SwitchReadiness = {
+    following: true;
+    ready: boolean;
+    running: RunningTurn[];
+} | {
+    following: false;
+    reason: string;
+};
 export type IdentitySummary = {
     npub: string;
     pubkey_hex: string;
@@ -32,6 +47,8 @@ export type AgentDeps = {
     forgetDeviceKey: () => Promise<boolean>;
     /** host_control from the native broker, for re-admission and revocation only. */
     hostToken: () => Promise<string>;
+    /** Follows executing turns host-wide by push; absent means switch readiness is unavailable. */
+    watchRunningTurns?: WatchRunningTurns;
     fetch?: typeof fetch;
     now?: () => number;
     setTimer?: (fn: () => void, ms: number) => Timer;
@@ -46,6 +63,9 @@ export declare class IdentityAgent {
     private secretKey;
     private readonly connections;
     private readonly sessions;
+    private readonly readinessWatchers;
+    private runningWatch;
+    private readiness;
     private idleTimer;
     private queue;
     private readonly bus;
@@ -113,6 +133,15 @@ export declare class IdentityAgent {
     private ownSession;
     private pushSession;
     private broadcastState;
+    /**
+     * Follow, for this connection, whether a version switch would interrupt
+     * work. The current readiness is pushed as soon as it is known, then again
+     * on every change. One Bus watch serves every following connection and is
+     * closed when the last one stops following.
+     */
+    private watchSwitchReadiness;
+    private unwatchSwitchReadiness;
+    private pushReadiness;
     private serial;
     /** For tests: is the identity file present? */
     hasIdentityFile(): boolean;

@@ -1,7 +1,7 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
   connectIdentity
-} from "./chunk-EZLSCMAL.js";
+} from "./chunk-H76SYOJS.js";
 import {
   SERVICE_NAMES,
   clearRecords,
@@ -19,7 +19,7 @@ import {
   startAll,
   stopAll,
   waitForBusHealth
-} from "./chunk-QBBB4WBA.js";
+} from "./chunk-J5UZI7CZ.js";
 import {
   CliOperationClient,
   directInstallRequiredMessage,
@@ -29,8 +29,9 @@ import {
   registerLocalWorkspaceViaBroker,
   selectLocalWorkspace,
   thisInstallation
-} from "./chunk-AKI56RAB.js";
+} from "./chunk-NJBTFYD2.js";
 import {
+  CliRequestError,
   __commonJS,
   __require,
   __toESM,
@@ -39,7 +40,7 @@ import {
   external_exports,
   require_dist,
   resolveLocalPath
-} from "./chunk-WLSAFSRN.js";
+} from "./chunk-IO6DTE5U.js";
 
 // node_modules/commander/lib/error.js
 var require_error = __commonJS({
@@ -3132,19 +3133,41 @@ function registerOperationsCommand(program3, dependencies) {
     write(dependencies, JSON.stringify(descriptor, null, 2));
   });
   addCommonOptions(operations.command("invoke").argument("<operation-id>", "exact semantic operation id").description("Invoke one discovered operation using JSON intent")).requiredOption("--input <json-or-@file>", "JSON operation intent, or @path to a JSON file").option("--idempotency-key <key>", "stable key so a retry of a write is safe to replay; reads do not need one").option("--expected-revision <revision>", "expected target revision for compare-and-swap").action(async (operationId, options) => {
+    const input2 = parseJsonIntent(options.input, dependencies.read_file);
+    const target = parseTarget(options);
     const client = createClient(dependencies);
     const boundary = await resolveBoundary(client, options, dependencies);
     const result = await client.invokeSelected({
       boundary,
       operation_id: operationId,
-      input: parseJsonIntent(options.input, dependencies.read_file),
+      input: input2,
       ...options.idempotencyKey !== void 0 ? { idempotency_key: options.idempotencyKey } : {},
-      target: parseTarget(options),
+      target,
       ...options.expectedRevision !== void 0 ? { expected_resource_revision: options.expectedRevision } : {},
       confirm: dependencies.confirm ?? confirmInTerminal
     });
     write(dependencies, JSON.stringify(result, null, 2));
+    const failure = invocationFailure(result);
+    if (failure) {
+      (dependencies.error_output ?? console.error)(failure);
+      process.exitCode = 1;
+    }
   });
+}
+function invocationFailure(result) {
+  if (!result || typeof result !== "object")
+    return null;
+  const record = result;
+  const receipt = record.receipt && typeof record.receipt === "object" ? record.receipt : null;
+  const refusal = record.kind === "rejected" ? record.refusal : receipt?.refusal;
+  const reason = typeof refusal?.message === "string" ? ` ${refusal.message}` : "";
+  if (record.kind === "rejected" || receipt?.state === "refused") {
+    return `Floe refused the operation.${reason}`;
+  }
+  if (receipt?.state === "outcome_unknown") {
+    return `Floe could not confirm the operation's outcome.${reason}`;
+  }
+  return null;
 }
 function addCommonOptions(command) {
   return command.option("--workspace <workspace-id>", "use an exact attached Workspace identity").option("--host", "use local host authority instead of a Workspace").option("--target-kind <kind>", "target resource kind from the discovered contract").option("--target-id <id>", "target resource identity from the discovered contract");
@@ -3152,7 +3175,7 @@ function addCommonOptions(command) {
 async function resolveBoundary(client, options, dependencies) {
   if (options.host) {
     if (options.workspace)
-      throw new Error("Use either --host or --workspace, not both.");
+      throw new CliRequestError("Use either --host or --workspace, not both.");
     return { kind: "host" };
   }
   const workspaces = await client.listLocalWorkspaces();
@@ -3161,18 +3184,25 @@ async function resolveBoundary(client, options, dependencies) {
 }
 function parseTarget(options) {
   if (Boolean(options.targetKind) !== Boolean(options.targetId)) {
-    throw new Error("--target-kind and --target-id must be supplied together.");
+    throw new CliRequestError("--target-kind and --target-id must be supplied together.");
   }
   return options.targetKind && options.targetId ? { kind: options.targetKind, id: options.targetId } : null;
 }
 function parseJsonIntent(value, readFile = (path) => readFileSync(path, "utf8")) {
-  const source = value.startsWith("@") ? readFile(value.slice(1)) : value;
+  const source = value.startsWith("@") ? readInputFile(value.slice(1), readFile) : value;
   if (!source.trim())
-    throw new Error("Operation input must contain JSON intent.");
+    throw new CliRequestError("Operation input must contain JSON intent.");
   try {
     return JSON.parse(source);
   } catch (error) {
-    throw new Error(`Operation input is not valid JSON: ${error.message}`);
+    throw new CliRequestError(`Operation input is not valid JSON: ${error.message}`, "Pass valid JSON to --input, or put it in a file and pass --input @path.");
+  }
+}
+function readInputFile(path, readFile) {
+  try {
+    return readFile(path);
+  } catch {
+    throw new CliRequestError(`Operation input file '${path}' could not be read.`, "Check the path after @, then run the command again.");
   }
 }
 function formatOperationList(descriptors) {
