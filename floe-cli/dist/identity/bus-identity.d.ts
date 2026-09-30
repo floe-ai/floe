@@ -7,6 +7,26 @@ import type { Event as NostrEvent } from "nostr-tools/pure";
 export type Workspace = {
     workspace_id: string;
     name: string;
+    folder_path: string | null;
+    last_used_at: string | null;
+};
+export type FolderLookup = {
+    kind: "workspace";
+    workspace: {
+        workspace_id: string;
+        name: string;
+        folder_path: string | null;
+    };
+    joined: boolean;
+} | {
+    kind: "none";
+} | {
+    kind: "invalid";
+    error: string;
+    message: string;
+} | {
+    kind: "refused";
+    message: string;
 };
 export type AuthenticateReply = {
     kind: "bearer";
@@ -63,6 +83,10 @@ export declare class BusIdentityClient {
         name?: string;
         create_directory?: boolean;
     }): Promise<JoinOutcome>;
+    /** The identity's workspaces, most recently used first. Mints nothing. */
+    listWorkspaces(event: NostrEvent): Promise<Workspace[] | null>;
+    /** Which workspace a folder already is, if any. Read-only: never registers or joins. */
+    workspaceForFolder(event: NostrEvent, locator: string): Promise<FolderLookup>;
     listClients(hostToken: string): Promise<Array<{
         identity_id: string;
         pubkey_hex: string;

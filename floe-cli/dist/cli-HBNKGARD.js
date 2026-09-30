@@ -1,7 +1,7 @@
 import { createRequire as __floeCreateRequire } from 'node:module'; const require = __floeCreateRequire(import.meta.url);
 import {
   connectIdentity
-} from "./chunk-H76SYOJS.js";
+} from "./chunk-KRPESSQL.js";
 import {
   SERVICE_NAMES,
   clearRecords,
@@ -9,9 +9,9 @@ import {
   ensureSubstrateForClient,
   floeHome,
   isHealthy,
-  isPidRunning,
   probeAgent,
   readRecords,
+  recordedServiceOwnership,
   recordsPath,
   restartAll,
   runningBusVersion,
@@ -19,7 +19,7 @@ import {
   startAll,
   stopAll,
   waitForBusHealth
-} from "./chunk-J5UZI7CZ.js";
+} from "./chunk-INBENZ4B.js";
 import {
   CliOperationClient,
   directInstallRequiredMessage,
@@ -3739,9 +3739,13 @@ function removeSurface(configPath, config, name) {
   rmSync2(path);
   return true;
 }
+var LAUNCHED_BY_ENV = "FLOE_LAUNCHED_BY";
 function launchSurface(entry) {
   return new Promise((resolve5, reject) => {
-    const child = spawn(entry.launch.command, entry.launch.args, { stdio: "inherit" });
+    const child = spawn(entry.launch.command, entry.launch.args, {
+      stdio: "inherit",
+      env: { ...process.env, [LAUNCHED_BY_ENV]: "floe" }
+    });
     child.on("error", reject);
     child.on("exit", (code) => resolve5(code ?? 0));
   });
@@ -4070,7 +4074,7 @@ program2.command("start").description("Start local Floe services").action(async 
 });
 program2.command("stop").description("Stop local Floe services").action(async () => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAll(configPath, config);
+  await stopAll(configPath, config);
   console.log("Stopped Floe services.");
 });
 program2.command("restart").description("Restart local Floe services").action(async () => {
@@ -4134,14 +4138,14 @@ service.command("status").description("Show whether Floe is installed to auto-st
 });
 program2.command("uninstall").description("Remove auto-start and stop services; preserve ~/.floe data").action(async () => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAll(configPath, config);
+  await stopAll(configPath, config);
   const removal = uninstallService();
   console.log(removal.message);
   console.log("Removed Floe service entries. Local data is preserved.");
 });
 program2.command("reset").description("Factory reset: wipe all Floe state (workspaces, contexts, boards, agents) while preserving your identity, provider credentials and service config").option("--yes", "skip confirmation prompt").option("--include-identity", "also remove your identity from this machine (only its recovery phrase can bring it back)").action(async (options) => {
   const { configPath, config } = ensureConfig(program2.opts().config);
-  stopAll(configPath, config);
+  await stopAll(configPath, config);
   const includeIdentity = options.includeIdentity === true;
   const plan = buildResetPlan(configPath, config, { includeIdentity });
   console.log("\nFloe Factory Reset");
@@ -4419,8 +4423,10 @@ async function printStatus(configPath, config) {
   const records = readRecords(configPath, config);
   for (const service2 of SERVICE_NAMES) {
     const record = records[service2];
-    const running = record ? isPidRunning(record.pid) : false;
-    console.log(`${service2}: ${running ? "running" : "not running"}${record ? ` pid=${record.pid}` : ""}`);
+    const ownership = record ? await recordedServiceOwnership(configPath, config, service2, record) : "not_ours";
+    const running = ownership !== "not_ours";
+    const detail = ownership === "silent" ? " (not answering)" : "";
+    console.log(`${service2}: ${running ? `running${detail}` : "not running"}${record ? ` pid=${record.pid}` : ""}`);
   }
   const busVersion = await runningBusVersion(config.bus.http_base_url);
   const healthy = await isHealthy(config.bus.http_base_url);

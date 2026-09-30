@@ -7,7 +7,7 @@ import {
 
 // floe-cli/dist/index.js
 try {
-  const { runCli } = await import("./cli-X5MVVNFO.js");
+  const { runCli } = await import("./cli-HBNKGARD.js");
   await runCli(process.argv);
 } catch (error) {
   printCliFailure(reportCliFailure(error, {

@@ -2,7 +2,7 @@ import { createRequire as __floeCreateRequire } from 'node:module'; const requir
 import {
   ChannelClient,
   connectChannel
-} from "./chunk-J5UZI7CZ.js";
+} from "./chunk-INBENZ4B.js";
 import {
   IDENTITY_CHANNEL
 } from "./chunk-NJBTFYD2.js";
@@ -70,6 +70,17 @@ var IdentityClient = class extends ChannelClient {
   /** Create or join the workspace for a folder. Sessions waiting for a workspace then receive a bearer. */
   joinFolder(input) {
     return this.request("join_folder", input);
+  }
+  /** The identity's workspaces, most recently used first. Opens no session and mints nothing. */
+  async listWorkspaces() {
+    return (await this.request("list_workspaces", {})).workspaces;
+  }
+  /**
+   * Which workspace a folder already is: `workspace` (with `joined` saying whether
+   * this identity is in it) or `none`. Read-only: it never registers or joins.
+   */
+  workspaceForFolder(input) {
+    return this.request("workspace_for_folder", input);
   }
   /**
    * Ask for a bearer. The listener receives `ready` with the bearer, then `ready`

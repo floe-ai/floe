@@ -87651,6 +87651,14 @@ var SqliteClientIdentityStore = class {
     const rows = this.db.prepare("SELECT * FROM client_identity_sessions WHERE identity_id = ? ORDER BY issued_at DESC").all(identityId);
     return rows.map(rowToSession2);
   }
+  /** When this identity last opened each workspace: its latest minted session there. */
+  lastSessionIssuedByWorkspace(identityId) {
+    const rows = this.db.prepare(`
+      SELECT workspace_id, MAX(issued_at) AS last_issued_at
+      FROM client_identity_sessions WHERE identity_id = ? GROUP BY workspace_id
+    `).all(identityId);
+    return new Map(rows.map((row) => [row.workspace_id, row.last_issued_at]));
+  }
   /** Delete expired, unconsumed challenges. Housekeeping only; never security-load-bearing. */
   pruneExpiredChallenges() {
     this.db.prepare("DELETE FROM client_identity_challenges WHERE expires_at <= ?").run(this.now());
@@ -104400,6 +104408,11 @@ var BusStore = class {
   listRemoteWorkspaces() {
     return this.workspaceIdentityStore.listRemoteProjections(this.localHostId);
   }
+  /** The Workspace currently bound to a folder on this host, or null. Never registers. */
+  findWorkspaceByLocator(locator) {
+    const identity = this.workspaceIdentityStore.resolveWorkspaceByLocator(this.localHostId, this.localWorkspacePlatform, locator);
+    return identity ? this.getWorkspace(identity.workspace_id) : null;
+  }
   registerWorkspace(input, broadcast) {
     let identity = this.workspaceIdentityStore.resolveWorkspaceByLocator(this.localHostId, this.localWorkspacePlatform, input.locator);
     if (identity) {
@@ -120664,7 +120677,8 @@ async function createBusServer(configPath, config, options = {}) {
       workspace_id: session.workspace_id,
       expires_at: session.expires_at,
       identity: publicIdentity(identity),
-      workspaces
+      // Re-read so the session just minted counts as this workspace's latest use.
+      workspaces: identityWorkspaces(store, identity.identity_id)
     };
   });
   app.post("/v1/identity/register-workspace", async (request, reply) => {
@@ -120740,6 +120754,64 @@ async function createBusServer(configPath, config, options = {}) {
     if (materialization.outcome === "failed")
       return reply.code(422).send(responseBody);
     return reply.code(202).send(responseBody);
+  });
+  app.post("/v1/identity/workspaces", async (request, reply) => {
+    const body = external_exports.object({ auth_event: external_exports.record(external_exports.unknown()) }).strict().safeParse(request.body);
+    if (!body.success)
+      return reply.code(400).send({ error: "identity_workspaces_request_invalid" });
+    const challenge2 = challengeTagOf(body.data.auth_event);
+    const consumed = challenge2 ? store.clientIdentityStore.consumeChallenge(challenge2) : null;
+    if (!consumed)
+      return sendIdentityAuthFailed(reply);
+    const verification = verifyAuthEvent(body.data.auth_event, {
+      relay: consumed.relay,
+      challenge: challenge2,
+      now_ms: Date.now()
+    });
+    if (!verification.ok)
+      return sendIdentityAuthFailed(reply);
+    const identity = store.clientIdentityStore.getIdentityByPubkey(verification.pubkey_hex);
+    reply.header("cache-control", "no-store");
+    if (!identity || identity.revoked_at !== null)
+      return { workspaces: [] };
+    return { workspaces: identityWorkspaces(store, identity.identity_id) };
+  });
+  app.post("/v1/identity/workspace-for-folder", async (request, reply) => {
+    const body = external_exports.object({
+      auth_event: external_exports.record(external_exports.unknown()),
+      locator: external_exports.string().min(1)
+    }).strict().safeParse(request.body);
+    if (!body.success)
+      return reply.code(400).send({ error: "identity_folder_lookup_request_invalid" });
+    const challenge2 = challengeTagOf(body.data.auth_event);
+    const consumed = challenge2 ? store.clientIdentityStore.consumeChallenge(challenge2) : null;
+    if (!consumed)
+      return sendIdentityAuthFailed(reply);
+    const verification = verifyAuthEvent(body.data.auth_event, {
+      relay: consumed.relay,
+      challenge: challenge2,
+      now_ms: Date.now()
+    });
+    if (!verification.ok)
+      return sendIdentityAuthFailed(reply);
+    let workspace;
+    try {
+      workspace = store.findWorkspaceByLocator(body.data.locator);
+    } catch (error) {
+      if (error instanceof WorkspaceLocatorInvalidError) {
+        return reply.code(400).send({ error: "workspace_locator_invalid", message: error.message });
+      }
+      throw error;
+    }
+    reply.header("cache-control", "no-store");
+    if (!workspace)
+      return { workspace: null, joined: false };
+    const identity = store.clientIdentityStore.getIdentityByPubkey(verification.pubkey_hex);
+    const joined = !!identity && identity.revoked_at === null && store.clientIdentityStore.isMemberOfWorkspace(identity.identity_id, workspace.workspace_id);
+    return {
+      workspace: { workspace_id: workspace.workspace_id, name: workspace.name, folder_path: workspace.locator },
+      joined
+    };
   });
   app.get("/v1/clients", async (request, reply) => {
     const authority = requestAuthorities.get(request);
@@ -121749,7 +121821,7 @@ function resolveTransportRequirement(request, store) {
     return { kind: "public" };
   if (route === "/v1/events/stream")
     return { kind: "websocket" };
-  if (route === "/v1/identity/challenge" || route === "/v1/identity/authenticate" || route === "/v1/identity/register-workspace") {
+  if (route === "/v1/identity/challenge" || route === "/v1/identity/authenticate" || route === "/v1/identity/register-workspace" || route === "/v1/identity/workspace-for-folder" || route === "/v1/identity/workspaces") {
     return { kind: "public" };
   }
   if (route === "/v1/credential-ingress-sessions/:ingress_session_id/material") {
@@ -121863,10 +121935,18 @@ function publicWorkspaceAuthority(authority) {
   };
 }
 function identityWorkspaces(store, identityId) {
+  const lastUsed = store.clientIdentityStore.lastSessionIssuedByWorkspace(identityId);
   return store.clientIdentityStore.listWorkspaceIdsForIdentity(identityId).map((workspaceId4) => {
     const workspace = store.getWorkspace(workspaceId4);
-    return workspace ? { workspace_id: workspaceId4, name: workspace.name ?? workspaceId4 } : null;
-  }).filter((entry) => entry !== null);
+    if (!workspace)
+      return null;
+    return {
+      workspace_id: workspaceId4,
+      name: workspace.name ?? workspaceId4,
+      folder_path: workspace.locator,
+      last_used_at: lastUsed.get(workspaceId4) ?? null
+    };
+  }).filter((entry) => entry !== null).sort((a, b) => (b.last_used_at ?? "").localeCompare(a.last_used_at ?? ""));
 }
 function challengeTagOf(event) {
   const tags = event.tags;

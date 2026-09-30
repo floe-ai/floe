@@ -109,6 +109,8 @@ export declare class IdentityAgent {
     private revokeAdmissions;
     private forgetDeviceKey;
     private joinFolder;
+    private listWorkspaces;
+    private workspaceForFolder;
     private startSession;
     private selectWorkspace;
     private endOwnSession;

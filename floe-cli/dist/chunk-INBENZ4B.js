@@ -25,166 +25,6 @@ import {
   resolveLocalPath
 } from "./chunk-IO6DTE5U.js";
 
-// floe-cli/dist/process-manager.js
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-import { spawn, spawnSync } from "node:child_process";
-var SERVICE_NAMES = ["bus", "bridge", "identity"];
-function recordsPath(configPath, config) {
-  return join(resolveLocalPath(configPath, config.home, "."), "services.json");
-}
-function readRecords(configPath, config) {
-  const path = recordsPath(configPath, config);
-  if (!existsSync(path))
-    return {};
-  return JSON.parse(readFileSync(path, "utf8"));
-}
-function writeRecords(configPath, config, records) {
-  const path = recordsPath(configPath, config);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(records, null, 2), "utf8");
-}
-function serviceLogPath(configPath, config, service) {
-  const dir = service === "bus" ? config.bus.log_dir : service === "bridge" ? config.bridge.log_dir : "./logs/identity";
-  return join(resolveLocalPath(configPath, config.home, dir), `${service}.log`);
-}
-function isPidRunning(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function serviceEntry(service) {
-  if (service === "identity") {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const entry = join(here, "identity", "agent-main.js");
-    const built = resolve(here, "..", "dist", "identity", "agent-main.js");
-    if (existsSync(entry))
-      return entry;
-    if (existsSync(built))
-      return built;
-    throw new Error(`Floe cannot find its identity agent at ${entry}. The install is incomplete. In a dev checkout, run \`npm run build --workspace floe-cli\`; a released install already includes it.`);
-  }
-  const pkg = service === "bus" ? "floe-bus" : "floe-bridge";
-  const require2 = createRequire(import.meta.url);
-  try {
-    return require2.resolve(`${pkg}/dist/index.js`);
-  } catch {
-    const moduleDirectory = dirname(fileURLToPath(import.meta.url));
-    const artifactRoot = resolve(moduleDirectory, "..", "..");
-    const bundled = join(artifactRoot, pkg, "dist", "index.js");
-    if (existsSync(bundled))
-      return bundled;
-    throw new Error(`Floe cannot find the ${pkg} service. Its built entry (${pkg}/dist/index.js) is not resolvable from the floe CLI, and no bundled copy was found at ${bundled}. This means the install is incomplete: ${pkg} must ship with the CLI. In a dev checkout, run \`npm install\` then \`npm run build\`; a released install already bundles the bus and bridge alongside the CLI.`);
-  }
-}
-async function startService(configPath, config, service, extraEnv = {}, instanceId) {
-  const records = readRecords(configPath, config);
-  const existing = records[service];
-  if (existing && isPidRunning(existing.pid))
-    return existing;
-  const entry = await runnableEntry(configPath, config, records, serviceEntry(service));
-  const command = process.execPath;
-  const args = [entry, "daemon", "--config", configPath, ...service === "bus" && instanceId ? ["--instance-id", instanceId] : []];
-  const defaultLogFile = serviceLogPath(configPath, config, service);
-  mkdirSync(dirname(defaultLogFile), { recursive: true });
-  const { logFile, logFd } = openServiceLog(defaultLogFile, service);
-  const child = spawn(command, args, {
-    cwd: dirname(entry),
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
-    windowsHide: true,
-    // Services read everything from the config named by --config. The only
-    // values passed through the environment are per-start secrets (extraEnv),
-    // which must not appear on a command line.
-    env: {
-      ...process.env,
-      ...extraEnv
-    }
-  });
-  closeSync(logFd);
-  child.unref();
-  const record = {
-    pid: child.pid ?? 0,
-    started_at: (/* @__PURE__ */ new Date()).toISOString(),
-    command,
-    args,
-    log_file: logFile,
-    ...service === "bus" && instanceId ? { instance_id: instanceId } : {}
-  };
-  records[service] = record;
-  writeRecords(configPath, config, records);
-  return record;
-}
-async function runnableEntry(configPath, config, records, entry) {
-  const installation = thisInstallation();
-  if (!isNpmInstalled(installation.packageDir))
-    return entry;
-  const home = resolveLocalPath(configPath, config.home, ".");
-  const stage = await ensureStage(home, installation);
-  const inUse = Object.values(records).filter((record) => Boolean(record && isPidRunning(record.pid))).map((record) => record.args[0] ?? "");
-  pruneStages(home, stage.dir, inUse);
-  return stage.map(entry);
-}
-function openServiceLog(defaultLogFile, service) {
-  const marker = `
-[${(/* @__PURE__ */ new Date()).toISOString()}] starting ${service}
-`;
-  try {
-    const fd = openSync(defaultLogFile, "a");
-    writeSync(fd, marker);
-    return { logFile: defaultLogFile, logFd: fd };
-  } catch (error) {
-    if (error?.code !== "EBUSY" && error?.code !== "EPERM")
-      throw error;
-    const fallback = join(dirname(defaultLogFile), `${service}-${Date.now()}.log`);
-    const fd = openSync(fallback, "a");
-    writeSync(fd, marker);
-    return { logFile: fallback, logFd: fd };
-  }
-}
-function stopService(configPath, config, service) {
-  const records = readRecords(configPath, config);
-  const record = records[service];
-  if (!record)
-    return false;
-  let stopped = false;
-  if (isPidRunning(record.pid)) {
-    try {
-      if (process.platform === "win32") {
-        spawnSync("taskkill", ["/PID", String(record.pid), "/T", "/F"], { stdio: "ignore" });
-      } else {
-        process.kill(-record.pid, "SIGTERM");
-      }
-      stopped = true;
-    } catch {
-      try {
-        process.kill(record.pid);
-        stopped = true;
-      } catch {
-        stopped = false;
-      }
-    }
-  }
-  delete records[service];
-  writeRecords(configPath, config, records);
-  if (service === "identity") {
-    const home = resolveLocalPath(configPath, config.home, ".");
-    if (readRunFile(home)?.pid === record.pid)
-      rmSync(runFilePath(home), { force: true });
-  }
-  return stopped;
-}
-function clearRecords(configPath, config) {
-  const path = recordsPath(configPath, config);
-  if (existsSync(path))
-    unlinkSync(path);
-}
-
 // floe-cli/dist/local-channel/connection.js
 import { createConnection } from "node:net";
 var ChannelUnavailableError = class extends Error {
@@ -289,6 +129,259 @@ var ENGINES_CHANNEL = {
   runFile: "engines.json",
   socketFile: "engines.sock"
 };
+
+// floe-cli/dist/bus-health.js
+async function fetchBusHealth(baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/health`);
+    if (!response.ok)
+      return null;
+    const body = await response.json();
+    return { ok: body.ok === true, instance_id: body.instance_id ?? null, version: body.version ?? null };
+  } catch {
+    return null;
+  }
+}
+
+// floe-cli/dist/process-identity.js
+import { spawnSync } from "node:child_process";
+function isPidRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function describeProcess(pid) {
+  if (!Number.isInteger(pid) || pid <= 0)
+    return null;
+  return process.platform === "win32" ? describeWindowsProcess(pid) : describePosixProcess(pid);
+}
+function describeWindowsProcess(pid) {
+  const script = `$p = Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}'; if ($p) { [pscustomobject]@{ started = if ($p.CreationDate) { $p.CreationDate.ToUniversalTime().ToString('o') } else { $null }; command_line = $p.CommandLine } | ConvertTo-Json -Compress }`;
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 2e4
+  });
+  const text = (result.stdout ?? "").trim();
+  if (result.status !== 0 || !text)
+    return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed.command_line !== "string")
+      return null;
+    return { started_at: parsed.started ? new Date(parsed.started) : null, command_line: parsed.command_line };
+  } catch {
+    return null;
+  }
+}
+function describePosixProcess(pid) {
+  const result = spawnSync("ps", ["-o", "lstart=", "-o", "args=", "-p", String(pid)], {
+    encoding: "utf8",
+    env: { ...process.env, LC_ALL: "C" },
+    timeout: 2e4
+  });
+  const line = (result.stdout ?? "").split("\n").find((item) => item.trim() !== "");
+  if (result.status !== 0 || !line)
+    return null;
+  const started = new Date(line.slice(0, 24).trim());
+  return {
+    started_at: Number.isNaN(started.getTime()) ? null : started,
+    command_line: line.slice(24).trim()
+  };
+}
+
+// floe-cli/dist/service-ownership.js
+var START_TOLERANCE_MS = 2e3;
+async function recordedServiceOwnership(configPath, config, service, record) {
+  if (!record.pid || !isPidRunning(record.pid))
+    return "not_ours";
+  if (await answersAsItself(configPath, config, service, record))
+    return "answering";
+  return operatingSystemConfirms(record) ? "silent" : "not_ours";
+}
+async function answersAsItself(configPath, config, service, record) {
+  if (service === "bus") {
+    const health = await fetchBusHealth(config.bus.http_base_url);
+    return Boolean(record.instance_id && health?.instance_id === record.instance_id);
+  }
+  const home = canonicalHome(resolveLocalPath(configPath, config.home, "."));
+  if (service === "bridge") {
+    return readChannelRunFile(ENGINES_CHANNEL, home)?.pid === record.pid && await probeChannel(ENGINES_CHANNEL, home) !== null;
+  }
+  return readRunFile(home)?.pid === record.pid && await probeAgent(home) !== null;
+}
+function operatingSystemConfirms(record) {
+  const recordedStart = Date.parse(record.started_at);
+  if (Number.isNaN(recordedStart))
+    return false;
+  const actual = describeProcess(record.pid);
+  if (!actual?.started_at)
+    return false;
+  if (actual.started_at.getTime() > recordedStart + START_TOLERANCE_MS)
+    return false;
+  return [record.command, ...record.args].every((part) => actual.command_line.includes(part));
+}
+
+// floe-cli/dist/process-manager.js
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { spawn, spawnSync as spawnSync2 } from "node:child_process";
+var SERVICE_NAMES = ["bus", "bridge", "identity"];
+function recordsPath(configPath, config) {
+  return join(resolveLocalPath(configPath, config.home, "."), "services.json");
+}
+function readRecords(configPath, config) {
+  const path = recordsPath(configPath, config);
+  if (!existsSync(path))
+    return {};
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+function writeRecords(configPath, config, records) {
+  const path = recordsPath(configPath, config);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(records, null, 2), "utf8");
+}
+function serviceLogPath(configPath, config, service) {
+  const dir = service === "bus" ? config.bus.log_dir : service === "bridge" ? config.bridge.log_dir : "./logs/identity";
+  return join(resolveLocalPath(configPath, config.home, dir), `${service}.log`);
+}
+function serviceEntry(service) {
+  if (service === "identity") {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const entry = join(here, "identity", "agent-main.js");
+    const built = resolve(here, "..", "dist", "identity", "agent-main.js");
+    if (existsSync(entry))
+      return entry;
+    if (existsSync(built))
+      return built;
+    throw new Error(`Floe cannot find its identity agent at ${entry}. The install is incomplete. In a dev checkout, run \`npm run build --workspace floe-cli\`; a released install already includes it.`);
+  }
+  const pkg = service === "bus" ? "floe-bus" : "floe-bridge";
+  const require2 = createRequire(import.meta.url);
+  try {
+    return require2.resolve(`${pkg}/dist/index.js`);
+  } catch {
+    const moduleDirectory = dirname(fileURLToPath(import.meta.url));
+    const artifactRoot = resolve(moduleDirectory, "..", "..");
+    const bundled = join(artifactRoot, pkg, "dist", "index.js");
+    if (existsSync(bundled))
+      return bundled;
+    throw new Error(`Floe cannot find the ${pkg} service. Its built entry (${pkg}/dist/index.js) is not resolvable from the floe CLI, and no bundled copy was found at ${bundled}. This means the install is incomplete: ${pkg} must ship with the CLI. In a dev checkout, run \`npm install\` then \`npm run build\`; a released install already bundles the bus and bridge alongside the CLI.`);
+  }
+}
+async function startService(configPath, config, service, extraEnv = {}, instanceId) {
+  const records = readRecords(configPath, config);
+  const existing = records[service];
+  if (existing) {
+    const ownership = await recordedServiceOwnership(configPath, config, service, existing);
+    if (ownership === "answering")
+      return existing;
+    if (ownership === "silent")
+      killProcessTree(existing.pid);
+  }
+  const entry = await runnableEntry(configPath, config, records, serviceEntry(service));
+  const command = process.execPath;
+  const args = [entry, "daemon", "--config", configPath, ...service === "bus" && instanceId ? ["--instance-id", instanceId] : []];
+  const defaultLogFile = serviceLogPath(configPath, config, service);
+  mkdirSync(dirname(defaultLogFile), { recursive: true });
+  const { logFile, logFd } = openServiceLog(defaultLogFile, service);
+  const child = spawn(command, args, {
+    cwd: dirname(entry),
+    detached: true,
+    stdio: ["ignore", logFd, logFd],
+    windowsHide: true,
+    // Services read everything from the config named by --config. The only
+    // values passed through the environment are per-start secrets (extraEnv),
+    // which must not appear on a command line.
+    env: {
+      ...process.env,
+      ...extraEnv
+    }
+  });
+  closeSync(logFd);
+  child.unref();
+  const record = {
+    pid: child.pid ?? 0,
+    started_at: (/* @__PURE__ */ new Date()).toISOString(),
+    command,
+    args,
+    log_file: logFile,
+    ...service === "bus" && instanceId ? { instance_id: instanceId } : {}
+  };
+  records[service] = record;
+  writeRecords(configPath, config, records);
+  return record;
+}
+async function runnableEntry(configPath, config, records, entry) {
+  const installation = thisInstallation();
+  if (!isNpmInstalled(installation.packageDir))
+    return entry;
+  const home = resolveLocalPath(configPath, config.home, ".");
+  const stage = await ensureStage(home, installation);
+  const inUse = Object.values(records).filter((record) => Boolean(record && isPidRunning(record.pid))).map((record) => record.args[0] ?? "");
+  pruneStages(home, stage.dir, inUse);
+  return stage.map(entry);
+}
+function openServiceLog(defaultLogFile, service) {
+  const marker = `
+[${(/* @__PURE__ */ new Date()).toISOString()}] starting ${service}
+`;
+  try {
+    const fd = openSync(defaultLogFile, "a");
+    writeSync(fd, marker);
+    return { logFile: defaultLogFile, logFd: fd };
+  } catch (error) {
+    if (error?.code !== "EBUSY" && error?.code !== "EPERM")
+      throw error;
+    const fallback = join(dirname(defaultLogFile), `${service}-${Date.now()}.log`);
+    const fd = openSync(fallback, "a");
+    writeSync(fd, marker);
+    return { logFile: fallback, logFd: fd };
+  }
+}
+async function stopService(configPath, config, service) {
+  const records = readRecords(configPath, config);
+  const record = records[service];
+  if (!record)
+    return false;
+  const ownership = await recordedServiceOwnership(configPath, config, service, record);
+  const stopped = ownership !== "not_ours" && killProcessTree(record.pid);
+  const current = readRecords(configPath, config);
+  delete current[service];
+  writeRecords(configPath, config, current);
+  if (service === "identity") {
+    const home = resolveLocalPath(configPath, config.home, ".");
+    if (readRunFile(home)?.pid === record.pid)
+      rmSync(runFilePath(home), { force: true });
+  }
+  return stopped;
+}
+function killProcessTree(pid) {
+  try {
+    if (process.platform === "win32") {
+      return spawnSync2("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" }).status === 0;
+    }
+    process.kill(-pid, "SIGTERM");
+    return true;
+  } catch {
+    try {
+      process.kill(pid);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+function clearRecords(configPath, config) {
+  const path = recordsPath(configPath, config);
+  if (existsSync(path))
+    unlinkSync(path);
+}
 
 // floe-cli/dist/startup.js
 import { randomUUID } from "node:crypto";
@@ -402,17 +495,6 @@ var ForeignBusError = class extends Error {
     this.name = "ForeignBusError";
   }
 };
-async function fetchBusHealth(baseUrl) {
-  try {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/health`);
-    if (!response.ok)
-      return null;
-    const body = await response.json();
-    return { ok: body.ok === true, instance_id: body.instance_id ?? null, version: body.version ?? null };
-  } catch {
-    return null;
-  }
-}
 async function isHealthy(baseUrl) {
   return await fetchBusHealth(baseUrl) !== null;
 }
@@ -532,15 +614,15 @@ ${readLogTail(record.log_file)}`);
 function startAll(configPath, config) {
   return withStartLock(floeHome(configPath, config), () => startAllHeld(configPath, config));
 }
-function stopAll(configPath, config) {
+async function stopAll(configPath, config) {
   for (const service of [...SERVICE_NAMES].reverse())
-    stopService(configPath, config, service);
+    await stopService(configPath, config, service);
 }
 function restartAll(configPath, config, beforeStop = async () => true) {
   return withStartLock(floeHome(configPath, config), async () => {
     if (!await beforeStop())
       return false;
-    stopAll(configPath, config);
+    await stopAll(configPath, config);
     await startAllHeld(configPath, config);
     return true;
   });
@@ -758,15 +840,15 @@ var ChannelClient = class {
 };
 
 export {
+  ChannelUnavailableError,
+  probeAgent,
+  ENGINES_CHANNEL,
+  recordedServiceOwnership,
   SERVICE_NAMES,
   recordsPath,
   readRecords,
   serviceLogPath,
-  isPidRunning,
   clearRecords,
-  ChannelUnavailableError,
-  probeAgent,
-  ENGINES_CHANNEL,
   isHealthy,
   runningBusVersion,
   describeVersionMismatch,

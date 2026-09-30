@@ -9830,7 +9830,7 @@ var BusIdentityClient = class {
       bearer_token: body.bearer_token,
       authority_session_id: body.authority_session_id ?? null,
       identity_id: body.identity?.identity_id,
-      workspace: workspaces.find((w) => w.workspace_id === body.workspace_id) ?? { workspace_id: body.workspace_id, name: body.workspace_id },
+      workspace: workspaces.find((w) => w.workspace_id === body.workspace_id) ?? { workspace_id: body.workspace_id, name: body.workspace_id, folder_path: null, last_used_at: null },
       expires_at: body.expires_at,
       workspaces
     };
@@ -9866,6 +9866,34 @@ var BusIdentityClient = class {
       return { kind: "pending", workspace_id: body.workspace_id };
     if (response.status === 422)
       return { kind: "failed", workspace_id: body.workspace_id, reason: body.materialization?.reason ?? "unknown" };
+    if (response.status === 401)
+      return { kind: "refused", message: "The bus rejected the identity's proof." };
+    const error = typeof body.error === "string" ? body.error : `http_${response.status}`;
+    return { kind: "invalid", error, message: joinInvalidMessage(error, body.message) };
+  }
+  /** The identity's workspaces, most recently used first. Mints nothing. */
+  async listWorkspaces(event) {
+    const response = await this.call("/v1/identity/workspaces", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ auth_event: event })
+    });
+    if (response.status === 401)
+      return null;
+    if (!response.ok)
+      throw new Error(`The bus refused to list workspaces (${response.status}).`);
+    return (await response.json()).workspaces;
+  }
+  /** Which workspace a folder already is, if any. Read-only: never registers or joins. */
+  async workspaceForFolder(event, locator) {
+    const response = await this.call("/v1/identity/workspace-for-folder", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ auth_event: event, locator })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok)
+      return body.workspace ? { kind: "workspace", workspace: body.workspace, joined: body.joined === true } : { kind: "none" };
     if (response.status === 401)
       return { kind: "refused", message: "The bus rejected the identity's proof." };
     const error = typeof body.error === "string" ? body.error : `http_${response.status}`;
@@ -10171,6 +10199,10 @@ var IdentityAgent = class {
         return this.serial(() => this.deleteIdentity(args));
       case "join_folder":
         return this.joinFolder(args);
+      case "workspace_for_folder":
+        return this.workspaceForFolder(args);
+      case "list_workspaces":
+        return this.listWorkspaces();
       case "session":
         return this.startSession(conn, args);
       case "select_workspace":
@@ -10456,6 +10488,34 @@ var IdentityAgent = class {
         }
       }
       return outcome;
+    } catch (error) {
+      throw asAgentError(error);
+    } finally {
+      key.fill(0);
+    }
+  }
+  async listWorkspaces() {
+    this.requireFile();
+    const key = await this.ensureUnlocked();
+    try {
+      const { challenge: challenge2, relay } = await this.bus.challenge();
+      const workspaces = await this.bus.listWorkspaces(signAuthEvent(key, relay, challenge2));
+      if (!workspaces)
+        throw new AgentError("refused", "The bus rejected the identity's proof.");
+      return { workspaces };
+    } catch (error) {
+      throw asAgentError(error);
+    } finally {
+      key.fill(0);
+    }
+  }
+  async workspaceForFolder(args) {
+    const locator = requireString(args, "locator");
+    this.requireFile();
+    const key = await this.ensureUnlocked();
+    try {
+      const { challenge: challenge2, relay } = await this.bus.challenge();
+      return await this.bus.workspaceForFolder(signAuthEvent(key, relay, challenge2), locator);
     } catch (error) {
       throw asAgentError(error);
     } finally {

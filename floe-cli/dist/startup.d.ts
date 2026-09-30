@@ -1,15 +1,10 @@
 import type { LocalConfig } from "./config.js";
+export { fetchBusHealth } from "./bus-health.js";
 export declare class ForeignBusError extends Error {
     readonly url: string;
     readonly code: "E_FOREIGN_BUS";
     constructor(url: string, detail: string);
 }
-type BusHealth = {
-    ok: boolean;
-    instance_id: string | null;
-    version: string | null;
-};
-export declare function fetchBusHealth(baseUrl: string): Promise<BusHealth | null>;
 export declare function isHealthy(baseUrl: string): Promise<boolean>;
 /** The version the bus serving at `baseUrl` reports; null if unreachable or it reports none. */
 export declare function runningBusVersion(baseUrl: string): Promise<string | null>;
@@ -84,7 +79,7 @@ export declare function ensureIdentityAgent(configPath: string, config: LocalCon
  */
 export declare function startAll(configPath: string, config: LocalConfig): Promise<void>;
 /** Stop in reverse start order: nothing is left running that depends on a stopped service. */
-export declare function stopAll(configPath: string, config: LocalConfig): void;
+export declare function stopAll(configPath: string, config: LocalConfig): Promise<void>;
 /**
  * Stop and start Floe as one start (start-lock.ts), so no other start runs in
  * between. `beforeStop` runs while the lock is held, immediately before
@@ -99,4 +94,3 @@ export declare function restartAll(configPath: string, config: LocalConfig, befo
  * died on its first line must not be reported as started.
  */
 export declare function ensureBridge(configPath: string, config: LocalConfig): Promise<void>;
-export {};

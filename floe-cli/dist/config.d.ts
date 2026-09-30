@@ -95,8 +95,8 @@ declare const LocalConfigSchema: z.ZodObject<{
         lock_after_idle_minutes: number;
     }>>;
 }, "strict", z.ZodTypeAny, {
-    schema: "floe.local.v1";
     version: number;
+    schema: "floe.local.v1";
     home: string;
     services: {
         start_on_demand: boolean;
@@ -132,8 +132,8 @@ declare const LocalConfigSchema: z.ZodObject<{
         lock_after_idle_minutes: number;
     } | undefined;
 }, {
-    schema: "floe.local.v1";
     version: number;
+    schema: "floe.local.v1";
     home: string;
     services: {
         start_on_demand: boolean;

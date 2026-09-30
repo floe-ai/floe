@@ -33,6 +33,10 @@ export type IdentityState = {
 export type Workspace = {
     workspace_id: string;
     name: string;
+    /** The folder on this machine the workspace is bound to. */
+    folder_path: string | null;
+    /** When this identity last opened it; null if never. Lists come most recent first. */
+    last_used_at: string | null;
 };
 /** One identity Floe holds. Unreadable ones have null details but can still be deleted. */
 export type HeldIdentity = {
@@ -74,6 +78,24 @@ export type JoinOutcome = {
     kind: "failed";
     workspace_id: string;
     reason: string;
+} | {
+    kind: "invalid";
+    error: string;
+    message: string;
+} | {
+    kind: "refused";
+    message: string;
+};
+export type FolderLookup = {
+    kind: "workspace";
+    workspace: {
+        workspace_id: string;
+        name: string;
+        folder_path: string | null;
+    };
+    joined: boolean;
+} | {
+    kind: "none";
 } | {
     kind: "invalid";
     error: string;
@@ -175,6 +197,15 @@ export declare class IdentityClient extends ChannelClient {
         create_directory?: boolean;
         name?: string;
     }): Promise<JoinOutcome>;
+    /** The identity's workspaces, most recently used first. Opens no session and mints nothing. */
+    listWorkspaces(): Promise<Workspace[]>;
+    /**
+     * Which workspace a folder already is: `workspace` (with `joined` saying whether
+     * this identity is in it) or `none`. Read-only: it never registers or joins.
+     */
+    workspaceForFolder(input: {
+        locator: string;
+    }): Promise<FolderLookup>;
     /**
      * Ask for a bearer. The listener receives `ready` with the bearer, then `ready`
      * again with a fresh one before each expiry, until the session ends.
